@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { listDocs, createDoc, updateDoc_, COLS } from "./firebase";
+import { listDocs, createDoc, updateDoc_, COLS, loginUser, logoutUser, onAuth, createAuthUser } from "./firebase";
 import {
   LayoutDashboard, FolderKanban, Clock3, TrendingUp, Briefcase, CalendarDays,
   Umbrella, Building2, Users2, UserCheck, Bell, Sun, Moon, ChevronRight,
@@ -1166,7 +1166,7 @@ function Departments({t,data,setData,toast}){
   const [showAdd,setShowAdd]=useState(false);
   const [form,setForm]=useState({name:"",managerId:"",hodId:"",color:t.lime});
   const add=()=>{
-    if(!form.name||!form.hodId){toast("Name and HoD required","error");return;}
+    if(!form.name){toast("Department name required","error");return;}
     setData(d=>({...d,departments:[...d.departments,{...form,id:"d"+Date.now()}]}));
     setShowAdd(false);setForm({name:"",managerId:"",hodId:"",color:t.lime});toast("Department created");
   };
@@ -1226,7 +1226,7 @@ function Departments({t,data,setData,toast}){
         <Field label="Department Name *" t={t}><Inp value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Motion Design" t={t}/></Field>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <Field label="Company Manager" t={t}><Sel value={form.managerId} onChange={e=>setForm(p=>({...p,managerId:e.target.value}))} t={t}><option value="">Select</option>{data.users.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
-          <Field label="Head of Department *" t={t}><Sel value={form.hodId} onChange={e=>setForm(p=>({...p,hodId:e.target.value}))} t={t}><option value="">Select</option>{data.users.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
+          <Field label="Head of Department (optional)" t={t}><Sel value={form.hodId} onChange={e=>setForm(p=>({...p,hodId:e.target.value}))} t={t}><option value="">Select</option>{data.users.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
         </div>
         <Field label="Accent Color" t={t}><div style={{display:"flex",gap:10,alignItems:"center"}}><input type="color" value={form.color} onChange={e=>setForm(p=>({...p,color:e.target.value}))} style={{width:40,height:36,border:"none",borderRadius:8,cursor:"pointer",background:"none"}}/><span style={{fontSize:12,color:t.textMuted}}>{form.color}</span></div></Field>
         <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
@@ -1259,11 +1259,19 @@ function Team({t,data,setData,toast}){
     });
   },[]);
 
-  const add=()=>{
-    if(!form.name||!form.email||!form.dept){toast("Fill required fields","error");return;}
+  const add=async()=>{
+    if(!form.name||!form.email){toast("Name and email required","error");return;}
+    toast("Creating account & sending invite email…","info");
+    try{
+      await createAuthUser(form.email);
+    }catch(e){
+      // If user already exists in Auth, continue anyway
+      if(!e.code?.includes("already-in-use")) { toast("Could not create login account","error"); return; }
+    }
     const initials=form.name.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2);
     setData(d=>({...d,users:[...d.users,{...form,id:"u"+Date.now(),av:initials,active:true}]}));
-    setShowAdd(false);setForm({name:"",email:"",phone:"",role:"",dept:"",dob:""});toast(`${form.name} added`);
+    setShowAdd(false);setForm({name:"",email:"",phone:"",role:"",dept:"",dob:""});
+    toast(`${form.name} added — invite email sent!`);
   };
 
   return(
@@ -1328,7 +1336,7 @@ function Team({t,data,setData,toast}){
           <Field label="Work Email *" t={t}><Inp type="email" value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))} placeholder="ananya@profitpenny.in" t={t}/></Field>
           <Field label="Phone" t={t}><Inp value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))} placeholder="98XXXXXXXX" t={t}/></Field>
           <Field label="Role / Designation *" t={t}><Inp value={form.role} onChange={e=>setForm(p=>({...p,role:e.target.value}))} placeholder="e.g. Senior Designer" t={t}/></Field>
-          <Field label="Department *" t={t}><Sel value={form.dept} onChange={e=>setForm(p=>({...p,dept:e.target.value}))} t={t}><option value="">Select dept.</option>{data.departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</Sel></Field>
+          <Field label="Department (optional)" t={t}><Sel value={form.dept} onChange={e=>setForm(p=>({...p,dept:e.target.value}))} t={t}><option value="">Select dept.</option>{data.departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</Sel></Field>
           <Field label="Date of Birth" t={t}><Inp type="date" value={form.dob} onChange={e=>setForm(p=>({...p,dob:e.target.value}))} t={t}/></Field>
         </div>
         <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
@@ -1449,10 +1457,103 @@ const NAV=[
   {id:"notifications",label:"Notifications",Icon:Bell},
 ];
 
+// ── LOGIN SCREEN ──────────────────────────────────────────────────────────────
+function LoginScreen({onLogin}){
+  const t=D.light;
+  const [email,setEmail]=useState("");
+  const [pass,setPass]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [err,setErr]=useState("");
+  const [resetSent,setResetSent]=useState(false);
+  const [showReset,setShowReset]=useState(false);
+
+  const login=async()=>{
+    if(!email||!pass){setErr("Enter email and password");return;}
+    setLoading(true);setErr("");
+    try{ await loginUser(email,pass); onLogin(); }
+    catch(e){ setErr(e.code==="auth/invalid-credential"?"Wrong email or password":"Login failed — try again"); }
+    finally{ setLoading(false); }
+  };
+
+  const sendReset=async()=>{
+    if(!email){setErr("Enter your email first");return;}
+    try{
+      const {sendPasswordResetEmail,getAuth}=await import("firebase/auth");
+      await sendPasswordResetEmail(getAuth(),email,{url:window.location.origin});
+      setResetSent(true);setShowReset(false);
+    }catch(e){setErr("Could not send reset email");}
+  };
+
+  return(
+    <>
+      <style>{CSS}</style>
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f8f9f3",fontFamily:"'DM Sans',sans-serif"}}>
+        <div style={{width:"100%",maxWidth:420,padding:"0 20px"}}>
+          <div style={{textAlign:"center",marginBottom:36}}>
+            <PPLogo collapsed={false}/>
+            <p style={{color:t.textMuted,marginTop:10,fontSize:14}}>Sign in to your workspace</p>
+          </div>
+          <Card t={t} style={{padding:32}}>
+            {err&&<div style={{background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#dc2626",marginBottom:16}}>{err}</div>}
+            {resetSent&&<div style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#16a34a",marginBottom:16}}>Password reset email sent! Check your inbox.</div>}
+            <Field label="Work Email" t={t}>
+              <Inp type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@profitpenny.in" t={t}
+                onKeyDown={e=>e.key==="Enter"&&login()}/>
+            </Field>
+            {!showReset&&(
+              <Field label="Password" t={t}>
+                <Inp type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" t={t}
+                  onKeyDown={e=>e.key==="Enter"&&login()}/>
+              </Field>
+            )}
+            <Btn v="lime" t={t} onClick={login} style={{width:"100%",justifyContent:"center",marginTop:8,padding:"13px 0",fontSize:15}}>
+              {loading?"Signing in…":"Sign In →"}
+            </Btn>
+            <div style={{textAlign:"center",marginTop:14}}>
+              <button onClick={()=>setShowReset(s=>!s)} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,fontSize:13,textDecoration:"underline"}}>
+                Forgot password?
+              </button>
+              {showReset&&(
+                <Btn v="secondary" t={t} onClick={sendReset} style={{marginTop:10,width:"100%",justifyContent:"center"}}>
+                  Send Reset Link to {email||"your email"}
+                </Btn>
+              )}
+            </div>
+          </Card>
+          <p style={{textAlign:"center",marginTop:20,fontSize:12,color:t.textMuted}}>
+            New user? Ask your admin to create your account — you'll get an email to set your password.
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── AUTH WRAPPER ──────────────────────────────────────────────────────────────
+export default function Root(){
+  const [authState,setAuthState]=useState("loading"); // loading | out | in
+  useEffect(()=>{
+    const unsub = onAuth(user => setAuthState(user ? "in" : "out"));
+    return unsub;
+  },[]);
+  if(authState==="loading") return(
+    <>
+      <style>{CSS}</style>
+      <div style={{height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:D.light.bg,gap:20}}>
+        <PPLogo collapsed={false}/>
+        <div style={{width:40,height:40,border:`4px solid ${D.light.lime}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+        <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+      </div>
+    </>
+  );
+  if(authState==="out") return <LoginScreen onLogin={()=>setAuthState("in")}/>;
+  return <App/>;
+}
+
 // ── Firebase is schemaless — no parsing needed ────────────────────────────────
 const parseDoc = d => d;
 
-export default function App(){
+function App(){
   const [dark,setDark]=useState(false);
   const [nav,setNav]=useState("dashboard");
   const [side,setSide]=useState(true);
@@ -1622,8 +1723,14 @@ export default function App(){
             })}
           </nav>
           <div style={{padding:side?"10px 8px":"10px 0",borderTop:`1px solid ${t.sideHover}`,display:"flex",alignItems:"center",gap:9,justifyContent:side?"flex-start":"center"}}>
-            <Av init="RS" size={30} t={t}/>
-            {side&&<div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:600,color:"#FAFAFA",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>Rahul Sharma</div><div style={{fontSize:10,color:t.sideText}}>Admin · Founder</div></div>}
+            <Av init={data.users[0]?.av||"U"} size={30} t={t}/>
+            {side&&<div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#FAFAFA",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{data.users[0]?.name||"User"}</div>
+              <div style={{fontSize:10,color:t.sideText}}>{data.users[0]?.role||"Member"}</div>
+            </div>}
+            {side&&<button onClick={()=>{logoutUser();}} title="Sign out" style={{background:"none",border:"none",cursor:"pointer",color:t.sideText,display:"flex",alignItems:"center",padding:4,borderRadius:6,opacity:0.7}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.7}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </button>}
           </div>
         </aside>
 
