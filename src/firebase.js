@@ -1,8 +1,16 @@
 import { initializeApp } from "firebase/app";
 import {
-  getFirestore, collection, getDocs, addDoc, setDoc,
-  updateDoc, deleteDoc, doc, serverTimestamp
+  getFirestore, collection, getDocs, setDoc,
+  updateDoc, deleteDoc, doc
 } from "firebase/firestore";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDGiQeVoWpJJ-ONGUBUm36hnoVptgm_UlM",
@@ -15,54 +23,50 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+export const db   = getFirestore(app);
+export const auth = getAuth(app);
 
-// ── helpers ───────────────────────────────────────────────────────────────────
+export const loginUser  = (email, pass) => signInWithEmailAndPassword(auth, email, pass);
+export const logoutUser = () => signOut(auth);
+export const onAuth     = (cb) => onAuthStateChanged(auth, cb);
+
+export async function createAuthUser(email) {
+  const tempPass = Math.random().toString(36).slice(-10) + "Pp1!";
+  await createUserWithEmailAndPassword(auth, email, tempPass);
+  await sendPasswordResetEmail(auth, email, { url: window.location.origin });
+}
+
 export const COLS = {
-  TASKS:         "tasks",
-  USERS:         "users",
-  CLIENTS:       "clients",
-  DEPARTMENTS:   "departments",
-  LEAVES:        "leaves",
-  MEETINGS:      "meetings",
-  TIMELOGS:      "timelogs",
-  NOTIFICATIONS: "notifications",
-  ONBOARDING:    "onboarding",
+  TASKS:"tasks", USERS:"users", CLIENTS:"clients", DEPARTMENTS:"departments",
+  LEAVES:"leaves", MEETINGS:"meetings", TIMELOGS:"timelogs",
+  NOTIFICATIONS:"notifications", ONBOARDING:"onboarding",
 };
 
-// Get all docs from a collection, returns array with id field
 export async function listDocs(col) {
   const snap = await getDocs(collection(db, col));
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-// Create doc with custom ID
 export async function createDoc(col, id, data) {
-  const clean = stripUndefined(data);
+  const clean = strip(data);
   await setDoc(doc(db, col, id), clean);
   return { id, ...clean };
 }
 
-// Update doc by ID
 export async function updateDoc_(col, id, data) {
-  const clean = stripUndefined(data);
-  await updateDoc(doc(db, col, id), clean);
+  await updateDoc(doc(db, col, id), strip(data));
 }
 
-// Delete doc
 export async function deleteDoc_(col, id) {
   await deleteDoc(doc(db, col, id));
 }
 
-// Strip undefined values (Firestore doesn't accept them)
-function stripUndefined(obj) {
+function strip(obj) {
   if (obj === null || obj === undefined) return null;
-  if (Array.isArray(obj)) return obj.map(stripUndefined);
+  if (Array.isArray(obj)) return obj.map(strip);
   if (typeof obj === "object") {
     const out = {};
-    for (const [k, v] of Object.entries(obj)) {
-      if (v !== undefined) out[k] = stripUndefined(v);
-    }
+    for (const [k,v] of Object.entries(obj)) { if (v !== undefined) out[k] = strip(v); }
     return out;
   }
   return obj;
