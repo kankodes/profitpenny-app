@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { listDocs, createDoc, updateDoc_, COLS, loginUser, logoutUser, onAuth, createAuthUser } from "./firebase";
+import { listDocs, createDoc, updateDoc_, deleteDoc_, COLS, loginUser, logoutUser, onAuth, createAuthUser } from "./firebase";
 import {
   LayoutDashboard, FolderKanban, Clock3, TrendingUp, Briefcase, CalendarDays,
   Umbrella, Building2, Users2, UserCheck, Bell, Sun, Moon, ChevronRight,
@@ -7,8 +7,22 @@ import {
   Play, Send, ThumbsUp, ThumbsDown, Info, CheckCircle2, XCircle, AlarmClock,
   Mail, Phone, MapPin, Filter, Edit2, Crown, Shield, Users, Zap, Target,
   Award, Activity, TrendingDown, FileText, ArrowRight, Cake, Star, Layers,
-  CalendarPlus, UserCircle, BarChart3, Hash, ChevronDown, Edit
+  CalendarPlus, UserCircle, BarChart3, Hash, ChevronDown, Edit,
+  Trash2, Link2, Calendar, KanbanSquare, RefreshCw
 } from "lucide-react";
+
+// ── EMAILJS ── configure at emailjs.com (free, 200 emails/month) ─────────────
+const EJS = { svc:"YOUR_SERVICE_ID", tpl:"YOUR_TEMPLATE_ID", key:"YOUR_PUBLIC_KEY" };
+async function sendEmail(to_email, to_name, subject, message){
+  if(!to_email||EJS.key==="YOUR_PUBLIC_KEY") return; // not configured yet
+  try{
+    await fetch("https://api.emailjs.com/api/v1.0/email/send",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({service_id:EJS.svc,template_id:EJS.tpl,user_id:EJS.key,
+        template_params:{to_email,to_name,subject,message,from_name:"ProfitPenny Studio OS"}})
+    });
+  } catch(e){ console.warn("EmailJS not configured:",e.message); }
+}
 
 // ── STYLES ──────────────────────────────────────────────────────────────────
 const CSS = `
@@ -244,6 +258,39 @@ function PPLogo({collapsed}){
 }
 
 // ── TUTORIAL ─────────────────────────────────────────────────────────────────
+// ── PER-PAGE TIPS ─────────────────────────────────────────────────────────────
+const PAGE_TIPS={
+  dashboard:{title:"Dashboard",tip:"This is your mission control. See all active tasks, pending leaves, upcoming deadlines, and team performance at a glance. Click any item to jump straight to it."},
+  projects:{title:"Projects",tip:"All tasks live here. Create a task, assign it to a team member, set a deadline, and add asset links. Click 'Start Task' on a task to begin time tracking automatically. The Founder can skip setting a deadline and let the HoD propose one."},
+  board:{title:"My Board",tip:"A Kanban view of all tasks grouped by status. Drag cards across columns to update task status instantly. Great for a quick daily standup view."},
+  calendar:{title:"Calendar",tip:"See all task deadlines, approved leaves, and company holidays in one place. Toggle between Tasks, Leaves, and Holidays using the filter buttons."},
+  timelogs:{title:"Time Logs",tip:"Track how many hours the team spends on each task. Time is auto-logged when you start a task in Projects. You can also add manual log entries here. Each task gets a performance grade once completed."},
+  efficiency:{title:"Deadline Efficiency",tip:"See how well the team meets deadlines, broken down by person. Filter by department or client to drill down into performance data."},
+  clients:{title:"Clients",tip:"Manage your client relationships. Add POCs (Points of Contact), asset/reference links, and track happiness scores. Each time a deadline is met or missed it automatically affects the score."},
+  meetings:{title:"Meetings",tip:"Log client meetings, record minutes of meeting (MoM), and track action items. Each meeting gets a Google Calendar link generated automatically."},
+  leaves:{title:"Leaves",tip:"Team members apply for leave here. The HoD gets notified and can approve or reject. Approved leaves are reflected in the Calendar and show a warning when assigning tasks on those days."},
+  departments:{title:"Departments",tip:"Set up your company structure. Each department has a Head of Department (HoD) who manages leave approvals, deadline proposals, and extension requests for their team."},
+  team:{title:"Team",tip:"Add team members and assign them to departments. Birthday reminders are sent automatically. You can edit or remove members at any time."},
+  onboarding:{title:"Onboarding",tip:"Track the onboarding progress of new team members through a step-by-step checklist. Each step can be checked off as completed."},
+  notifications:{title:"Notifications",tip:"All approvals, alerts, and reminders land here. Click any notification to jump directly to the action it's referring to. Unread notifications also appear as a badge on the sidebar."},
+};
+
+function PageTip({nav,t}){
+  const [vis,setVis]=useState(true);
+  const tip=PAGE_TIPS[nav];
+  if(!tip||!vis)return null;
+  return(
+    <div style={{display:"flex",alignItems:"flex-start",gap:12,padding:"11px 15px",background:t.limeBg,border:`1px solid ${t.lime}30`,borderRadius:12,marginBottom:18,animation:"fadeUp .35s both"}}>
+      <div style={{width:30,height:30,borderRadius:9,background:t.lime+"33",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}><Info size={15} color={t.limeDeep}/></div>
+      <div style={{flex:1}}>
+        <div style={{fontWeight:700,fontSize:13,color:t.text,marginBottom:3}}>{tip.title}</div>
+        <div style={{fontSize:12,color:t.textMid,lineHeight:1.65}}>{tip.tip}</div>
+      </div>
+      <button onClick={()=>setVis(false)} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:2,borderRadius:5,display:"flex",flexShrink:0}} title="Dismiss"><X size={13}/></button>
+    </div>
+  );
+}
+
 const TUTORIAL_STEPS = [
   {icon:<Star size={28}/>,title:"Welcome to ProfitPenny Studio OS",body:"Your all-in-one workspace for managing projects, clients, team, and time — built for ProfitPenny. Let's take a quick tour.",color:"lime"},
   {icon:<FolderKanban size={28}/>,title:"Projects",body:"Every client task lives here. Start a task and time logging begins automatically. Request deadline extensions and get HoD approval — all in one place.",color:"blue"},
@@ -397,6 +444,32 @@ function Dashboard({t,data,go}){
   );
 }
 
+// ── HoD DEADLINE PROPOSAL (shown inside task modal to HoD) ───────────────────
+function HoDDeadlineProposal({sel,setSel,data,setData,uName,t,toast}){
+  const [proposed,setProposed]=useState({due:"",note:""});
+  const submit=()=>{
+    if(!proposed.due){toast("Enter a proposed date","error");return;}
+    const founder=data.users.find(u=>u.role==="Admin"||u.role==="Founder");
+    setData(d=>({...d,
+      tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,deadlineProposal:{proposedDue:proposed.due,note:proposed.note,status:"Pending"}}:tk),
+      notifications:[...d.notifications,{id:"n"+Date.now(),type:"deadline_proposal",title:"📅 Deadline Proposed",body:`HoD proposed ${fd(proposed.due)} for "${sel.title}"`,to:founder?.id||"",from:"hod",ref:sel.id,refType:"task",read:false,at:new Date().toISOString()}]
+    }));
+    if(founder) sendEmail(founder.email,founder.name,"Deadline Proposed: "+sel.title,`Your HoD has proposed a deadline of ${fd(proposed.due)} for the task "${sel.title}".\n\nNote: ${proposed.note||"None"}\n\nPlease review and approve in the app.`);
+    setSel(p=>({...p,deadlineProposal:{proposedDue:proposed.due,note:proposed.note,status:"Pending"}}));
+    toast("Deadline proposed — Founder notified");
+  };
+  return(
+    <div style={{padding:"13px 15px",background:t.amberBg,borderRadius:12,marginBottom:14,border:`1px solid ${t.amber}30`}}>
+      <div style={{fontWeight:700,fontSize:13,color:t.amber,marginBottom:10}}>📅 Propose a deadline for this task</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+        <Field label="Proposed Date *" t={t}><Inp type="date" value={proposed.due} onChange={e=>setProposed(p=>({...p,due:e.target.value}))} t={t}/></Field>
+        <Field label="Note to Founder" t={t}><Inp value={proposed.note} onChange={e=>setProposed(p=>({...p,note:e.target.value}))} placeholder="Any context..." t={t}/></Field>
+      </div>
+      <Btn v="lime" t={t} size="sm" icon={<Send size={11}/>} onClick={submit}>Submit Proposal</Btn>
+    </div>
+  );
+}
+
 // ── PROJECTS ─────────────────────────────────────────────────────────────────
 function Projects({t,data,setData,toast}){
   const [filterStatus,setFilterStatus]=useState("All");
@@ -410,10 +483,31 @@ function Projects({t,data,setData,toast}){
   const [sel,setSel]=useState(null);
   const [showExt,setShowExt]=useState(false);
   const [extForm,setExtForm]=useState({reason:"",newDue:""});
-  const [form,setForm]=useState({title:"",cId:"",aId:"",deptId:"",priority:"Medium",due:"",brief:"",drive:"",est:""});
+  const [form,setForm]=useState({title:"",cId:"",aId:"",deptId:"",priority:"Medium",due:"",dueTime:"09:00",brief:"",drive:"",est:"",assetLinks:[""],noDeadline:false});
+  const [dueWarn,setDueWarn]=useState("");
 
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
   const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
+
+  // Auto-select dept when assignee chosen (only if user is in exactly 1 dept)
+  const handleAssign=aId=>{
+    const user=data.users.find(u=>u.id===aId);
+    const userDepts=data.departments.filter(d=>data.users.find(u=>u.id===aId)&&user?.dept===d.id);
+    setForm(p=>({...p,aId,deptId:user?.dept||p.deptId}));
+  };
+
+  // Warn on Sundays, Saturdays, or if assignee is on approved leave
+  const checkDue=date=>{
+    if(!date){setDueWarn("");return;}
+    const d=new Date(date);
+    if(d.getDay()===0){setDueWarn("⚠ Sunday — are you sure?");return;}
+    if(d.getDay()===6){setDueWarn("⚠ Saturday — are you sure?");return;}
+    if(form.aId){
+      const leave=data.leaves.find(l=>l.uId===form.aId&&l.status==="Approved"&&date>=l.from&&date<=l.to);
+      if(leave){setDueWarn(`⚠ ${uName(form.aId)} is on leave this day`);return;}
+    }
+    setDueWarn("");
+  };
 
   const today=new Date().toISOString().split("T")[0];
   const tomorrow=new Date(Date.now()+86400000).toISOString().split("T")[0];
@@ -431,7 +525,28 @@ function Projects({t,data,setData,toast}){
   });
 
   const startTask=id=>{
-    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===id?{...tk,status:"In Progress",startedAt:tk.startedAt||new Date().toISOString()}:tk)}));
+    setData(d=>{
+      const tasks=d.tasks.map(tk=>tk.id===id?{...tk,status:"In Progress",startedAt:tk.startedAt||new Date().toISOString()}:tk);
+      // Schedule reminder emails based on est hours
+      const task=tasks.find(tk=>tk.id===id);
+      if(task){
+        const assignee=d.users.find(u=>u.id===task.aId);
+        const est=task.est||0;
+        // 3-hour check-in (if est >= 5h)
+        if(est>=5&&assignee?.email){
+          setTimeout(()=>{
+            sendEmail(assignee.email,assignee.name,"Check-in: "+task.title,`Hi ${assignee.name},\n\nYou've been working on "${task.title}" for 3 hours. How's it going?\n\nIf you need help or are facing any blockers, let your HoD know now.\n\nEstimated total: ${est}h\n\n— ProfitPenny Studio OS`);
+          },3*60*60*1000);
+        }
+        // 2-hours-remaining warning (if est >= 10h, fire at 8h mark)
+        if(est>=10&&assignee?.email){
+          setTimeout(()=>{
+            sendEmail(assignee.email,assignee.name,"⏰ 2 hours left: "+task.title,`Hi ${assignee.name},\n\nYou have approximately 2 hours remaining on "${task.title}" (${est}h estimate).\n\nPlease ensure your work is on track for completion. If you need a deadline extension, request it via the app before time runs out.\n\n— ProfitPenny Studio OS`);
+          },8*60*60*1000);
+        }
+      }
+      return {...d,tasks};
+    });
     toast("Task started — time tracking active","success");
   };
   const updStatus=(id,s)=>{
@@ -445,21 +560,73 @@ function Projects({t,data,setData,toast}){
     setShowExt(false);setExtForm({reason:"",newDue:""});
     toast("Extension request sent to HoD + email","info");
   };
+  const deleteTask=id=>{
+    if(!window.confirm("Delete this task?"))return;
+    setData(d=>({...d,tasks:d.tasks.filter(tk=>tk.id!==id)}));
+    deleteDoc_(COLS.TASKS,id).catch(()=>{});
+    setSel(null);
+    toast("Task deleted","info");
+  };
+
   const addTask=()=>{
     if(!form.title||!form.cId||!form.aId){toast("Fill required fields","error");return;}
-    setData(d=>({...d,tasks:[...d.tasks,{...form,id:"t"+Date.now(),status:"Not Started",logged:0,startedAt:null,created:today,extRequest:null,est:parseInt(form.est)||0}]}));
-    setShowAdd(false);setForm({title:"",cId:"",aId:"",deptId:"",priority:"Medium",due:"",brief:"",drive:"",est:""});
-    toast("Task created");
+    const id="t"+Date.now();
+    const noDeadline=form.noDeadline||!form.due;
+    const newTask={...form,id,status:"Not Started",logged:0,startedAt:null,created:new Date().toISOString().split("T")[0],extRequest:null,est:parseInt(form.est)||0,assetLinks:form.assetLinks.filter(l=>l.trim()),awaitingDeadline:noDeadline,due:form.due||""};
+    setData(d=>({...d,tasks:[...d.tasks,newTask]}));
+    // If no deadline: notify HoD to propose one
+    if(noDeadline){
+      const dept=data.departments.find(d=>d.id===form.deptId);
+      const hod=data.users.find(u=>u.id===dept?.hodId);
+      if(hod){
+        setData(d=>({...d,notifications:[...d.notifications,{id:"n"+Date.now(),type:"deadline_request",title:"📅 Deadline Needed",body:`New task "${form.title}" needs a deadline from you.`,to:hod.id,from:"founder",ref:id,refType:"task",read:false,at:new Date().toISOString()}]}));
+        sendEmail(hod.email,hod.name,"Deadline Needed: "+form.title,`A new task has been created and needs your deadline proposal.\n\nTask: ${form.title}\nAssigned to: ${uName(form.aId)}\n\nPlease open the app and propose a deadline.`);
+      }
+      toast("Task created — HoD notified to propose deadline","info");
+    } else {
+      toast("Task created","success");
+    }
+    setShowAdd(false);
+    setForm({title:"",cId:"",aId:"",deptId:"",priority:"Medium",due:"",dueTime:"09:00",brief:"",drive:"",est:"",assetLinks:[""],noDeadline:false});
+    setDueWarn("");
   };
 
   const FBtn=({label,active,onClick})=>(
     <button onClick={onClick} style={{padding:"5px 13px",borderRadius:99,border:`1.5px solid ${active?t.lime:t.border}`,background:active?t.limeBg:"transparent",color:active?t.limeDeep:t.textMuted,fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .15s",whiteSpace:"nowrap"}}>{label}</button>
   );
 
+  // Deadline proposals pending founder approval
+  const pendingProposals=data.tasks.filter(tk=>tk.deadlineProposal?.status==="Pending");
+
   return(
     <div>
       <SHead t={t} title="Projects" sub="All tasks across clients and team"
         action={<Btn t={t} v="lime" onClick={()=>setShowAdd(true)} icon={<Plus size={14}/>}>New Task</Btn>}/>
+
+      {/* HoD deadline proposals awaiting founder approval */}
+      {pendingProposals.length>0&&(
+        <div style={{background:t.amberBg,border:`1px solid ${t.amber}30`,borderRadius:12,padding:"12px 16px",marginBottom:16}}>
+          <div style={{fontWeight:700,fontSize:13,color:t.amber,marginBottom:10,display:"flex",alignItems:"center",gap:6}}><AlarmClock size={14}/>Deadline proposals awaiting your approval</div>
+          {pendingProposals.map(tk=>(
+            <div key={tk.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap",background:t.surface,borderRadius:9,padding:"9px 13px",marginBottom:6}}>
+              <div>
+                <div style={{fontWeight:600,fontSize:13,color:t.text}}>{tk.title}</div>
+                <div style={{fontSize:12,color:t.textMuted}}>HoD proposes <strong style={{color:t.amber}}>{fd(tk.deadlineProposal?.proposedDue)}</strong>{tk.deadlineProposal?.note&&` — "${tk.deadlineProposal.note}"`}</div>
+              </div>
+              <div style={{display:"flex",gap:7}}>
+                <Btn v="success" t={t} size="sm" icon={<Check size={12}/>} onClick={()=>{
+                  setData(d=>({...d,tasks:d.tasks.map(x=>x.id===tk.id?{...x,due:tk.deadlineProposal.proposedDue,awaitingDeadline:false,deadlineProposal:{...x.deadlineProposal,status:"Approved"}}:x)}));
+                  toast("Deadline approved");
+                }}>Approve</Btn>
+                <Btn v="danger" t={t} size="sm" onClick={()=>{
+                  setData(d=>({...d,tasks:d.tasks.map(x=>x.id===tk.id?{...x,deadlineProposal:{...x.deadlineProposal,status:"Rejected"}}:x)}));
+                  toast("Rejected","info");
+                }}>Reject</Btn>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Filter rows */}
       <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
@@ -491,24 +658,29 @@ function Projects({t,data,setData,toast}){
       <div style={{display:"flex",flexDirection:"column",gap:7}}>
         {filtered.map((task,i)=>{
           const over=task.logged>task.est;
-          const overdue=isOverdue(task.due)&&task.status!=="Completed";
+          const overdue=isOverdue(task.due)&&task.status!=="Completed"&&task.due;
           return(
-            <div key={task.id} className="hover-lift" onClick={()=>setSel(task)}
-              style={{background:t.surface,border:`1.5px solid ${task.extRequest?.status==="Pending"?t.purple+"60":t.border}`,borderRadius:12,padding:"12px 14px",cursor:"pointer",animation:`fadeUp .3s ${i*28}ms both`,boxShadow:`0 1px 3px ${t.shadow}`}}>
-              <div style={{display:"grid",gridTemplateColumns:"2.4fr 1.3fr 1fr .9fr .9fr .9fr",gap:10,alignItems:"center"}}>
+            <div key={task.id} className="row-hover" onClick={()=>setSel(task)}
+              style={{background:t.card,border:`1.5px solid ${overdue?t.red+"40":task.extRequest?.status==="Pending"?t.purple+"60":t.border}`,borderRadius:12,padding:"12px 14px",cursor:"pointer",animation:`fadeUp .3s ${i*28}ms both`,boxShadow:`0 1px 3px ${t.shadow}`,transition:"border-color .15s"}}>
+              <div style={{display:"grid",gridTemplateColumns:"2.4fr 1.3fr 1fr .9fr .9fr 1fr",gap:10,alignItems:"center"}}>
                 <div>
-                  <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:5}}>{task.title}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                    <span style={{fontSize:13,fontWeight:600,color:t.text}}>{task.title}</span>
+                    {task.awaitingDeadline&&<span style={{fontSize:9,padding:"2px 7px",background:t.amberBg,color:t.amber,borderRadius:99,fontWeight:700,flexShrink:0}}>AWAITING DEADLINE</span>}
+                  </div>
                   <PBar value={task.logged} max={Math.max(task.est,task.logged,1)} color={over?"red":task.logged/task.est>.8?"amber":"lime"} t={t} h={3} showPct={false}/>
-                  <div style={{fontSize:10,color:t.textMuted,marginTop:3}}>{task.logged}h / {task.est}h</div>
+                  <div style={{fontSize:10,color:t.textMuted,marginTop:3}}>{task.logged}h / {task.est}h est.</div>
                 </div>
                 <div style={{fontSize:12,color:t.textMid}}>{cName(task.cId).split(" ").slice(0,2).join(" ")}</div>
                 <div style={{display:"flex",alignItems:"center",gap:6}}><Av init={data.users.find(u=>u.id===task.aId)?.av||"?"} size={24} t={t}/><span style={{fontSize:12,color:t.textMid}}>{uName(task.aId).split(" ")[0]}</span></div>
                 <Badge label={task.priority} color={PC(task.priority)} t={t} small/>
                 <Badge label={task.status}   color={SC(task.status)}   t={t} small/>
-                <div style={{textAlign:"right"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
                   {task.status==="In Progress"&&task.startedAt
                     ?<LiveTimer startedAt={task.startedAt} t={t} active/>
-                    :<span style={{fontSize:11,color:overdue?t.red:t.textMuted,fontWeight:overdue?700:400}}>{overdue&&<AlertTriangle size={10} style={{marginRight:3}}/>}{fd(task.due)}</span>}
+                    :<span style={{fontSize:11,color:overdue?t.red:task.due?t.textMuted:t.amber,fontWeight:overdue?700:400}}>{overdue&&<AlertTriangle size={10} style={{marginRight:2}}/>}{task.due?fd(task.due):"No date"}</span>}
+                  <button onClick={e=>{e.stopPropagation();deleteTask(task.id);}} title="Delete" style={{background:"none",border:"none",cursor:"pointer",color:t.red,opacity:0,padding:"2px",borderRadius:5,transition:"opacity .15s"}}
+                    onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0}><Trash2 size={12}/></button>
                 </div>
               </div>
               {task.extRequest?.status==="Pending"&&<div style={{marginTop:8,padding:"5px 10px",background:t.purpleBg,borderRadius:8,fontSize:11,color:t.purple,display:"flex",alignItems:"center",gap:6}}><AlarmClock size={12}/> Extension pending → {fd(task.extRequest.newDue)}</div>}
@@ -524,6 +696,7 @@ function Projects({t,data,setData,toast}){
           <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
             <Badge label={sel.status} color={SC(sel.status)} t={t}/>
             <Badge label={sel.priority} color={PC(sel.priority)} t={t}/>
+            {sel.awaitingDeadline&&<Badge label="Awaiting Deadline" color="amber" t={t}/>}
             {sel.status==="In Progress"&&sel.startedAt&&<div style={{display:"flex",alignItems:"center",gap:6,padding:"3px 10px",background:t.limeBg,borderRadius:99,border:`1px solid ${t.lime}40`}}><Timer size={11} color={t.limeDeep}/><LiveTimer startedAt={sel.startedAt} t={t} active/></div>}
           </div>
           <div style={{padding:"13px 15px",background:t.surfaceAlt,borderRadius:12,marginBottom:14}}>
@@ -534,12 +707,25 @@ function Projects({t,data,setData,toast}){
             <PBar value={sel.logged} max={Math.max(sel.est,sel.logged,1)} color={sel.logged>sel.est?"red":"lime"} t={t}/>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}>
-            {[["Deadline",fd(sel.due)],["Created",fd(sel.created)],["Dept",data.departments.find(d=>d.id===sel.deptId)?.name||"—"]].map(([k,v])=>(
+            {[["Deadline",sel.due?(fd(sel.due)+(sel.dueTime?" "+sel.dueTime:"")):"Awaiting"],["Created",fd(sel.created)],["Dept",data.departments.find(d=>d.id===sel.deptId)?.name||"—"]].map(([k,v])=>(
               <div key={k}><div style={{fontSize:10,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:t.textMuted,marginBottom:3}}>{k}</div><div style={{fontSize:14,color:t.text,fontWeight:600}}>{v}</div></div>
             ))}
           </div>
           {sel.brief&&<Field label="Brief" t={t}><p style={{fontSize:13,color:t.textMid,lineHeight:1.7,margin:0}}>{sel.brief}</p></Field>}
-          {sel.drive&&<a href={sel.drive} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:t.blueBg,color:t.blue,borderRadius:10,fontSize:13,fontWeight:600,textDecoration:"none",marginBottom:14}}><ExternalLink size={13}/> Google Drive</a>}
+          {/* Drive + asset links */}
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+            {sel.drive&&<a href={sel.drive} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",background:t.blueBg,color:t.blue,borderRadius:10,fontSize:12,fontWeight:600,textDecoration:"none"}}><ExternalLink size={12}/> Drive</a>}
+            {(sel.assetLinks||[]).filter(l=>l).map((l,i)=><a key={i} href={l} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",background:t.surfaceAlt,color:t.textMid,borderRadius:10,fontSize:12,fontWeight:600,textDecoration:"none"}}><Link2 size={12}/> Asset {i+1}</a>)}
+          </div>
+          {/* HoD: propose deadline when awaiting */}
+          {sel.awaitingDeadline&&!sel.deadlineProposal&&(
+            <HoDDeadlineProposal sel={sel} setSel={setSel} data={data} setData={setData} uName={uName} t={t} toast={toast}/>
+          )}
+          {sel.deadlineProposal&&sel.deadlineProposal.status!=="Approved"&&(
+            <div style={{padding:"10px 14px",background:t.amberBg,borderRadius:10,marginBottom:14,fontSize:13,color:t.amber}}>
+              {sel.deadlineProposal.status==="Pending"?"⏳ Deadline proposed — awaiting Founder approval":sel.deadlineProposal.status==="Rejected"?"❌ Deadline proposal rejected — please propose again":""}
+            </div>
+          )}
           {sel.extRequest&&(
             <div style={{padding:"12px 14px",borderRadius:12,marginBottom:14,background:sel.extRequest.status==="Pending"?t.purpleBg:sel.extRequest.status==="Approved"?t.greenBg:t.redBg,border:`1px solid ${t.purple}30`}}>
               <div style={{display:"flex",justifyContent:"space-between"}}><div style={{fontWeight:600,fontSize:13,color:t.text}}>Extension Request</div><Badge label={sel.extRequest.status} color={SC(sel.extRequest.status)} t={t} small/></div>
@@ -566,22 +752,44 @@ function Projects({t,data,setData,toast}){
               </div>
             </div>
           )}
+          <div style={{borderTop:`1px solid ${t.border}`,paddingTop:12,marginTop:8,display:"flex",justifyContent:"flex-end"}}>
+            <Btn v="danger" t={t} size="sm" icon={<Trash2 size={12}/>} onClick={()=>deleteTask(sel.id)}>Delete Task</Btn>
+          </div>
         </Modal>
       )}
-      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="New Task" t={t}>
+      {/* New Task Modal */}
+      <Modal open={showAdd} onClose={()=>{setShowAdd(false);setDueWarn("");}} title="New Task" t={t} w={520}>
         <Field label="Task Title *" t={t}><Inp value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="e.g. Annual Report Design" t={t}/></Field>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <Field label="Client *" t={t}><Sel value={form.cId} onChange={e=>setForm(p=>({...p,cId:e.target.value}))} t={t}><option value="">Select</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
-          <Field label="Assign To *" t={t}><Sel value={form.aId} onChange={e=>setForm(p=>({...p,aId:e.target.value}))} t={t}><option value="">Select</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
+          <Field label="Assign To *" t={t}><Sel value={form.aId} onChange={e=>handleAssign(e.target.value)} t={t}><option value="">Select</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
           <Field label="Department" t={t}><Sel value={form.deptId} onChange={e=>setForm(p=>({...p,deptId:e.target.value}))} t={t}><option value="">Select</option>{data.departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</Sel></Field>
           <Field label="Priority" t={t}><Sel value={form.priority} onChange={e=>setForm(p=>({...p,priority:e.target.value}))} t={t}>{["High","Medium","Low"].map(x=><option key={x}>{x}</option>)}</Sel></Field>
-          <Field label="Deadline" t={t}><Inp type="date" value={form.due} onChange={e=>setForm(p=>({...p,due:e.target.value}))} t={t}/></Field>
-          <Field label="Est. Hours" t={t}><Inp type="number" value={form.est} onChange={e=>setForm(p=>({...p,est:e.target.value}))} placeholder="40" t={t}/></Field>
+          <Field label={`Deadline ${form.noDeadline?"(HoD will propose)":""}`} t={t}>
+            <Inp type="date" value={form.noDeadline?"":form.due} disabled={form.noDeadline} onChange={e=>{setForm(p=>({...p,due:e.target.value}));checkDue(e.target.value);}} t={t}/>
+            {dueWarn&&<div style={{fontSize:11,color:t.amber,marginTop:4,display:"flex",alignItems:"center",gap:4}}><AlertTriangle size={11}/>{dueWarn}</div>}
+            <label style={{display:"flex",alignItems:"center",gap:6,marginTop:6,fontSize:12,color:t.textMuted,cursor:"pointer"}}>
+              <input type="checkbox" checked={form.noDeadline} onChange={e=>setForm(p=>({...p,noDeadline:e.target.checked,due:e.target.checked?"":p.due}))}/>
+              Let HoD propose deadline
+            </label>
+          </Field>
+          <Field label="Time" t={t}><Inp type="time" value={form.dueTime} onChange={e=>setForm(p=>({...p,dueTime:e.target.value}))} t={t}/></Field>
+          <Field label="Est. Hours" t={t}><Inp type="number" value={form.est} onChange={e=>setForm(p=>({...p,est:e.target.value}))} placeholder="e.g. 10" t={t}/></Field>
         </div>
-        <Field label="Brief" t={t}><Tex value={form.brief} onChange={e=>setForm(p=>({...p,brief:e.target.value}))} placeholder="Scope of work..." t={t}/></Field>
+        <Field label="Brief" t={t}><Tex value={form.brief} onChange={e=>setForm(p=>({...p,brief:e.target.value}))} placeholder="Scope of work, deliverables..." t={t}/></Field>
         <Field label="Google Drive Link" t={t}><Inp value={form.drive} onChange={e=>setForm(p=>({...p,drive:e.target.value}))} placeholder="https://drive.google.com/..." t={t}/></Field>
-        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
-          <Btn v="secondary" t={t} onClick={()=>setShowAdd(false)}>Cancel</Btn>
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",display:"block",marginBottom:8}}>Asset / Reference Links</label>
+          {form.assetLinks.map((link,i)=>(
+            <div key={i} style={{display:"flex",gap:8,marginBottom:6}}>
+              <Inp value={link} onChange={e=>{const a=[...form.assetLinks];a[i]=e.target.value;setForm(p=>({...p,assetLinks:a}));}} placeholder={`Reference link ${i+1}`} t={t}/>
+              {form.assetLinks.length>1&&<Btn v="ghost" t={t} size="sm" onClick={()=>setForm(p=>({...p,assetLinks:p.assetLinks.filter((_,j)=>j!==i)}))}><X size={12}/></Btn>}
+            </div>
+          ))}
+          <Btn v="ghost" t={t} size="sm" icon={<Plus size={11}/>} onClick={()=>setForm(p=>({...p,assetLinks:[...p.assetLinks,""]}))}>Add link</Btn>
+        </div>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:4}}>
+          <Btn v="secondary" t={t} onClick={()=>{setShowAdd(false);setDueWarn("");}}>Cancel</Btn>
           <Btn v="lime" t={t} onClick={addTask} icon={<Plus size={13}/>}>Create Task</Btn>
         </div>
       </Modal>
@@ -591,104 +799,188 @@ function Projects({t,data,setData,toast}){
 
 // ── TIME LOGS ────────────────────────────────────────────────────────────────
 function TimeLogs({t,data,setData,toast}){
-  const [fm,setFm]=useState("all");
+  const [filterUser,setFilterUser]=useState("all");
+  const [filterTask,setFilterTask]=useState("all");
   const [showLog,setShowLog]=useState(false);
   const [lf,setLf]=useState({tId:"",uId:"",date:"",hrs:"",note:""});
+
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
   const tName=id=>data.tasks.find(tk=>tk.id===id)?.title||"—";
 
-  const logs=fm==="all"?data.timeLogs:data.timeLogs.filter(l=>l.uId===fm);
-  const totalHrs=logs.reduce((s,l)=>s+l.hrs,0);
+  const logs=data.timeLogs.filter(l=>{
+    if(filterUser!=="all"&&l.uId!==filterUser)return false;
+    if(filterTask!=="all"&&l.tId!==filterTask)return false;
+    return true;
+  });
 
-  // Grading
-  const gradeTask=tk=>{
-    if(tk.status!=="Completed"&&tk.status!=="Delayed")return null;
-    if(tk.logged<tk.est*0.95)return{label:"Before Time",color:"green",icon:<CheckCircle2 size={12}/>};
-    if(tk.logged<=tk.est*1.05)return{label:"On Time",color:"lime",icon:<Check size={12}/>};
-    return{label:"Delayed",color:"red",icon:<TrendingDown size={12}/>};
-  };
+  const totalHrs=logs.reduce((s,l)=>s+(l.hrs||0),0);
+  const autoHrs=logs.filter(l=>l.auto).reduce((s,l)=>s+(l.hrs||0),0);
+  const manualCount=logs.filter(l=>!l.auto).length;
 
-  const perM=data.users.filter(u=>u.role!=="Admin").map(u=>({...u,hrs:data.timeLogs.filter(l=>l.uId===u.id).reduce((s,l)=>s+l.hrs,0)})).sort((a,b)=>b.hrs-a.hrs);
+  // Per-member summary
+  const perMember=data.users.filter(u=>u.role!=="Admin").map(u=>{
+    const uLogs=data.timeLogs.filter(l=>l.uId===u.id);
+    const hrs=uLogs.reduce((s,l)=>s+(l.hrs||0),0);
+    const activeTasks=data.tasks.filter(tk=>tk.aId===u.id&&tk.status==="In Progress").length;
+    return{...u,hrs,activeTasks,logCount:uLogs.length};
+  }).sort((a,b)=>b.hrs-a.hrs);
+
+  // Per-task summary with grade
+  const taskSummary=data.tasks.filter(tk=>tk.est>0).map(tk=>{
+    const grade=()=>{
+      if(tk.status!=="Completed"&&tk.status!=="Delayed")return{label:"In Progress",color:"blue"};
+      if(tk.logged<tk.est*0.95)return{label:"Before Time",color:"green"};
+      if(tk.logged<=tk.est*1.05)return{label:"On Time",color:"lime"};
+      return{label:"Overtime",color:"red"};
+    };
+    const pct=tk.est>0?Math.round((tk.logged/tk.est)*100):0;
+    return{...tk,grade:grade(),pct};
+  });
 
   const logTime=()=>{
-    if(!lf.tId||!lf.uId||!lf.hrs){toast("Fill all fields","error");return;}
+    if(!lf.tId||!lf.uId||!lf.hrs){toast("Fill all required fields","error");return;}
     const h=parseFloat(lf.hrs);
-    setData(d=>({...d,timeLogs:[...d.timeLogs,{...lf,id:"tl"+Date.now(),hrs:h,auto:false}],tasks:d.tasks.map(tk=>tk.id===lf.tId?{...tk,logged:(tk.logged||0)+h}:tk)}));
-    setShowLog(false);setLf({tId:"",uId:"",date:"",hrs:"",note:""});
-    toast("Time logged");
+    if(isNaN(h)||h<=0){toast("Enter valid hours","error");return;}
+    setData(d=>({...d,
+      timeLogs:[...d.timeLogs,{...lf,id:"tl"+Date.now(),hrs:h,auto:false}],
+      tasks:d.tasks.map(tk=>tk.id===lf.tId?{...tk,logged:(tk.logged||0)+h}:tk)
+    }));
+    setShowLog(false);
+    setLf({tId:"",uId:"",date:"",hrs:"",note:""});
+    toast("Time logged successfully");
   };
 
   return(
     <div>
-      <SHead t={t} title="Time Logs" sub="Hours tracked against estimated time with performance grading"
+      <SHead t={t} title="Time Logs" sub="Track hours, view performance grades, and monitor who's working on what"
         action={<Btn v="lime" t={t} onClick={()=>setShowLog(true)} icon={<Plus size={14}/>}>Log Time</Btn>}/>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12,marginBottom:22}}>
-        <StatCard label="Total Hours" value={totalHrs} icon={Clock3} color="lime" t={t} delay={0}/>
-        <StatCard label="Auto-tracked" value={logs.filter(l=>l.auto).reduce((s,l)=>s+l.hrs,0)} icon={Zap} color="green" t={t} delay={50}/>
-        <StatCard label="Manual Logs" value={logs.filter(l=>!l.auto).length} icon={FileText} color="blue" t={t} delay={100}/>
+
+      {/* Top stats */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:22}}>
+        <StatCard label="Total Hours Logged" value={totalHrs} icon={Clock3} color="lime" t={t} delay={0}/>
+        <StatCard label="Auto-tracked" value={autoHrs} icon={Zap} color="green" t={t} delay={60}/>
+        <StatCard label="Manual Entries" value={manualCount} icon={FileText} color="blue" t={t} delay={120}/>
+        <StatCard label="Active Tasks" value={data.tasks.filter(tk=>tk.status==="In Progress").length} icon={Play} color="amber" t={t} delay={180}/>
       </div>
 
-      {/* Task grading */}
-      <Card t={t} style={{marginBottom:16,animation:"fadeUp .4s .1s both"}}>
-        <h3 style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:t.text,marginBottom:14,textTransform:"uppercase",letterSpacing:"0.06em"}}>Time Performance Grades</h3>
-        <div style={{display:"flex",flexDirection:"column",gap:7}}>
-          {data.tasks.filter(tk=>tk.est>0).map((tk,i)=>{
-            const g=gradeTask(tk);
-            return(
-              <div key={tk.id} style={{display:"grid",gridTemplateColumns:"2fr .8fr .8fr 1fr",gap:10,alignItems:"center",padding:"9px 12px",background:t.surfaceAlt,borderRadius:10,animation:`fadeUp .28s ${i*30}ms both`}}>
-                <span style={{fontSize:13,fontWeight:600,color:t.text}}>{tk.title}</span>
-                <span style={{fontSize:12,color:t.textMuted}}>{tk.logged}h / {tk.est}h est.</span>
-                <Badge label={tk.status} color={SC(tk.status)} t={t} small/>
-                {g?<span style={{display:"inline-flex",alignItems:"center",gap:5,padding:"2px 9px",borderRadius:99,background:t[g.color+"Bg"],color:t[g.color],fontSize:11,fontWeight:600}}>{g.icon}{g.label}</span>:<span style={{fontSize:11,color:t.textMuted}}>In progress</span>}
+      {/* SECTION 1: Who's Logged What — member breakdown */}
+      <Card t={t} style={{marginBottom:16,animation:"fadeUp .4s .05s both"}}>
+        <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:15,color:t.text,marginBottom:4}}>Hours by Member</div>
+        <div style={{fontSize:12,color:t.textMuted,marginBottom:16}}>How many hours each person has logged in total</div>
+        {perMember.length===0&&<p style={{fontSize:13,color:t.textMuted}}>No members yet.</p>}
+        {perMember.map((m,i)=>(
+          <div key={m.id} style={{marginBottom:16,animation:`fadeUp .3s ${i*40}ms both`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <Av init={m.av} size={32} t={t}/>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:t.text}}>{m.name}</div>
+                  <div style={{fontSize:11,color:t.textMuted}}>{m.role} · {m.activeTasks} active task{m.activeTasks!==1?"s":""} · {m.logCount} log entr{m.logCount===1?"y":"ies"}</div>
+                </div>
               </div>
-            );
-          })}
+              <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:22,color:t.lime}}>{m.hrs}<span style={{fontSize:13,fontWeight:500,color:t.textMuted}}> hrs</span></div>
+            </div>
+            <PBar value={m.hrs} max={Math.max(...perMember.map(x=>x.hrs),1)} color="lime" t={t} h={4} delay={i*45} showPct={false}/>
+          </div>
+        ))}
+      </Card>
+
+      {/* SECTION 2: Task Performance Grades */}
+      <Card t={t} style={{marginBottom:16,animation:"fadeUp .4s .1s both"}}>
+        <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:15,color:t.text,marginBottom:4}}>Task Time Performance</div>
+        <div style={{fontSize:12,color:t.textMuted,marginBottom:16}}>How much time was used vs estimated — graded after completion</div>
+        {taskSummary.length===0&&<p style={{fontSize:13,color:t.textMuted}}>No tasks with time estimates yet.</p>}
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {taskSummary.map((tk,i)=>(
+            <div key={tk.id} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:12,alignItems:"center",padding:"10px 13px",background:t.surfaceAlt,borderRadius:10,animation:`fadeUp .25s ${i*25}ms both`}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:600,color:t.text}}>{tk.title}</div>
+                <div style={{fontSize:11,color:t.textMuted,marginTop:2}}>Assigned to {uName(tk.aId).split(" ")[0]}</div>
+              </div>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:t.text}}>{tk.logged}h <span style={{color:t.textMuted,fontWeight:400}}>/ {tk.est}h est.</span></div>
+                <PBar value={tk.logged} max={Math.max(tk.est,tk.logged,1)} color={tk.logged>tk.est?"red":tk.pct>80?"amber":"lime"} t={t} h={3} showPct={false}/>
+              </div>
+              <Badge label={tk.status} color={SC(tk.status)} t={t} small/>
+              <span style={{display:"inline-flex",alignItems:"center",gap:5,padding:"3px 9px",borderRadius:99,background:t[tk.grade.color+"Bg"],color:t[tk.grade.color],fontSize:11,fontWeight:700}}>
+                {tk.grade.color==="green"&&<CheckCircle2 size={11}/>}
+                {tk.grade.color==="lime"&&<Check size={11}/>}
+                {tk.grade.color==="red"&&<TrendingDown size={11}/>}
+                {tk.grade.color==="blue"&&<Clock3 size={11}/>}
+                {tk.grade.label}
+              </span>
+            </div>
+          ))}
         </div>
       </Card>
 
-      <div style={{display:"grid",gridTemplateColumns:"200px 1fr",gap:16}}>
-        <Card t={t} style={{animation:"fadeUp .4s .15s both"}}>
-          <h3 style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,color:t.text,marginBottom:14,textTransform:"uppercase",letterSpacing:"0.06em"}}>By Member</h3>
-          {perM.map((m,i)=>(
-            <div key={m.id} style={{marginBottom:14,animation:`fadeUp .3s ${i*40}ms both`}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-                <div style={{display:"flex",alignItems:"center",gap:8}}><Av init={m.av} size={24} t={t}/><span style={{fontSize:12,fontWeight:600,color:t.text}}>{m.name.split(" ")[0]}</span></div>
-                <span style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:17,color:t.lime}}>{m.hrs}h</span>
-              </div>
-              <PBar value={m.hrs} max={Math.max(...perM.map(x=>x.hrs),1)} color="lime" t={t} h={3} delay={i*45} showPct={false}/>
-            </div>
-          ))}
-        </Card>
-        <Card t={t} style={{animation:"fadeUp .4s .2s both"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <h3 style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,color:t.text,textTransform:"uppercase",letterSpacing:"0.06em"}}>Log Entries</h3>
-            <select value={fm} onChange={e=>setFm(e.target.value)} style={{...iStyle(t),width:160,padding:"6px 10px",fontSize:12}}><option value="all">All members</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select>
+      {/* SECTION 3: Log entries with filters */}
+      <Card t={t} style={{animation:"fadeUp .4s .15s both"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
+          <div>
+            <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:15,color:t.text,marginBottom:2}}>All Log Entries</div>
+            <div style={{fontSize:12,color:t.textMuted}}>{logs.length} entr{logs.length===1?"y":"ies"} · {totalHrs}h total shown</div>
           </div>
-          {logs.length===0?<p style={{color:t.textMuted,fontSize:13}}>No entries yet.</p>
-            :<div style={{display:"flex",flexDirection:"column",gap:7}}>
-              {logs.map((log,i)=>(
-                <div key={log.id} className="row-hover" style={{display:"grid",gridTemplateColumns:"2fr 1fr .6fr 1.4fr auto",gap:10,alignItems:"center",padding:"9px 12px",background:t.surfaceAlt,borderRadius:10,animation:`fadeUp .28s ${i*28}ms both`}}>
-                  <span style={{fontSize:13,fontWeight:600,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tName(log.tId)}</span>
-                  <span style={{fontSize:12,color:t.textMid}}>{uName(log.uId).split(" ")[0]}</span>
-                  <span style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:17,color:t.lime}}>{log.hrs}h</span>
-                  <span style={{fontSize:12,color:t.textMuted}}>{log.note||"—"}</span>
-                  {log.auto?<div style={{display:"flex",alignItems:"center",gap:3,padding:"2px 7px",background:t.limeBg,borderRadius:99}}><Zap size={10} color={t.limeDeep}/><span style={{fontSize:10,color:t.limeDeep,fontWeight:600}}>Auto</span></div>:<div style={{width:8,height:8,borderRadius:"50%",background:t.blue}}/>}
-                </div>
-              ))}
-            </div>}
-        </Card>
-      </div>
-      <Modal open={showLog} onClose={()=>setShowLog(false)} title="Log Time" t={t} w={420}>
-        <Field label="Task" t={t}><Sel value={lf.tId} onChange={e=>setLf(p=>({...p,tId:e.target.value}))} t={t}><option value="">Select task</option>{data.tasks.map(tk=><option key={tk.id} value={tk.id}>{tk.title}</option>)}</Sel></Field>
-        <Field label="Member" t={t}><Sel value={lf.uId} onChange={e=>setLf(p=>({...p,uId:e.target.value}))} t={t}><option value="">Select</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Field label="Date" t={t}><Inp type="date" value={lf.date} onChange={e=>setLf(p=>({...p,date:e.target.value}))} t={t}/></Field>
-          <Field label="Hours" t={t}><Inp type="number" value={lf.hrs} onChange={e=>setLf(p=>({...p,hrs:e.target.value}))} placeholder="e.g. 4" t={t}/></Field>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <select value={filterUser} onChange={e=>setFilterUser(e.target.value)} style={{...iStyle(t),width:150,padding:"6px 10px",fontSize:12}}>
+              <option value="all">All members</option>
+              {data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+            <select value={filterTask} onChange={e=>setFilterTask(e.target.value)} style={{...iStyle(t),width:180,padding:"6px 10px",fontSize:12}}>
+              <option value="all">All tasks</option>
+              {data.tasks.map(tk=><option key={tk.id} value={tk.id}>{tk.title}</option>)}
+            </select>
+          </div>
         </div>
-        <Field label="Note" t={t}><Inp value={lf.note} onChange={e=>setLf(p=>({...p,note:e.target.value}))} placeholder="What was done?" t={t}/></Field>
-        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:6}}>
+        {logs.length===0
+          ?<div style={{textAlign:"center",padding:"28px 0",color:t.textMuted,fontSize:13}}>No log entries match your filters.</div>
+          :<div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {[...logs].reverse().map((log,i)=>(
+              <div key={log.id} style={{display:"grid",gridTemplateColumns:"2fr 1fr 80px 80px 1fr auto",gap:10,alignItems:"center",padding:"10px 13px",background:t.surfaceAlt,borderRadius:10,animation:`fadeUp .22s ${Math.min(i,10)*20}ms both`}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tName(log.tId)}</div>
+                  <div style={{fontSize:11,color:t.textMuted,marginTop:1}}>{log.note||"No note"}</div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <Av init={data.users.find(u=>u.id===log.uId)?.av||"?"} size={22} t={t}/>
+                  <span style={{fontSize:12,color:t.textMid}}>{uName(log.uId).split(" ")[0]}</span>
+                </div>
+                <span style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:18,color:t.lime}}>{log.hrs}<span style={{fontSize:11,color:t.textMuted,fontWeight:400}}>h</span></span>
+                <span style={{fontSize:11,color:t.textMuted}}>{log.date?fd(log.date):"—"}</span>
+                <span style={{fontSize:11,color:t.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{log.note||""}</span>
+                {log.auto
+                  ?<span style={{display:"inline-flex",alignItems:"center",gap:3,padding:"2px 7px",background:t.limeBg,borderRadius:99,fontSize:10,color:t.limeDeep,fontWeight:700,flexShrink:0}}><Zap size={9}/>Auto</span>
+                  :<span style={{display:"inline-flex",alignItems:"center",gap:3,padding:"2px 7px",background:t.blueBg,borderRadius:99,fontSize:10,color:t.blue,fontWeight:700,flexShrink:0}}><FileText size={9}/>Manual</span>}
+              </div>
+            ))}
+          </div>}
+      </Card>
+
+      {/* Log Time Modal */}
+      <Modal open={showLog} onClose={()=>setShowLog(false)} title="Log Time" t={t} w={440}>
+        <div style={{padding:"10px 13px",background:t.surfaceAlt,borderRadius:10,marginBottom:16,fontSize:12,color:t.textMid,lineHeight:1.6}}>
+          Use this to manually record hours worked on a task. Time is also auto-logged when you start a task using the <strong style={{color:t.text}}>Start Task</strong> button in Projects.
+        </div>
+        <Field label="Task *" t={t}>
+          <Sel value={lf.tId} onChange={e=>setLf(p=>({...p,tId:e.target.value}))} t={t}>
+            <option value="">Select a task</option>
+            {data.tasks.map(tk=><option key={tk.id} value={tk.id}>{tk.title}</option>)}
+          </Sel>
+        </Field>
+        <Field label="Team Member *" t={t}>
+          <Sel value={lf.uId} onChange={e=>setLf(p=>({...p,uId:e.target.value}))} t={t}>
+            <option value="">Select member</option>
+            {data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}
+          </Sel>
+        </Field>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="Date *" t={t}><Inp type="date" value={lf.date} onChange={e=>setLf(p=>({...p,date:e.target.value}))} t={t}/></Field>
+          <Field label="Hours Worked *" t={t}><Inp type="number" value={lf.hrs} onChange={e=>setLf(p=>({...p,hrs:e.target.value}))} placeholder="e.g. 3.5" t={t}/></Field>
+        </div>
+        <Field label="Note (optional)" t={t}><Inp value={lf.note} onChange={e=>setLf(p=>({...p,note:e.target.value}))} placeholder="What did you work on?" t={t}/></Field>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
           <Btn v="secondary" t={t} onClick={()=>setShowLog(false)}>Cancel</Btn>
-          <Btn v="lime" t={t} onClick={logTime}>Log Time</Btn>
+          <Btn v="lime" t={t} onClick={logTime} icon={<Clock3 size={13}/>}>Log Time</Btn>
         </div>
       </Modal>
     </div>
@@ -753,18 +1045,21 @@ function Clients({t,data,setData,toast}){
   const [pocTab,setPocTab]=useState(false);
   const [showAdd,setShowAdd]=useState(false);
   const [showAddPoc,setShowAddPoc]=useState(false);
-  const [form,setForm]=useState({name:"",industry:"",drive:"",preferredComm:"Email"});
+  const [form,setForm]=useState({name:"",industry:"",drive:"",preferredComm:"Email",assetLinks:[""],poc:{name:"",designation:"",phone:"",email:""}});
   const [pocForm,setPocForm]=useState({name:"",designation:"",phone:"",email:""});
 
   const addClient=()=>{
     if(!form.name){toast("Name required","error");return;}
-    setData(d=>({...d,clients:[...d.clients,{...form,id:"c"+Date.now(),score:80,met:0,missed:0,deliverables:[],pocs:[]}]}));
-    setShowAdd(false);setForm({name:"",industry:"",drive:"",preferredComm:"Email"});toast("Client added");
+    const pocs=form.poc.name?[{...form.poc,id:"p"+Date.now()}]:[];
+    const assetLinks=(form.assetLinks||[]).filter(l=>l.trim());
+    setData(d=>({...d,clients:[...d.clients,{...form,id:"c"+Date.now(),score:80,met:0,missed:0,deliverables:[],pocs,assetLinks}]}));
+    setShowAdd(false);
+    setForm({name:"",industry:"",drive:"",preferredComm:"Email",assetLinks:[""],poc:{name:"",designation:"",phone:"",email:""}});
+    toast("Client added");
   };
   const addPoc=()=>{
     if(!pocForm.name){toast("Name required","error");return;}
     setData(d=>({...d,clients:d.clients.map(c=>c.id===sel?.id?{...c,pocs:[...(c.pocs||[]),{...pocForm,id:"p"+Date.now()}]}:c)}));
-    const updated=data.clients.find(c=>c.id===sel?.id);
     setSel(p=>({...p,pocs:[...(p.pocs||[]),{...pocForm,id:"p"+Date.now()}]}));
     setShowAddPoc(false);setPocForm({name:"",designation:"",phone:"",email:""});toast("POC added");
   };
@@ -810,6 +1105,7 @@ function Clients({t,data,setData,toast}){
                 <Field label="Preferred Communication" t={t}><div style={{fontSize:13,color:t.text,fontWeight:600,padding:"9px 13px",background:t.surfaceAlt,borderRadius:10}}>{sel.preferredComm||"—"}</div></Field>
                 <Field label="Google Drive" t={t}><a href={sel.drive} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"9px 13px",background:t.blueBg,color:t.blue,borderRadius:10,fontSize:13,fontWeight:600,textDecoration:"none"}}><ExternalLink size={13}/> Open Drive</a></Field>
               </div>
+              {(sel.assetLinks||[]).filter(l=>l).length>0&&<Field label="Asset / Reference Links" t={t}><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{(sel.assetLinks||[]).filter(l=>l).map((l,i)=><a key={i} href={l} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 12px",background:t.surfaceAlt,color:t.textMid,borderRadius:9,fontSize:12,fontWeight:600,textDecoration:"none",border:`1px solid ${t.border}`}}><Link2 size={11}/>Asset {i+1}</a>)}</div></Field>}
               <Field label="Deliverables" t={t}><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{(sel.deliverables||[]).map(d=><span key={d} style={{padding:"4px 10px",background:t.limeBg,borderRadius:99,fontSize:12,color:t.limeDeep,fontWeight:500}}>{d}</span>)}</div></Field>
             </>
           ):(
@@ -847,12 +1143,35 @@ function Clients({t,data,setData,toast}){
         </div>
       </Modal>
 
-      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="New Client" t={t} w={440}>
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="New Client" t={t} w={500}>
         <Field label="Client Name *" t={t}><Inp value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="e.g. L&T Ltd." t={t}/></Field>
         <Field label="Industry" t={t}><Inp value={form.industry} onChange={e=>setForm(p=>({...p,industry:e.target.value}))} placeholder="e.g. Industrial Manufacturing" t={t}/></Field>
-        <Field label="Drive Link" t={t}><Inp value={form.drive} onChange={e=>setForm(p=>({...p,drive:e.target.value}))} placeholder="https://drive.google.com/..." t={t}/></Field>
-        <Field label="Preferred Communication" t={t}><Sel value={form.preferredComm} onChange={e=>setForm(p=>({...p,preferredComm:e.target.value}))} t={t}>{["Email","WhatsApp","Phone","Slack"].map(x=><option key={x}>{x}</option>)}</Sel></Field>
-        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="Google Drive Link" t={t}><Inp value={form.drive} onChange={e=>setForm(p=>({...p,drive:e.target.value}))} placeholder="https://drive.google.com/..." t={t}/></Field>
+          <Field label="Preferred Communication" t={t}><Sel value={form.preferredComm} onChange={e=>setForm(p=>({...p,preferredComm:e.target.value}))} t={t}>{["Email","WhatsApp","Phone","Slack"].map(x=><option key={x}>{x}</option>)}</Sel></Field>
+        </div>
+        {/* Asset / Reference Links */}
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",display:"block",marginBottom:8}}>Asset / Reference Links</label>
+          {form.assetLinks.map((link,i)=>(
+            <div key={i} style={{display:"flex",gap:8,marginBottom:6}}>
+              <Inp value={link} onChange={e=>{const a=[...form.assetLinks];a[i]=e.target.value;setForm(p=>({...p,assetLinks:a}));}} placeholder={`Reference link ${i+1}`} t={t}/>
+              {form.assetLinks.length>1&&<Btn v="ghost" t={t} size="sm" onClick={()=>setForm(p=>({...p,assetLinks:p.assetLinks.filter((_,j)=>j!==i)}))}><X size={12}/></Btn>}
+            </div>
+          ))}
+          <Btn v="ghost" t={t} size="sm" icon={<Plus size={11}/>} onClick={()=>setForm(p=>({...p,assetLinks:[...p.assetLinks,""]}))}>Add link</Btn>
+        </div>
+        {/* Initial POC */}
+        <div style={{padding:"13px 14px",background:t.surfaceAlt,borderRadius:12,marginBottom:14,border:`1px solid ${t.border}`}}>
+          <div style={{fontWeight:700,fontSize:12,color:t.textMid,marginBottom:12,display:"flex",alignItems:"center",gap:6}}><Users size={13}/> Point of Contact (optional — add now or later)</div>
+          <Field label="POC Name" t={t}><Inp value={form.poc.name} onChange={e=>setForm(p=>({...p,poc:{...p.poc,name:e.target.value}}))} placeholder="e.g. Ankit Joshi" t={t}/></Field>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <Field label="Designation" t={t}><Inp value={form.poc.designation} onChange={e=>setForm(p=>({...p,poc:{...p.poc,designation:e.target.value}}))} placeholder="e.g. Marketing Head" t={t}/></Field>
+            <Field label="Phone" t={t}><Inp value={form.poc.phone} onChange={e=>setForm(p=>({...p,poc:{...p.poc,phone:e.target.value}}))} placeholder="98XXXXXXXX" t={t}/></Field>
+            <Field label="Email" t={t}><Inp type="email" value={form.poc.email} onChange={e=>setForm(p=>({...p,poc:{...p.poc,email:e.target.value}}))} placeholder="ankit@client.com" t={t}/></Field>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:4}}>
           <Btn v="secondary" t={t} onClick={()=>setShowAdd(false)}>Cancel</Btn>
           <Btn v="lime" t={t} onClick={addClient} icon={<Plus size={13}/>}>Add Client</Btn>
         </div>
@@ -1164,11 +1483,23 @@ function Leaves({t,data,setData,toast}){
 // ── DEPARTMENTS ───────────────────────────────────────────────────────────────
 function Departments({t,data,setData,toast}){
   const [showAdd,setShowAdd]=useState(false);
+  const [editDept,setEditDept]=useState(null);
   const [form,setForm]=useState({name:"",managerId:"",hodId:"",color:t.lime});
   const add=()=>{
     if(!form.name){toast("Department name required","error");return;}
     setData(d=>({...d,departments:[...d.departments,{...form,id:"d"+Date.now()}]}));
     setShowAdd(false);setForm({name:"",managerId:"",hodId:"",color:t.lime});toast("Department created");
+  };
+  const save=()=>{
+    if(!editDept.name){toast("Name required","error");return;}
+    setData(d=>({...d,departments:d.departments.map(dp=>dp.id===editDept.id?editDept:dp)}));
+    setEditDept(null);toast("Department updated");
+  };
+  const del=id=>{
+    if(!window.confirm("Delete this department? Members will become unassigned."))return;
+    setData(d=>({...d,departments:d.departments.filter(dp=>dp.id!==id)}));
+    deleteDoc_(COLS.DEPARTMENTS,id).catch(()=>{});
+    toast("Department deleted","info");
   };
   return(
     <div>
@@ -1187,13 +1518,15 @@ function Departments({t,data,setData,toast}){
                   <div style={{width:44,height:44,borderRadius:12,background:dept.color+"22",display:"flex",alignItems:"center",justifyContent:"center"}}><Building2 size={20} color={dept.color}/></div>
                   <div><div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:17,color:t.text}}>{dept.name}</div><div style={{fontSize:12,color:t.textMuted,marginTop:2}}>{members.length} members · {dTasks.length} tasks</div></div>
                 </div>
-                <div style={{display:"flex",gap:10}}>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
                   {[["Tasks",dTasks.length,"text"],["Done",dTasks.filter(tk=>tk.status==="Completed").length,"lime"],["Active",dTasks.filter(tk=>tk.status==="In Progress").length,"blue"]].map(([l,v,c])=>(
                     <div key={l} style={{textAlign:"center",padding:"8px 14px",background:t.surfaceAlt,borderRadius:10}}>
                       <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:20,color:t[c]}}>{v}</div>
                       <div style={{fontSize:9,textTransform:"uppercase",color:t.textMuted,fontWeight:600}}>{l}</div>
                     </div>
                   ))}
+                  <button onClick={()=>setEditDept({...dept})} title="Edit" style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:6,borderRadius:8,display:"flex",transition:"color .15s"}} onMouseEnter={e=>e.currentTarget.style.color=t.text} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Edit2 size={14}/></button>
+                  <button onClick={()=>del(dept.id)} title="Delete" style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:6,borderRadius:8,display:"flex",transition:"color .15s"}} onMouseEnter={e=>e.currentTarget.style.color=t.red} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Trash2 size={14}/></button>
                 </div>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
@@ -1234,6 +1567,18 @@ function Departments({t,data,setData,toast}){
           <Btn v="lime" t={t} onClick={add} icon={<Plus size={13}/>}>Create</Btn>
         </div>
       </Modal>
+      {editDept&&<Modal open onClose={()=>setEditDept(null)} title="Edit Department" t={t} w={460}>
+        <Field label="Department Name *" t={t}><Inp value={editDept.name} onChange={e=>setEditDept(p=>({...p,name:e.target.value}))} t={t}/></Field>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="Company Manager" t={t}><Sel value={editDept.managerId||""} onChange={e=>setEditDept(p=>({...p,managerId:e.target.value}))} t={t}><option value="">Select</option>{data.users.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
+          <Field label="Head of Department" t={t}><Sel value={editDept.hodId||""} onChange={e=>setEditDept(p=>({...p,hodId:e.target.value}))} t={t}><option value="">Select</option>{data.users.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
+        </div>
+        <Field label="Accent Color" t={t}><div style={{display:"flex",gap:10,alignItems:"center"}}><input type="color" value={editDept.color} onChange={e=>setEditDept(p=>({...p,color:e.target.value}))} style={{width:40,height:36,border:"none",borderRadius:8,cursor:"pointer",background:"none"}}/></div></Field>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+          <Btn v="secondary" t={t} onClick={()=>setEditDept(null)}>Cancel</Btn>
+          <Btn v="lime" t={t} onClick={save}>Save Changes</Btn>
+        </div>
+      </Modal>}
     </div>
   );
 }
@@ -1242,6 +1587,19 @@ function Departments({t,data,setData,toast}){
 function Team({t,data,setData,toast}){
   const [showAdd,setShowAdd]=useState(false);
   const [form,setForm]=useState({name:"",email:"",phone:"",role:"",dept:"",dob:""});
+  const [editMember,setEditMember]=useState(null);
+
+  const del=id=>{
+    if(!window.confirm("Remove this team member?"))return;
+    setData(d=>({...d,users:d.users.filter(u=>u.id!==id)}));
+    deleteDoc_(COLS.USERS,id).catch(()=>{});
+    toast("Member removed","info");
+  };
+  const saveEdit=()=>{
+    if(!editMember.name){toast("Name required","error");return;}
+    setData(d=>({...d,users:d.users.map(u=>u.id===editMember.id?editMember:u)}));
+    setEditMember(null);toast("Member updated");
+  };
   const deptColor=id=>data.departments.find(d=>d.id===id)?.color||t.lime;
   const deptName=id=>data.departments.find(d=>d.id===id)?.name||"—";
 
@@ -1301,13 +1659,15 @@ function Team({t,data,setData,toast}){
                     </div>
                   </div>
                 </div>
-                <div style={{display:"flex",gap:8}}>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
                   {[["Tasks",tasks.length,"text"],["Done",tasks.filter(tk=>tk.status==="Completed").length,"lime"],["Delayed",tasks.filter(tk=>tk.status==="Delayed").length,"red"]].map(([l,v,c])=>(
                     <div key={l} style={{textAlign:"center",padding:"7px 12px",background:t.surfaceAlt,borderRadius:10}}>
                       <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:18,color:t[c]}}>{v}</div>
                       <div style={{fontSize:9,textTransform:"uppercase",color:t.textMuted,fontWeight:600}}>{l}</div>
                     </div>
                   ))}
+                  <button onClick={()=>setEditMember({...m})} title="Edit" style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:6,borderRadius:8,display:"flex",transition:"color .15s"}} onMouseEnter={e=>e.currentTarget.style.color=t.text} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Edit2 size={14}/></button>
+                  <button onClick={()=>del(m.id)} title="Remove" style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:6,borderRadius:8,display:"flex",transition:"color .15s"}} onMouseEnter={e=>e.currentTarget.style.color=t.red} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Trash2 size={14}/></button>
                 </div>
               </div>
               {tasks.length>0&&(
@@ -1344,6 +1704,148 @@ function Team({t,data,setData,toast}){
           <Btn v="lime" t={t} onClick={add} icon={<Plus size={13}/>}>Add Member</Btn>
         </div>
       </Modal>
+      {editMember&&<Modal open onClose={()=>setEditMember(null)} title="Edit Member" t={t} w={480}>
+        <Field label="Full Name *" t={t}><Inp value={editMember.name} onChange={e=>setEditMember(p=>({...p,name:e.target.value}))} t={t}/></Field>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="Work Email" t={t}><Inp type="email" value={editMember.email||""} onChange={e=>setEditMember(p=>({...p,email:e.target.value}))} t={t}/></Field>
+          <Field label="Phone" t={t}><Inp value={editMember.phone||""} onChange={e=>setEditMember(p=>({...p,phone:e.target.value}))} t={t}/></Field>
+          <Field label="Role / Designation" t={t}><Inp value={editMember.role||""} onChange={e=>setEditMember(p=>({...p,role:e.target.value}))} t={t}/></Field>
+          <Field label="Department" t={t}><Sel value={editMember.dept||""} onChange={e=>setEditMember(p=>({...p,dept:e.target.value}))} t={t}><option value="">Select dept.</option>{data.departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</Sel></Field>
+          <Field label="Date of Birth" t={t}><Inp type="date" value={editMember.dob||""} onChange={e=>setEditMember(p=>({...p,dob:e.target.value}))} t={t}/></Field>
+        </div>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+          <Btn v="secondary" t={t} onClick={()=>setEditMember(null)}>Cancel</Btn>
+          <Btn v="lime" t={t} onClick={saveEdit}>Save Changes</Btn>
+        </div>
+      </Modal>}
+    </div>
+  );
+}
+
+// ── BOARD VIEW ────────────────────────────────────────────────────────────────
+function BoardView({t,data,setData,toast}){
+  const COLS_BOARD=["Not Started","In Progress","Review","Rework","Completed"];
+  const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
+  const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
+  const colColor={"Not Started":t.textMuted,"In Progress":t.blue,"Review":t.amber,"Rework":t.purple,"Completed":t.green};
+  const colBg={"Not Started":t.surfaceAlt,"In Progress":t.blueBg,"Review":t.amberBg,"Rework":t.purpleBg,"Completed":t.greenBg};
+  const [dragId,setDragId]=useState(null);
+  const move=(taskId,newStatus)=>{
+    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===taskId?{...tk,status:newStatus,startedAt:newStatus==="In Progress"&&!tk.startedAt?new Date().toISOString():tk.startedAt}:tk)}));
+  };
+  return(
+    <div>
+      <SHead t={t} title="My Board" sub="Kanban view — drag tasks across columns"/>
+      <div style={{display:"flex",gap:14,overflowX:"auto",paddingBottom:12,alignItems:"flex-start"}}>
+        {COLS_BOARD.map(col=>{
+          const tasks=data.tasks.filter(tk=>tk.status===col);
+          return(
+            <div key={col} style={{minWidth:220,maxWidth:240,flexShrink:0,background:t.surfaceAlt,borderRadius:14,padding:12,borderTop:`3px solid ${colColor[col]}`}}
+              onDragOver={e=>e.preventDefault()}
+              onDrop={e=>{e.preventDefault();if(dragId)move(dragId,col);setDragId(null);}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:colColor[col]}}>{col}</span>
+                <span style={{fontSize:11,fontWeight:700,color:t.textMuted,background:t.surface,borderRadius:99,padding:"1px 8px"}}>{tasks.length}</span>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {tasks.map(task=>(
+                  <div key={task.id} draggable onDragStart={()=>setDragId(task.id)}
+                    style={{background:t.card,border:`1px solid ${t.border}`,borderRadius:10,padding:"11px 12px",cursor:"grab",transition:"all .15s",userSelect:"none"}}
+                    onMouseEnter={e=>e.currentTarget.style.borderColor=colColor[col]}
+                    onMouseLeave={e=>e.currentTarget.style.borderColor=t.border}>
+                    <div style={{fontSize:12,fontWeight:700,color:t.text,marginBottom:6,lineHeight:1.4}}>{task.title}</div>
+                    <div style={{fontSize:11,color:t.textMuted,marginBottom:6}}>{cName(task.cId).split(" ")[0]}</div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:5}}><Av init={data.users.find(u=>u.id===task.aId)?.av||"?"} size={20} t={t}/><span style={{fontSize:11,color:t.textMuted}}>{uName(task.aId).split(" ")[0]}</span></div>
+                      <span style={{fontSize:10,color:task.due?isOverdue(task.due)&&col!=="Completed"?t.red:t.textMuted:t.amber,fontWeight:600}}>{task.due?fd(task.due):"No date"}</span>
+                    </div>
+                    {task.status==="In Progress"&&task.startedAt&&<div style={{marginTop:6,display:"flex",alignItems:"center",gap:4}}><div style={{width:6,height:6,borderRadius:"50%",background:t.lime}}/><LiveTimer startedAt={task.startedAt} t={t} active/></div>}
+                  </div>
+                ))}
+                {tasks.length===0&&<div style={{fontSize:12,color:t.textMuted,textAlign:"center",padding:"16px 0",opacity:0.5}}>Drop here</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── CALENDAR VIEW ─────────────────────────────────────────────────────────────
+function CalendarView({t,data,go}){
+  const [month,setMonth]=useState(()=>new Date());
+  const [view,setView]=useState("tasks"); // tasks | leaves | holidays
+
+  const HOLIDAYS=[
+    {name:"Republic Day",date:"2026-01-26"},{name:"Holi",date:"2026-03-10"},
+    {name:"Good Friday",date:"2026-04-03"},{name:"Ambedkar Jayanti",date:"2026-04-14"},
+    {name:"Maharashtra Day",date:"2026-05-01"},{name:"Independence Day",date:"2026-08-15"},
+    {name:"Gandhi Jayanti",date:"2026-10-02"},{name:"Dussehra",date:"2026-10-17"},
+    {name:"Diwali",date:"2026-11-08"},{name:"Christmas",date:"2026-12-25"},
+  ];
+
+  const y=month.getFullYear(), m=month.getMonth();
+  const first=new Date(y,m,1).getDay();
+  const days=new Date(y,m+1,0).getDate();
+  const cells=[];
+  for(let i=0;i<first;i++) cells.push(null);
+  for(let d=1;d<=days;d++) cells.push(new Date(y,m,d));
+
+  const dateStr=d=>d?`${y}-${String(m+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`:"";
+
+  const eventsOn=d=>{
+    if(!d)return[];
+    const ds=dateStr(d);
+    const evs=[];
+    if(view==="tasks"||view==="all") data.tasks.filter(tk=>tk.due===ds).forEach(tk=>evs.push({label:tk.title,color:t.lime,type:"task"}));
+    if(view==="leaves"||view==="all") data.leaves.filter(l=>l.status==="Approved"&&ds>=l.from&&ds<=l.to).forEach(l=>evs.push({label:data.users.find(u=>u.id===l.uId)?.name||"Leave",color:t.blue,type:"leave"}));
+    if(view==="holidays"||view==="all") HOLIDAYS.filter(h=>h.date===ds).forEach(h=>evs.push({label:h.name,color:t.amber,type:"holiday"}));
+    return evs;
+  };
+
+  const todayStr=new Date().toISOString().split("T")[0];
+
+  return(
+    <div>
+      <SHead t={t} title="Calendar" sub="Tasks, leaves, and holidays in one view"
+        action={<div style={{display:"flex",gap:6}}>
+          {["tasks","leaves","holidays"].map(v=>(
+            <button key={v} onClick={()=>setView(v)} style={{padding:"6px 13px",borderRadius:99,border:`1.5px solid ${view===v?t.lime:t.border}`,background:view===v?t.limeBg:"transparent",color:view===v?t.limeDeep:t.textMuted,fontSize:12,fontWeight:600,cursor:"pointer",textTransform:"capitalize"}}>{v}</button>
+          ))}
+        </div>}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <button onClick={()=>setMonth(d=>{const n=new Date(d);n.setMonth(n.getMonth()-1);return n;})} style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:9,padding:"7px 13px",cursor:"pointer",color:t.text,fontSize:13,fontWeight:600}}><ChevronLeft size={14}/></button>
+        <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:17,color:t.text}}>{month.toLocaleString("en-IN",{month:"long",year:"numeric"})}</div>
+        <button onClick={()=>setMonth(d=>{const n=new Date(d);n.setMonth(n.getMonth()+1);return n;})} style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:9,padding:"7px 13px",cursor:"pointer",color:t.text,fontSize:13,fontWeight:600}}><ChevronRight size={14}/></button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
+        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=>(
+          <div key={d} style={{textAlign:"center",fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em",padding:"6px 0"}}>{d}</div>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+        {cells.map((d,i)=>{
+          const ds=dateStr(d);
+          const isToday=ds===todayStr;
+          const isSun=d&&d.getDay()===0;
+          const evs=eventsOn(d);
+          return(
+            <div key={i} style={{minHeight:72,background:isToday?t.limeBg:isSun?t.redBg:t.card,border:`1px solid ${isToday?t.lime:t.border}`,borderRadius:10,padding:"6px 7px",opacity:d?1:0.2}}>
+              {d&&<div style={{fontSize:11,fontWeight:700,color:isToday?t.limeDeep:isSun?t.red:t.textMuted,marginBottom:4}}>{d.getDate()}</div>}
+              {evs.slice(0,3).map((ev,j)=>(
+                <div key={j} style={{fontSize:9,padding:"2px 5px",borderRadius:4,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",background:ev.color+"22",color:ev.color,fontWeight:700}}>{ev.label}</div>
+              ))}
+              {evs.length>3&&<div style={{fontSize:9,color:t.textMuted,fontWeight:600}}>+{evs.length-3} more</div>}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{display:"flex",gap:14,marginTop:14,flexWrap:"wrap"}}>
+        {[["Task deadline",t.lime],["Approved leave",t.blue],["Holiday",t.amber]].map(([l,c])=>(
+          <div key={l} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:t.textMuted}}><div style={{width:10,height:10,borderRadius:3,background:c}}/>{l}</div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1444,34 +1946,36 @@ function Onboarding({t,data,setData,toast}){
 // ROOT
 // ══════════════════════════════════════════════════════════════════════════════
 const NAV=[
-  {id:"dashboard",   label:"Dashboard",   Icon:LayoutDashboard},
-  {id:"projects",    label:"Projects",    Icon:FolderKanban},
-  {id:"timelogs",    label:"Time Logs",   Icon:Clock3},
-  {id:"efficiency",  label:"Efficiency",  Icon:TrendingUp},
-  {id:"clients",     label:"Clients",     Icon:Briefcase},
-  {id:"meetings",    label:"Meetings",    Icon:CalendarDays},
-  {id:"leaves",      label:"Leaves",      Icon:Umbrella},
-  {id:"departments", label:"Departments", Icon:Building2},
-  {id:"team",        label:"Team",        Icon:Users2},
-  {id:"onboarding",  label:"Onboarding",  Icon:UserCheck},
-  {id:"notifications",label:"Notifications",Icon:Bell},
+  {id:"dashboard",    label:"Dashboard",      Icon:LayoutDashboard},
+  {id:"projects",     label:"Projects",       Icon:FolderKanban},
+  {id:"board",        label:"My Board",       Icon:KanbanSquare},
+  {id:"calendar",     label:"Calendar",       Icon:Calendar},
+  {id:"timelogs",     label:"Time Logs",      Icon:Clock3},
+  {id:"efficiency",   label:"Efficiency",     Icon:TrendingUp},
+  {id:"clients",      label:"Clients",        Icon:Briefcase},
+  {id:"meetings",     label:"Meetings",       Icon:CalendarDays},
+  {id:"leaves",       label:"Leaves",         Icon:Umbrella},
+  {id:"departments",  label:"Departments",    Icon:Building2},
+  {id:"team",         label:"Team",           Icon:Users2},
+  {id:"onboarding",   label:"Onboarding",     Icon:UserCheck},
+  {id:"notifications",label:"Notifications",  Icon:Bell},
 ];
 
 // ── LOGIN SCREEN ──────────────────────────────────────────────────────────────
 function LoginScreen({onLogin}){
-  const t=D.light;
   const [email,setEmail]=useState("");
   const [pass,setPass]=useState("");
   const [loading,setLoading]=useState(false);
   const [err,setErr]=useState("");
   const [resetSent,setResetSent]=useState(false);
   const [showReset,setShowReset]=useState(false);
+  const lime="#B5D334";
 
   const login=async()=>{
-    if(!email||!pass){setErr("Enter email and password");return;}
+    if(!email||!pass){setErr("Enter your email and password");return;}
     setLoading(true);setErr("");
     try{ await loginUser(email,pass); onLogin(); }
-    catch(e){ setErr(e.code==="auth/invalid-credential"?"Wrong email or password":"Login failed — try again"); }
+    catch(e){ setErr(e.code==="auth/invalid-credential"||e.code==="auth/wrong-password"?"Incorrect email or password. Try again.":"Login failed — check your credentials."); }
     finally{ setLoading(false); }
   };
 
@@ -1480,48 +1984,66 @@ function LoginScreen({onLogin}){
     try{
       const {sendPasswordResetEmail,getAuth}=await import("firebase/auth");
       await sendPasswordResetEmail(getAuth(),email,{url:window.location.origin});
-      setResetSent(true);setShowReset(false);
-    }catch(e){setErr("Could not send reset email");}
+      setResetSent(true);setShowReset(false);setErr("");
+    }catch(e){setErr("Couldn't send reset email. Check the address.");}
   };
+
+  const inp={width:"100%",padding:"12px 14px",background:"rgba(255,255,255,0.06)",border:"1.5px solid rgba(181,211,52,0.2)",borderRadius:10,color:"#FAFAFA",fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif",transition:"border-color .15s"};
 
   return(
     <>
-      <style>{CSS}</style>
-      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f8f9f3",fontFamily:"'DM Sans',sans-serif"}}>
-        <div style={{width:"100%",maxWidth:420,padding:"0 20px"}}>
-          <div style={{textAlign:"center",marginBottom:36}}>
-            <PPLogo collapsed={false}/>
-            <p style={{color:t.textMuted,marginTop:10,fontSize:14}}>Sign in to your workspace</p>
-          </div>
-          <Card t={t} style={{padding:32}}>
-            {err&&<div style={{background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#dc2626",marginBottom:16}}>{err}</div>}
-            {resetSent&&<div style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#16a34a",marginBottom:16}}>Password reset email sent! Check your inbox.</div>}
-            <Field label="Work Email" t={t}>
-              <Inp type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@profitpenny.in" t={t}
-                onKeyDown={e=>e.key==="Enter"&&login()}/>
-            </Field>
-            {!showReset&&(
-              <Field label="Password" t={t}>
-                <Inp type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" t={t}
-                  onKeyDown={e=>e.key==="Enter"&&login()}/>
-              </Field>
-            )}
-            <Btn v="lime" t={t} onClick={login} style={{width:"100%",justifyContent:"center",marginTop:8,padding:"13px 0",fontSize:15}}>
-              {loading?"Signing in…":"Sign In →"}
-            </Btn>
-            <div style={{textAlign:"center",marginTop:14}}>
-              <button onClick={()=>setShowReset(s=>!s)} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,fontSize:13,textDecoration:"underline"}}>
-                Forgot password?
-              </button>
-              {showReset&&(
-                <Btn v="secondary" t={t} onClick={sendReset} style={{marginTop:10,width:"100%",justifyContent:"center"}}>
-                  Send Reset Link to {email||"your email"}
-                </Btn>
-              )}
+      <style>{CSS}{`
+        @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+        .login-inp:focus{border-color:${lime} !important;}
+      `}</style>
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#0C0D0A",position:"relative",overflow:"hidden"}}>
+        {/* bg glow */}
+        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 70% 50% at 50% -5%,rgba(181,211,52,0.13),transparent),radial-gradient(ellipse 40% 35% at 80% 90%,rgba(181,211,52,0.05),transparent)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(circle,rgba(181,211,52,0.08) 1px,transparent 1px)",backgroundSize:"28px 28px",pointerEvents:"none"}}/>
+
+        <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:420,padding:"0 20px",animation:"fadeUp .5s ease both"}}>
+          {/* Logo */}
+          <div style={{textAlign:"center",marginBottom:32}}>
+            <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:60,height:60,borderRadius:16,background:lime,marginBottom:14,animation:"float 3s ease-in-out infinite",boxShadow:`0 0 40px ${lime}44`}}>
+              <svg viewBox="0 0 40 40" width="34" height="34"><text x="50%" y="57%" textAnchor="middle" dominantBaseline="middle" fill="#0A0A0A" fontFamily="Poppins,sans-serif" fontWeight="800" fontSize="15">PP</text></svg>
             </div>
-          </Card>
-          <p style={{textAlign:"center",marginTop:20,fontSize:12,color:t.textMuted}}>
-            New user? Ask your admin to create your account — you'll get an email to set your password.
+            <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:26,color:"#FAFAFA",letterSpacing:"-0.5px"}}>ProfitPenny</div>
+            <div style={{fontSize:11,color:"rgba(250,250,250,0.35)",marginTop:4,letterSpacing:"0.14em",textTransform:"uppercase",fontFamily:"'DM Sans',sans-serif"}}>Studio OS · Sign In</div>
+          </div>
+
+          {/* Card */}
+          <div style={{background:"rgba(20,20,16,0.92)",border:"1px solid rgba(181,211,52,0.18)",backdropFilter:"blur(20px)",borderRadius:20,padding:"32px",boxShadow:"0 40px 100px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.03)"}}>
+            {err&&<div style={{background:"rgba(220,38,38,0.12)",border:"1px solid rgba(220,38,38,0.3)",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#FCA5A5",marginBottom:16}}>{err}</div>}
+            {resetSent&&<div style={{background:"rgba(22,163,74,0.12)",border:"1px solid rgba(22,163,74,0.3)",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#86EFAC",marginBottom:16}}>✓ Reset email sent — check your inbox.</div>}
+
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:11,fontWeight:600,color:"rgba(250,250,250,0.4)",textTransform:"uppercase",letterSpacing:"0.09em",display:"block",marginBottom:6}}>Work Email</label>
+              <input className="login-inp" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@profitpenny.in" onKeyDown={e=>e.key==="Enter"&&!showReset&&login()} style={inp}/>
+            </div>
+
+            {!showReset&&<div style={{marginBottom:20}}>
+              <label style={{fontSize:11,fontWeight:600,color:"rgba(250,250,250,0.4)",textTransform:"uppercase",letterSpacing:"0.09em",display:"block",marginBottom:6}}>Password</label>
+              <input className="login-inp" type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&login()} style={inp}/>
+            </div>}
+
+            {!showReset
+              ?<button onClick={login} disabled={loading} style={{width:"100%",padding:"13px",background:lime,border:"none",borderRadius:10,fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:"#0A0A0A",cursor:"pointer",transition:"opacity .15s",opacity:loading?0.7:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                {loading?<><div style={{width:16,height:16,border:"2px solid #0A0A0A33",borderTopColor:"#0A0A0A",borderRadius:"50%",animation:"spin .7s linear infinite"}}/> Signing in…</>:"Sign In →"}
+              </button>
+              :<button onClick={sendReset} style={{width:"100%",padding:"13px",background:"rgba(181,211,52,0.12)",border:`1.5px solid rgba(181,211,52,0.3)`,borderRadius:10,fontFamily:"'Poppins',sans-serif",fontWeight:600,fontSize:13,color:lime,cursor:"pointer"}}>
+                Send Reset Link →
+              </button>}
+
+            <div style={{textAlign:"center",marginTop:14}}>
+              <button onClick={()=>{setShowReset(s=>!s);setErr("");}} style={{background:"none",border:"none",cursor:"pointer",color:"rgba(250,250,250,0.3)",fontSize:12,textDecoration:"underline",fontFamily:"'DM Sans',sans-serif"}}>
+                {showReset?"← Back to sign in":"Forgot password?"}
+              </button>
+            </div>
+          </div>
+
+          <p style={{textAlign:"center",marginTop:18,fontSize:12,color:"rgba(250,250,250,0.2)",fontFamily:"'DM Sans',sans-serif"}}>
+            New here? Ask your admin — you'll get an email invite.
           </p>
         </div>
       </div>
@@ -1561,10 +2083,11 @@ function App(){
   const [loading,setLoading]=useState(true);
   const [toasts,toast]=useToast();
   const [pageKey,setPageKey]=useState(0);
+  const [showTutorial,setShowTutorial]=useState(false);
   const t=dark?D.dark:D.light;
 
   const go=useCallback(id=>{setNav(id);setPageKey(p=>p+1);},[]);
-  const closeTutorial=()=>setData(d=>({...d,firstLogin:false}));
+  const closeTutorial=()=>{setData(d=>({...d,firstLogin:false}));setShowTutorial(false);};
 
   // ── Load all data from Firebase on mount ─────────────────────────────────
   useEffect(()=>{
@@ -1668,6 +2191,8 @@ function App(){
   const pages={
     dashboard:    <Dashboard    t={t} data={data} go={go}/>,
     projects:     <Projects     t={t} data={data} setData={setDataAndSync} toast={toast}/>,
+    board:        <BoardView    t={t} data={data} setData={setDataAndSync} toast={toast}/>,
+    calendar:     <CalendarView t={t} data={data} go={go}/>,
     timelogs:     <TimeLogs     t={t} data={data} setData={setDataAndSync} toast={toast}/>,
     efficiency:   <Efficiency   t={t} data={data}/>,
     clients:      <Clients      t={t} data={data} setData={setDataAndSync} toast={toast}/>,
@@ -1694,7 +2219,7 @@ function App(){
   return(
     <>
       <style>{CSS}{`::-webkit-scrollbar-thumb{background:${t.scrollThumb};}`}</style>
-      {data.firstLogin&&<Tutorial t={t} onClose={closeTutorial}/>}
+      {(data.firstLogin||showTutorial)&&<Tutorial t={t} onClose={closeTutorial}/>}
       <div style={{display:"flex",height:"100vh",overflow:"hidden",background:t.bg}}>
 
         {/* SIDEBAR */}
@@ -1722,15 +2247,20 @@ function App(){
               );
             })}
           </nav>
-          <div style={{padding:side?"10px 8px":"10px 0",borderTop:`1px solid ${t.sideHover}`,display:"flex",alignItems:"center",gap:9,justifyContent:side?"flex-start":"center"}}>
-            <Av init={data.users[0]?.av||"U"} size={30} t={t}/>
-            {side&&<div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:12,fontWeight:600,color:"#FAFAFA",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{data.users[0]?.name||"User"}</div>
-              <div style={{fontSize:10,color:t.sideText}}>{data.users[0]?.role||"Member"}</div>
-            </div>}
-            {side&&<button onClick={()=>{logoutUser();}} title="Sign out" style={{background:"none",border:"none",cursor:"pointer",color:t.sideText,display:"flex",alignItems:"center",padding:4,borderRadius:6,opacity:0.7}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.7}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <div style={{padding:side?"10px 8px":"10px 0",borderTop:`1px solid ${t.sideHover}`,display:"flex",flexDirection:"column",gap:6}}>
+            {side&&<button onClick={()=>setShowTutorial(true)} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"none",border:`1px solid ${t.sideHover}`,borderRadius:8,cursor:"pointer",color:t.sideText,fontSize:11,fontWeight:600,transition:"all .15s"}} onMouseEnter={e=>{e.currentTarget.style.background=t.sideHover;e.currentTarget.style.color="#fff";}} onMouseLeave={e=>{e.currentTarget.style.background="none";e.currentTarget.style.color=t.sideText;}}>
+              <RefreshCw size={12}/> Replay Tutorial
             </button>}
+            <div style={{display:"flex",alignItems:"center",gap:9,justifyContent:side?"flex-start":"center"}}>
+              <Av init={data.users[0]?.av||"U"} size={30} t={t}/>
+              {side&&<div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,fontWeight:600,color:"#FAFAFA",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{data.users[0]?.name||"User"}</div>
+                <div style={{fontSize:10,color:t.sideText}}>{data.users[0]?.role||"Member"}</div>
+              </div>}
+              {side&&<button onClick={()=>{logoutUser();}} title="Sign out" style={{background:"none",border:"none",cursor:"pointer",color:t.sideText,display:"flex",alignItems:"center",padding:4,borderRadius:6,opacity:0.7}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.7}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </button>}
+            </div>
           </div>
         </aside>
 
@@ -1750,6 +2280,7 @@ function App(){
             </div>
           </header>
           <main key={pageKey} style={{flex:1,overflow:"auto",padding:"24px 26px",animation:"fadeUp .3s cubic-bezier(.22,1,.36,1) both"}}>
+            <PageTip nav={nav} t={t}/>
             {pages[nav]}
           </main>
         </div>
