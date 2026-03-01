@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { listDocs, createDoc, updateDoc_, COLS } from "./firebase";
 import {
   LayoutDashboard, FolderKanban, Clock3, TrendingUp, Briefcase, CalendarDays,
   Umbrella, Building2, Users2, UserCheck, Bell, Sun, Moon, ChevronRight,
@@ -65,64 +66,19 @@ const D = {
   }
 };
 
-// ── MOCK DATA ─────────────────────────────────────────────────────────────────
+// ── EMPTY SHELL (populated from Appwrite on load) ────────────────────────────
 const INIT = {
   firstLogin: true,
   company:{ name:"ProfitPenny Design Studio" },
-  departments:[
-    {id:"d1",name:"Design",  color:"#B5D334",managerId:"u1",hodId:"u2"},
-    {id:"d2",name:"Content", color:"#60A5FA",managerId:"u1",hodId:"u4"},
-    {id:"d3",name:"Strategy",color:"#F87171",managerId:"u1",hodId:"u6"},
-  ],
-  users:[
-    {id:"u1",name:"Rahul Sharma",  email:"rahul@profitpenny.in",  phone:"9876543210",role:"Admin",   dept:"d1",av:"RS",dob:"1990-04-15",active:true },
-    {id:"u2",name:"Sachin Verma",  email:"sachin@profitpenny.in", phone:"9876543211",role:"HoD",    dept:"d1",av:"SV",dob:"1992-03-08",active:true },
-    {id:"u3",name:"Priya Mehta",   email:"priya@profitpenny.in",  phone:"9876543212",role:"Designer",dept:"d1",av:"PM",dob:"1995-06-22",active:true },
-    {id:"u4",name:"Nisha Kapoor",  email:"nisha@profitpenny.in",  phone:"9876543213",role:"HoD",    dept:"d2",av:"NK",dob:"1993-11-30",active:true },
-    {id:"u5",name:"Arjun Das",     email:"arjun@profitpenny.in",  phone:"9876543214",role:"Writer",  dept:"d2",av:"AD",dob:"1996-08-05",active:true },
-    {id:"u6",name:"Kavya Rao",     email:"kavya@profitpenny.in",  phone:"9876543215",role:"HoD",    dept:"d3",av:"KR",dob:"1991-02-14",active:true },
-    {id:"u7",name:"Karan Singh",   email:"karan@profitpenny.in",  phone:"9876543216",role:"Designer",dept:"d1",av:"KS",dob:"1997-09-18",active:true },
-  ],
-  clients:[
-    {id:"c1",name:"Bharat Forge Ltd.",    industry:"Industrial Mfg.", drive:"https://drive.google.com",score:88,met:11,missed:1,
-      deliverables:["Annual Report","Brand Kit"],preferredComm:"Email",
-      pocs:[{id:"p1",name:"Ankit Joshi",designation:"Marketing Head",phone:"9800001111",email:"ankit@bharatforge.com"}]},
-    {id:"c2",name:"Mahindra CIE",         industry:"Auto Components",drive:"https://drive.google.com",score:72,met:8,missed:3,
-      deliverables:["Product Catalogue","Trade Show Brochure"],preferredComm:"WhatsApp",
-      pocs:[{id:"p2",name:"Sneha Patil",designation:"Brand Manager",phone:"9800002222",email:"sneha@mahindra.com"}]},
-    {id:"c3",name:"Thermax Ltd.",          industry:"Energy Solutions",drive:"https://drive.google.com",score:96,met:15,missed:0,
-      deliverables:["PPT Templates","Leaflets"],preferredComm:"Email",
-      pocs:[{id:"p3",name:"Rohit Desai",designation:"Communications Lead",phone:"9800003333",email:"rohit@thermax.com"}]},
-  ],
-  tasks:[
-    {id:"t1",title:"Brand Identity Refresh",cId:"c1",aId:"u3",deptId:"d1",status:"In Progress",priority:"High",  due:"2026-03-10",est:40,logged:22,startedAt:"2026-03-01T09:00:00Z",brief:"Full rebrand incl. logo, palette, typography.",drive:"https://drive.google.com",created:"2026-02-15",extRequest:null},
-    {id:"t2",title:"Product Catalogue Q1",  cId:"c2",aId:"u7",deptId:"d1",status:"Review",     priority:"High",  due:"2026-03-05",est:32,logged:30,startedAt:"2026-02-10T10:00:00Z",brief:"48-page catalogue.",drive:"https://drive.google.com",created:"2026-02-10",extRequest:null},
-    {id:"t3",title:"PPT Template System",   cId:"c3",aId:"u7",deptId:"d1",status:"Completed",  priority:"Medium",due:"2026-02-28",est:24,logged:21,startedAt:"2026-02-01T09:00:00Z",brief:"Master slide deck.",drive:"https://drive.google.com",created:"2026-02-01",extRequest:null},
-    {id:"t4",title:"Capability Brochure",   cId:"c1",aId:"u3",deptId:"d1",status:"Delayed",    priority:"High",  due:"2026-02-20",est:28,logged:12,startedAt:"2026-01-25T09:00:00Z",brief:"12-page defence brochure.",drive:"https://drive.google.com",created:"2026-01-25",extRequest:{reason:"Client delayed spec delivery",newDue:"2026-03-07",status:"Pending"}},
-    {id:"t5",title:"Q2 Strategy Deck",      cId:"c3",aId:"u6",deptId:"d3",status:"In Progress",priority:"Medium",due:"2026-03-15",est:18,logged:6, startedAt:"2026-03-02T10:00:00Z",brief:"Quarterly strategy presentation.",drive:"https://drive.google.com",created:"2026-03-01",extRequest:null},
-  ],
-  leaves:[
-    {id:"l1",uId:"u3",type:"Casual",from:"2026-03-12",to:"2026-03-13",days:2,reason:"Personal work",  status:"Pending", on:"2026-03-01"},
-    {id:"l2",uId:"u7",type:"Sick",  from:"2026-02-24",to:"2026-02-24",days:1,reason:"Fever",           status:"Approved",on:"2026-02-24"},
-  ],
-  leaveBalances:{
-    u2:{total:12,taken:3},u3:{total:12,taken:5},u4:{total:12,taken:6},
-    u5:{total:12,taken:2},u6:{total:12,taken:1},u7:{total:12,taken:4},
-  },
-  meetings:[
-    {id:"m1",cId:"c1",date:"2026-03-10",time:"11:00",loc:"Pune HQ",    attendees:["u1","u2","u3"],agenda:"Q2 scope review",mom:"",actions:[],calLink:"https://calendar.google.com/calendar/r/eventedit"},
-    {id:"m2",cId:"c3",date:"2026-03-15",time:"14:30",loc:"Google Meet",attendees:["u1","u7"],       agenda:"PPT delivery walkthrough",mom:"",actions:[],calLink:"https://calendar.google.com/calendar/r/eventedit"},
-  ],
-  timeLogs:[
-    {id:"tl1",tId:"t1",uId:"u3",date:"2026-03-01",hrs:4,note:"Logo concepts",         auto:false},
-    {id:"tl2",tId:"t1",uId:"u3",date:"2026-03-02",hrs:6,note:"Color palette sessions",auto:true },
-    {id:"tl3",tId:"t2",uId:"u7",date:"2026-02-28",hrs:8,note:"Layout draft",          auto:false},
-  ],
-  notifications:[
-    {id:"n1",type:"leave_request",  title:"Leave Request",   body:"Priya Mehta applied for 2-day casual leave (Mar 12–13)",to:"u2",from:"u3",ref:"l1",refType:"leave",  read:false,at:"2026-03-01T10:00:00Z"},
-    {id:"n2",type:"deadline_missed",title:"Deadline Missed", body:"Capability Brochure was due Feb 20 — still incomplete",  to:"u2",from:"system",ref:"t4",refType:"task",   read:false,at:"2026-02-21T09:00:00Z"},
-    {id:"n3",type:"ext_request",    title:"Extension Request",body:"Priya requested deadline extension on Capability Brochure",to:"u2",from:"u3",ref:"t4",refType:"task",   read:false,at:"2026-03-01T11:00:00Z"},
-  ],
+  departments:[],
+  users:[],
+  clients:[],
+  tasks:[],
+  leaves:[],
+  leaveBalances:{},
+  meetings:[],
+  timeLogs:[],
+  notifications:[],
   onboarding:[],
 };
 
@@ -1493,17 +1449,115 @@ const NAV=[
   {id:"notifications",label:"Notifications",Icon:Bell},
 ];
 
+// ── Firebase is schemaless — no parsing needed ────────────────────────────────
+const parseDoc = d => d;
+
 export default function App(){
   const [dark,setDark]=useState(false);
   const [nav,setNav]=useState("dashboard");
   const [side,setSide]=useState(true);
   const [data,setData]=useState(INIT);
+  const [loading,setLoading]=useState(true);
   const [toasts,toast]=useToast();
   const [pageKey,setPageKey]=useState(0);
   const t=dark?D.dark:D.light;
 
   const go=useCallback(id=>{setNav(id);setPageKey(p=>p+1);},[]);
   const closeTutorial=()=>setData(d=>({...d,firstLogin:false}));
+
+  // ── Load all data from Firebase on mount ─────────────────────────────────
+  useEffect(()=>{
+    async function loadAll(){
+      try {
+        const [users,departments,clients,tasks,leaves,meetings,timeLogs,notifications,onboarding] = await Promise.all([
+          listDocs(COLS.USERS), listDocs(COLS.DEPARTMENTS), listDocs(COLS.CLIENTS),
+          listDocs(COLS.TASKS), listDocs(COLS.LEAVES), listDocs(COLS.MEETINGS),
+          listDocs(COLS.TIMELOGS), listDocs(COLS.NOTIFICATIONS), listDocs(COLS.ONBOARDING),
+        ]);
+        const leaveBalances = {};
+        users.forEach(u => { leaveBalances[u.id] = { total: u.leaveTotal||12, taken: u.leaveTaken||0 }; });
+        setData(d=>({
+          ...d,
+          firstLogin: users.length===0,
+          users, departments, clients, tasks, leaves, meetings,
+          timeLogs, notifications, onboarding, leaveBalances,
+        }));
+      } catch(e){
+        console.error("Firebase load error:",e);
+        toast("Could not connect to database","error",6000);
+      } finally { setLoading(false); }
+    }
+    loadAll();
+  },[]);
+
+  // ── Sync helpers ──────────────────────────────────────────────────────────
+  const syncCreate = useCallback(async (col, item) => {
+    try { const {id,...rest}=item; await createDoc(col, id, rest); } catch(e){ console.error("sync create",e); }
+  },[]);
+  const syncUpdate = useCallback(async (col, id, patch) => {
+    try { const {id:_,...rest}=patch; await updateDoc_(col, id, rest); } catch(e){ console.error("sync update",e); }
+  },[]);
+
+  // ── Intercept setData to auto-sync diffs to Firebase ─────────────────────
+  const setDataAndSync = useCallback((updater) => {
+    setData(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+
+      if (next.tasks !== prev.tasks) next.tasks.forEach(t => {
+        const old = prev.tasks.find(x=>x.id===t.id);
+        if (!old) syncCreate(COLS.TASKS, t);
+        else if (JSON.stringify(t)!==JSON.stringify(old)) syncUpdate(COLS.TASKS, t.id, t);
+      });
+      if (next.users !== prev.users) next.users.forEach(u => {
+        const old = prev.users.find(x=>x.id===u.id);
+        if (!old) syncCreate(COLS.USERS, {...u,leaveTotal:12,leaveTaken:0});
+        else if (JSON.stringify(u)!==JSON.stringify(old)) syncUpdate(COLS.USERS, u.id, u);
+      });
+      if (next.clients !== prev.clients) next.clients.forEach(c => {
+        const old = prev.clients.find(x=>x.id===c.id);
+        if (!old) syncCreate(COLS.CLIENTS, c);
+        else if (JSON.stringify(c)!==JSON.stringify(old)) syncUpdate(COLS.CLIENTS, c.id, c);
+      });
+      if (next.departments !== prev.departments) next.departments.forEach(d => {
+        const old = prev.departments.find(x=>x.id===d.id);
+        if (!old) syncCreate(COLS.DEPARTMENTS, d);
+        else if (JSON.stringify(d)!==JSON.stringify(old)) syncUpdate(COLS.DEPARTMENTS, d.id, d);
+      });
+      if (next.leaves !== prev.leaves) {
+        next.leaves.forEach(l => {
+          const old = prev.leaves.find(x=>x.id===l.id);
+          if (!old) syncCreate(COLS.LEAVES, l);
+          else if (JSON.stringify(l)!==JSON.stringify(old)) syncUpdate(COLS.LEAVES, l.id, l);
+        });
+        if (next.leaveBalances !== prev.leaveBalances) {
+          Object.entries(next.leaveBalances).forEach(([uid,bal]) => {
+            const prevBal = prev.leaveBalances[uid];
+            if (!prevBal || prevBal.taken !== bal.taken) syncUpdate(COLS.USERS, uid, {leaveTotal:bal.total,leaveTaken:bal.taken});
+          });
+        }
+      }
+      if (next.meetings !== prev.meetings) next.meetings.forEach(m => {
+        const old = prev.meetings.find(x=>x.id===m.id);
+        if (!old) syncCreate(COLS.MEETINGS, m);
+        else if (JSON.stringify(m)!==JSON.stringify(old)) syncUpdate(COLS.MEETINGS, m.id, m);
+      });
+      if (next.timeLogs !== prev.timeLogs) next.timeLogs.forEach(l => {
+        if (!prev.timeLogs.find(x=>x.id===l.id)) syncCreate(COLS.TIMELOGS, l);
+      });
+      if (next.notifications !== prev.notifications) next.notifications.forEach(n => {
+        const old = prev.notifications.find(x=>x.id===n.id);
+        if (!old) syncCreate(COLS.NOTIFICATIONS, n);
+        else if (n.read !== old.read) syncUpdate(COLS.NOTIFICATIONS, n.id, {read:n.read});
+      });
+      if (next.onboarding !== prev.onboarding) next.onboarding.forEach(ob => {
+        const old = prev.onboarding.find(x=>x.id===ob.id);
+        if (!old) syncCreate(COLS.ONBOARDING, ob);
+        else if (JSON.stringify(ob)!==JSON.stringify(old)) syncUpdate(COLS.ONBOARDING, ob.id, ob);
+      });
+
+      return next;
+    });
+  },[syncCreate,syncUpdate]);
 
   const unread=data.notifications.filter(n=>!n.read).length;
   const pendLeave=data.leaves.filter(l=>l.status==="Pending").length;
@@ -1512,17 +1566,29 @@ export default function App(){
 
   const pages={
     dashboard:    <Dashboard    t={t} data={data} go={go}/>,
-    projects:     <Projects     t={t} data={data} setData={setData} toast={toast}/>,
-    timelogs:     <TimeLogs     t={t} data={data} setData={setData} toast={toast}/>,
+    projects:     <Projects     t={t} data={data} setData={setDataAndSync} toast={toast}/>,
+    timelogs:     <TimeLogs     t={t} data={data} setData={setDataAndSync} toast={toast}/>,
     efficiency:   <Efficiency   t={t} data={data}/>,
-    clients:      <Clients      t={t} data={data} setData={setData} toast={toast}/>,
-    meetings:     <Meetings     t={t} data={data} setData={setData} toast={toast}/>,
-    leaves:       <Leaves       t={t} data={data} setData={setData} toast={toast}/>,
-    departments:  <Departments  t={t} data={data} setData={setData} toast={toast}/>,
-    team:         <Team         t={t} data={data} setData={setData} toast={toast}/>,
-    onboarding:   <Onboarding   t={t} data={data} setData={setData} toast={toast}/>,
-    notifications:<Notifications t={t} data={data} setData={setData} go={go}/>,
+    clients:      <Clients      t={t} data={data} setData={setDataAndSync} toast={toast}/>,
+    meetings:     <Meetings     t={t} data={data} setData={setDataAndSync} toast={toast}/>,
+    leaves:       <Leaves       t={t} data={data} setData={setDataAndSync} toast={toast}/>,
+    departments:  <Departments  t={t} data={data} setData={setDataAndSync} toast={toast}/>,
+    team:         <Team         t={t} data={data} setData={setDataAndSync} toast={toast}/>,
+    onboarding:   <Onboarding   t={t} data={data} setData={setDataAndSync} toast={toast}/>,
+    notifications:<Notifications t={t} data={data} setData={setDataAndSync} go={go}/>,
   };
+
+  if (loading) return (
+    <>
+      <style>{CSS}</style>
+      <div style={{height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:D.light.bg,gap:20}}>
+        <PPLogo collapsed={false}/>
+        <div style={{width:48,height:48,border:`4px solid ${D.light.lime}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+        <p style={{fontFamily:"'Poppins',sans-serif",fontWeight:600,fontSize:14,color:D.light.textMuted}}>Loading your workspace…</p>
+      </div>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+    </>
+  );
 
   return(
     <>
