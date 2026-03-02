@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { listDocs, createDoc, updateDoc_, deleteDoc_, COLS, loginUser, logoutUser, onAuth, createAuthUser } from "./firebase";
+import { listDocs, createDoc, updateDoc_, deleteDoc_, COLS, loginUser, logoutUser, onAuth, getCurrentUser, inviteUser } from "./firebase";
 import {
   LayoutDashboard, FolderKanban, Clock3, TrendingUp, Briefcase, CalendarDays,
   Umbrella, Building2, Users2, UserCheck, Bell, Sun, Moon, ChevronRight,
@@ -11,17 +11,33 @@ import {
   Trash2, Link2, Calendar, KanbanSquare, RefreshCw
 } from "lucide-react";
 
-// ── EMAILJS ── configure at emailjs.com (free, 200 emails/month) ─────────────
-const EJS = { svc:"YOUR_SERVICE_ID", tpl:"YOUR_TEMPLATE_ID", key:"YOUR_PUBLIC_KEY" };
+// ── EMAIL via Resend ─────────────────────────────────────────────────────────
+// Get free API key at resend.com (3000 emails/month free)
+// Add your key below and set the from address to a verified domain/email.
+const RESEND_KEY = "YOUR_RESEND_API_KEY";  // e.g. "re_AbCdEf123..."
+const RESEND_FROM = "ProfitPenny Studio OS <no-reply@yourdomain.com>"; // must be verified on Resend
+
 async function sendEmail(to_email, to_name, subject, message){
-  if(!to_email||EJS.key==="YOUR_PUBLIC_KEY") return; // not configured yet
+  if(!to_email||RESEND_KEY==="YOUR_RESEND_API_KEY") return; // not configured yet
   try{
-    await fetch("https://api.emailjs.com/api/v1.0/email/send",{
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({service_id:EJS.svc,template_id:EJS.tpl,user_id:EJS.key,
-        template_params:{to_email,to_name,subject,message,from_name:"ProfitPenny Studio OS"}})
+    await fetch("https://api.resend.com/emails",{
+      method:"POST",
+      headers:{"Authorization":`Bearer ${RESEND_KEY}`,"Content-Type":"application/json"},
+      body:JSON.stringify({
+        from: RESEND_FROM,
+        to: [to_email],
+        subject,
+        html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f9f9f7;border-radius:12px;">
+          <div style="background:#0A0A0A;padding:16px 24px;border-radius:8px;margin-bottom:24px;display:inline-block;">
+            <span style="color:#B5D334;font-weight:800;font-size:16px;letter-spacing:-0.02em;">ProfitPenny</span>
+            <span style="color:#888;font-size:12px;margin-left:8px;">Studio OS</span>
+          </div>
+          <p style="color:#444;font-size:14px;line-height:1.8;">${message.replace(/\n/g,"<br/>")}</p>
+          <p style="color:#aaa;font-size:12px;margin-top:32px;border-top:1px solid #e0e0e0;padding-top:12px;">This is an automated notification from ProfitPenny Studio OS. Do not reply to this email.</p>
+        </div>`
+      })
     });
-  } catch(e){ console.warn("EmailJS not configured:",e.message); }
+  } catch(e){ console.warn("Resend email error:",e.message); }
 }
 
 // ── STYLES ──────────────────────────────────────────────────────────────────
@@ -50,6 +66,8 @@ body{font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;}
 .btn-press:active{transform:scale(0.95);}
 .row-hover{transition:background .12s ease;}
 .timer-active{animation:timerPulse 1.5s ease-in-out infinite;}
+.card-actions{opacity:0!important;}
+.hover-lift:hover .card-actions{opacity:1!important;}
 `;
 
 // ── TOKENS ───────────────────────────────────────────────────────────────────
@@ -171,6 +189,37 @@ function PBar({value,max=100,color="lime",t,h=5,delay=0,showPct=true}){
 }
 function Inp({value,onChange,placeholder,type="text",t}){return <input type={type} value={value} onChange={onChange} placeholder={placeholder} style={iStyle(t)} onFocus={e=>e.target.style.borderColor=t.lime} onBlur={e=>e.target.style.borderColor=t.border}/>;}
 function Sel({value,onChange,children,t}){return <select value={value} onChange={onChange} style={{...iStyle(t),cursor:"pointer"}}>{children}</select>;}
+// Smart department selector with inline "+Add New Department" option
+function DeptSel({value,onChange,data,setData,t,toast,placeholder="Select dept."}){
+  const [adding,setAdding]=useState(false);
+  const [newName,setNewName]=useState("");
+  const handleChange=e=>{
+    if(e.target.value==="__ADD__"){setAdding(true);return;}
+    onChange(e.target.value);
+  };
+  const save=()=>{
+    if(!newName.trim())return;
+    const id="d"+Date.now();
+    if(setData) setData(d=>({...d,departments:[...d.departments,{id,name:newName,color:"#B5D334",managerId:"",hodId:""}]}));
+    onChange(id);
+    setAdding(false);setNewName("");
+    if(toast) toast(`Department "${newName}" created`,"success");
+  };
+  if(adding) return(
+    <div style={{display:"flex",gap:6}}>
+      <input autoFocus value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&save()} placeholder="Department name" style={iStyle(t)}/>
+      <Btn v="lime" t={t} size="sm" onClick={save}><Check size={12}/></Btn>
+      <Btn v="ghost" t={t} size="sm" onClick={()=>setAdding(false)}><X size={12}/></Btn>
+    </div>
+  );
+  return(
+    <select value={value} onChange={handleChange} style={{...iStyle(t),cursor:"pointer"}}>
+      <option value="">{placeholder}</option>
+      {(data?.departments||[]).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+      <option value="__ADD__">+ Add New Department</option>
+    </select>
+  );
+}
 function Tex({value,onChange,placeholder,t,rows=3}){return <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{...iStyle(t),resize:"vertical"}} onFocus={e=>e.target.style.borderColor=t.lime} onBlur={e=>e.target.style.borderColor=t.border}/>;}
 function Field({label,children,t}){return <div style={{marginBottom:14}}><label style={{display:"block",fontSize:11,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",color:t.textMuted,marginBottom:6}}>{label}</label>{children}</div>;}
 function Modal({open,onClose,title,children,t,w=560,subtitle}){
@@ -235,10 +284,10 @@ function LiveTimer({startedAt,t,active}){
   return <span className={active?"timer-active":""} style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:12,color:active?t.lime:t.textMuted,letterSpacing:"0.06em"}}>{fmt(Math.floor(s/3600))}:{fmt(Math.floor((s%3600)/60))}:{fmt(s%60)}</span>;
 }
 function PPLogo({collapsed}){
-  const fg="#FAFAFA",lime="#C8E84A";
+  const fg="#FFFFFF",lime="#C8E84A";
   if(collapsed)return <svg viewBox="0 0 40 40" style={{width:32,height:32}} xmlns="http://www.w3.org/2000/svg"><rect width="40" height="40" rx="10" fill={lime}/><text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" fill="#0A0A0A" fontFamily="Poppins,sans-serif" fontWeight="800" fontSize="16">PP</text></svg>;
   return(
-    <svg viewBox="0 0 627.1 244.1" style={{height:26,width:"auto",maxWidth:150}} xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 627.1 244.1" style={{height:32,width:"auto",maxWidth:200}} xmlns="http://www.w3.org/2000/svg">
       <path fill={fg} d="M44.6,0c22.3,0,40.3,18.1,40.3,40.3s-18,40.4-40.3,40.4h-19.7v31.6H0V0h44.6ZM24.9,55.8h19.9c8.5,0,15.4-6.7,15.4-15.6s-6.9-15.4-15.4-15.4h-19.9v31Z"/>
       <path fill={fg} d="M171.8,74.6l22,37.7h-28.4l-18.6-31.6h-15.6v31.6h-24.9V0h44.6c22.3,0,40.3,18.1,40.3,40.3s-7.9,27-19.4,34.3h0ZM131.2,55.8h19.9c8.5,0,15.4-6.7,15.4-15.6s-6.9-15.4-15.4-15.4h-19.9v31Z"/>
       <path fill={fg} d="M381.7,0c16.8,0,30.6,13.6,30.6,30.6v51c0,17-13.8,30.6-30.6,30.6h-135.9c-17,0-30.6-13.6-30.6-30.6V30.6c0-17,13.6-30.6,30.6-30.6h135.9ZM387.3,30.3c0-3.2-2.4-5.4-5.5-5.4h-136.3c-2.9,0-5.4,2.2-5.4,5.5v51.7c0,3.2,2.6,5.6,5.4,5.6h136.3c3,0,5.5-2.4,5.5-5.6V30.3Z"/>
@@ -471,7 +520,10 @@ function HoDDeadlineProposal({sel,setSel,data,setData,uName,t,toast}){
 }
 
 // ── PROJECTS ─────────────────────────────────────────────────────────────────
-function Projects({t,data,setData,toast}){
+function Projects({t,data,setData,toast,currentUser}){
+  const isFounder=currentUser?.role==="Founder"||currentUser?.role==="Admin";
+  const isHoD=currentUser?.role==="HoD"||currentUser?.role==="Head of Department";
+  const isMember=!isFounder&&!isHoD;
   const [filterStatus,setFilterStatus]=useState("All");
   const [filterClient,setFilterClient]=useState("All");
   const [filterDept,setFilterDept]=useState("All");
@@ -512,7 +564,14 @@ function Projects({t,data,setData,toast}){
   const today=new Date().toISOString().split("T")[0];
   const tomorrow=new Date(Date.now()+86400000).toISOString().split("T")[0];
 
-  const filtered=data.tasks.filter(tk=>{
+  // Role-based task filtering: members only see their own tasks; HoD sees dept tasks
+  const visibleTasks=data.tasks.filter(tk=>{
+    if(isFounder) return true;
+    if(isHoD) return data.users.find(u=>u.id===tk.aId)?.dept===currentUser?.dept;
+    return tk.aId===currentUser?.id; // member sees only their own
+  });
+
+  const filtered=visibleTasks.filter(tk=>{
     if(filterStatus!=="All"&&tk.status!==filterStatus)return false;
     if(filterClient!=="All"&&tk.cId!==filterClient)return false;
     if(filterDept!=="All"&&tk.deptId!==filterDept)return false;
@@ -527,22 +586,28 @@ function Projects({t,data,setData,toast}){
   const startTask=id=>{
     setData(d=>{
       const tasks=d.tasks.map(tk=>tk.id===id?{...tk,status:"In Progress",startedAt:tk.startedAt||new Date().toISOString()}:tk);
-      // Schedule reminder emails based on est hours
       const task=tasks.find(tk=>tk.id===id);
-      if(task){
+      if(task&&task.due){
         const assignee=d.users.find(u=>u.id===task.aId);
-        const est=task.est||0;
-        // 3-hour check-in (if est >= 5h)
-        if(est>=5&&assignee?.email){
-          setTimeout(()=>{
-            sendEmail(assignee.email,assignee.name,"Check-in: "+task.title,`Hi ${assignee.name},\n\nYou've been working on "${task.title}" for 3 hours. How's it going?\n\nIf you need help or are facing any blockers, let your HoD know now.\n\nEstimated total: ${est}h\n\n— ProfitPenny Studio OS`);
-          },3*60*60*1000);
-        }
-        // 2-hours-remaining warning (if est >= 10h, fire at 8h mark)
-        if(est>=10&&assignee?.email){
-          setTimeout(()=>{
-            sendEmail(assignee.email,assignee.name,"⏰ 2 hours left: "+task.title,`Hi ${assignee.name},\n\nYou have approximately 2 hours remaining on "${task.title}" (${est}h estimate).\n\nPlease ensure your work is on track for completion. If you need a deadline extension, request it via the app before time runs out.\n\n— ProfitPenny Studio OS`);
-          },8*60*60*1000);
+        if(assignee?.email){
+          const now=Date.now();
+          const created=new Date(task.created||now).getTime();
+          const deadline=new Date(task.due+(task.dueTime?" "+task.dueTime:"")).getTime();
+          const totalMs=deadline-created;
+          if(totalMs>0){
+            // Email at 80% of deadline elapsed
+            const ms80=created+(totalMs*0.8)-now;
+            if(ms80>0) setTimeout(()=>{
+              sendEmail(assignee.email,assignee.name,"⚠ 80% of your deadline has passed: "+task.title,
+                `Hi ${assignee.name},\n\n80% of the time has passed for your task "${task.title}".\n\nDeadline: ${new Date(deadline).toLocaleString("en-IN")}\n\nPlease ensure you're on track. If you need an extension, request it from the app now.\n\n— ProfitPenny Studio OS`);
+            },ms80);
+            // Email at 90% of deadline elapsed
+            const ms90=created+(totalMs*0.9)-now;
+            if(ms90>0) setTimeout(()=>{
+              sendEmail(assignee.email,assignee.name,"🚨 90% of your deadline has passed: "+task.title,
+                `Hi ${assignee.name},\n\n90% of the time has passed for your task "${task.title}".\n\nDeadline: ${new Date(deadline).toLocaleString("en-IN")}\n\nOnly 10% of time remaining! Complete or request an extension immediately.\n\n— ProfitPenny Studio OS`);
+            },ms90);
+          }
         }
       }
       return {...d,tasks};
@@ -763,7 +828,7 @@ function Projects({t,data,setData,toast}){
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <Field label="Client *" t={t}><Sel value={form.cId} onChange={e=>setForm(p=>({...p,cId:e.target.value}))} t={t}><option value="">Select</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
           <Field label="Assign To *" t={t}><Sel value={form.aId} onChange={e=>handleAssign(e.target.value)} t={t}><option value="">Select</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
-          <Field label="Department" t={t}><Sel value={form.deptId} onChange={e=>setForm(p=>({...p,deptId:e.target.value}))} t={t}><option value="">Select</option>{data.departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</Sel></Field>
+          <Field label="Department" t={t}><DeptSel value={form.deptId} onChange={v=>setForm(p=>({...p,deptId:v}))} data={data} setData={setData} t={t} toast={toast}/></Field>
           <Field label="Priority" t={t}><Sel value={form.priority} onChange={e=>setForm(p=>({...p,priority:e.target.value}))} t={t}>{["High","Medium","Low"].map(x=><option key={x}>{x}</option>)}</Sel></Field>
           <Field label={`Deadline ${form.noDeadline?"(HoD will propose)":""}`} t={t}>
             <Inp type="date" value={form.noDeadline?"":form.due} disabled={form.noDeadline} onChange={e=>{setForm(p=>({...p,due:e.target.value}));checkDue(e.target.value);}} t={t}/>
@@ -1040,11 +1105,15 @@ function Efficiency({t,data}){
 }
 
 // ── CLIENTS ──────────────────────────────────────────────────────────────────
-function Clients({t,data,setData,toast}){
+function Clients({t,data,setData,toast,currentUser}){
+  const isFounder=currentUser?.role==="Founder"||currentUser?.role==="Admin";
+  const isHoD=currentUser?.role==="HoD"||currentUser?.role==="Head of Department"||currentUser?.role==="Manager";
   const [sel,setSel]=useState(null);
   const [pocTab,setPocTab]=useState(false);
   const [showAdd,setShowAdd]=useState(false);
   const [showAddPoc,setShowAddPoc]=useState(false);
+  const [showEdit,setShowEdit]=useState(false);
+  const [editForm,setEditForm]=useState(null);
   const [form,setForm]=useState({name:"",industry:"",drive:"",preferredComm:"Email",assetLinks:[""],poc:{name:"",designation:"",phone:"",email:""}});
   const [pocForm,setPocForm]=useState({name:"",designation:"",phone:"",email:""});
 
@@ -1056,6 +1125,18 @@ function Clients({t,data,setData,toast}){
     setShowAdd(false);
     setForm({name:"",industry:"",drive:"",preferredComm:"Email",assetLinks:[""],poc:{name:"",designation:"",phone:"",email:""}});
     toast("Client added");
+  };
+  const saveEdit=()=>{
+    if(!editForm.name){toast("Name required","error");return;}
+    setData(d=>({...d,clients:d.clients.map(c=>c.id===editForm.id?{...c,...editForm}:c)}));
+    if(sel?.id===editForm.id)setSel(p=>({...p,...editForm}));
+    setShowEdit(false);toast("Client updated");
+  };
+  const deleteClient=(id)=>{
+    if(!window.confirm("Delete this client? This cannot be undone."))return;
+    setData(d=>({...d,clients:d.clients.filter(c=>c.id!==id)}));
+    if(sel?.id===id)setSel(null);
+    toast("Client deleted");
   };
   const addPoc=()=>{
     if(!pocForm.name){toast("Name required","error");return;}
@@ -1070,20 +1151,27 @@ function Clients({t,data,setData,toast}){
         action={<Btn v="lime" t={t} onClick={()=>setShowAdd(true)} icon={<Plus size={14}/>}>New Client</Btn>}/>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(270px,1fr))",gap:14}}>
         {data.clients.map((c,i)=>(
-          <Card t={t} key={c.id} lift onClick={()=>{setSel(c);setPocTab(false);}}
-            style={{cursor:"pointer",animation:`fadeUp .38s ${i*55}ms both`,borderTop:`3px solid ${c.score>=80?t.lime:c.score>=65?t.amber:t.red}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-              <div><div style={{fontSize:15,fontWeight:700,color:t.text,fontFamily:"'Poppins',sans-serif"}}>{c.name}</div><div style={{fontSize:11,color:t.textMuted,marginTop:2}}>{c.industry}</div></div>
-              <div style={{textAlign:"right"}}><div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:26,lineHeight:1,color:c.score>=80?t.lime:c.score>=65?t.amber:t.red}}>{c.score}%</div><div style={{fontSize:9,color:t.textMuted,fontWeight:600,textTransform:"uppercase"}}>happiness</div></div>
-            </div>
-            <PBar value={c.score} max={100} color={c.score>=80?"lime":c.score>=65?"amber":"red"} t={t} delay={i*70}/>
-            <div style={{display:"flex",justifyContent:"space-around",marginTop:12,paddingTop:10,borderTop:`1px solid ${t.border}`}}>
-              {[["On Time",c.met,"lime"],["Missed",c.missed,"red"],["POCs",(c.pocs||[]).length,"blue"]].map(([l,v,c2])=>(
-                <div key={l} style={{textAlign:"center"}}>
-                  <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:20,color:t[c2]}}>{v}</div>
-                  <div style={{fontSize:9,color:t.textMuted,textTransform:"uppercase",fontWeight:600}}>{l}</div>
-                </div>
-              ))}
+          <Card t={t} key={c.id} lift
+            style={{cursor:"pointer",animation:`fadeUp .38s ${i*55}ms both`,borderTop:`3px solid ${c.score>=80?t.lime:c.score>=65?t.amber:t.red}`,position:"relative"}}>
+            {/* Edit/delete only for Founder/HoD */}
+            {(isFounder||isHoD)&&<div style={{position:"absolute",top:10,right:10,display:"flex",gap:4,opacity:0,transition:"opacity .15s"}} className="card-actions">
+              <button onClick={e=>{e.stopPropagation();setEditForm({...c});setShowEdit(true);}} style={{width:26,height:26,borderRadius:6,background:t.surfaceAlt,border:`1px solid ${t.border}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted}} onMouseEnter={e=>e.currentTarget.style.color=t.blue} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Edit2 size={11}/></button>
+              {isFounder&&<button onClick={e=>{e.stopPropagation();deleteClient(c.id);}} style={{width:26,height:26,borderRadius:6,background:t.redBg,border:`1px solid ${t.red}30`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.red}}><Trash2 size={11}/></button>}
+            </div>}
+            <div onClick={()=>{setSel(c);setPocTab(false);}} style={{cursor:"pointer"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+                <div><div style={{fontSize:15,fontWeight:700,color:t.text,fontFamily:"'Poppins',sans-serif"}}>{c.name}</div><div style={{fontSize:11,color:t.textMuted,marginTop:2}}>{c.industry}</div></div>
+                {(isFounder||isHoD)&&<div style={{textAlign:"right"}}><div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:26,lineHeight:1,color:c.score>=80?t.lime:c.score>=65?t.amber:t.red}}>{c.score}%</div><div style={{fontSize:9,color:t.textMuted,fontWeight:600,textTransform:"uppercase"}}>happiness</div></div>}
+              </div>
+              {(isFounder||isHoD)&&<PBar value={c.score} max={100} color={c.score>=80?"lime":c.score>=65?"amber":"red"} t={t} delay={i*70}/>}
+              <div style={{display:"flex",justifyContent:"space-around",marginTop:12,paddingTop:10,borderTop:`1px solid ${t.border}`}}>
+                {[["On Time",c.met,"lime"],["Missed",c.missed,"red"],["POCs",(c.pocs||[]).length,"blue"]].map(([l,v,c2])=>(
+                  <div key={l} style={{textAlign:"center"}}>
+                    <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:20,color:t[c2]}}>{v}</div>
+                    <div style={{fontSize:9,color:t.textMuted,textTransform:"uppercase",fontWeight:600}}>{l}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </Card>
         ))}
@@ -1141,6 +1229,22 @@ function Clients({t,data,setData,toast}){
           <Btn v="secondary" t={t} onClick={()=>setShowAddPoc(false)}>Cancel</Btn>
           <Btn v="lime" t={t} onClick={addPoc} icon={<Plus size={13}/>}>Add Contact</Btn>
         </div>
+      </Modal>
+
+      {/* Edit Client Modal */}
+      <Modal open={showEdit} onClose={()=>setShowEdit(false)} title="Edit Client" t={t} w={460}>
+        {editForm&&<>
+          <Field label="Client Name *" t={t}><Inp value={editForm.name} onChange={e=>setEditForm(p=>({...p,name:e.target.value}))} t={t}/></Field>
+          <Field label="Industry" t={t}><Inp value={editForm.industry||""} onChange={e=>setEditForm(p=>({...p,industry:e.target.value}))} t={t}/></Field>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <Field label="Google Drive Link" t={t}><Inp value={editForm.drive||""} onChange={e=>setEditForm(p=>({...p,drive:e.target.value}))} t={t}/></Field>
+            <Field label="Preferred Communication" t={t}><Sel value={editForm.preferredComm||"Email"} onChange={e=>setEditForm(p=>({...p,preferredComm:e.target.value}))} t={t}>{["Email","WhatsApp","Phone","Slack"].map(x=><option key={x}>{x}</option>)}</Sel></Field>
+          </div>
+          <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+            <Btn v="secondary" t={t} onClick={()=>setShowEdit(false)}>Cancel</Btn>
+            <Btn v="lime" t={t} onClick={saveEdit} icon={<Check size={13}/>}>Save Changes</Btn>
+          </div>
+        </>}
       </Modal>
 
       <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="New Client" t={t} w={500}>
@@ -1619,17 +1723,21 @@ function Team({t,data,setData,toast}){
 
   const add=async()=>{
     if(!form.name||!form.email){toast("Name and email required","error");return;}
-    toast("Creating account & sending invite email…","info");
-    try{
-      await createAuthUser(form.email);
-    }catch(e){
-      // If user already exists in Auth, continue anyway
-      if(!e.code?.includes("already-in-use")) { toast("Could not create login account","error"); return; }
-    }
+    toast("Adding member & sending invite…","info");
     const initials=form.name.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2);
-    setData(d=>({...d,users:[...d.users,{...form,id:"u"+Date.now(),av:initials,active:true}]}));
+    const newUser={...form,id:"u"+Date.now(),av:initials,active:true,uid:""};
+    setData(d=>({...d,users:[...d.users,newUser]}));
     setShowAdd(false);setForm({name:"",email:"",phone:"",role:"",dept:"",dob:""});
-    toast(`${form.name} added — invite email sent!`);
+    // Try to send invite email via Firebase password reset
+    const result = await inviteUser(form.email, form.name);
+    if(result.sent){
+      toast(`${form.name} added — invite email sent!`,"success");
+    } else {
+      // Email couldn't be sent (user doesn't exist in Firebase Auth yet)
+      // Admin should create them in the Admin Console
+      toast(`${form.name} added. ⚠ To give login access, create their account in the Admin Console.`,"info",7000);
+      sendEmail(form.email,form.name,"You've been added to ProfitPenny Studio OS",`Hi ${form.name},\n\nYou have been added to the ProfitPenny Studio OS workspace.\n\nTo log in, please contact your admin to get your login credentials set up.\n\nWorkspace: ${window.location.origin}\n\n— ProfitPenny Studio OS`);
+    }
   };
 
   return(
@@ -1696,7 +1804,7 @@ function Team({t,data,setData,toast}){
           <Field label="Work Email *" t={t}><Inp type="email" value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))} placeholder="ananya@profitpenny.in" t={t}/></Field>
           <Field label="Phone" t={t}><Inp value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))} placeholder="98XXXXXXXX" t={t}/></Field>
           <Field label="Role / Designation *" t={t}><Inp value={form.role} onChange={e=>setForm(p=>({...p,role:e.target.value}))} placeholder="e.g. Senior Designer" t={t}/></Field>
-          <Field label="Department (optional)" t={t}><Sel value={form.dept} onChange={e=>setForm(p=>({...p,dept:e.target.value}))} t={t}><option value="">Select dept.</option>{data.departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</Sel></Field>
+          <Field label="Department (optional)" t={t}><DeptSel value={form.dept} onChange={v=>setForm(p=>({...p,dept:v}))} data={data} setData={setData} t={t} toast={toast}/></Field>
           <Field label="Date of Birth" t={t}><Inp type="date" value={form.dob} onChange={e=>setForm(p=>({...p,dob:e.target.value}))} t={t}/></Field>
         </div>
         <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
@@ -1710,7 +1818,7 @@ function Team({t,data,setData,toast}){
           <Field label="Work Email" t={t}><Inp type="email" value={editMember.email||""} onChange={e=>setEditMember(p=>({...p,email:e.target.value}))} t={t}/></Field>
           <Field label="Phone" t={t}><Inp value={editMember.phone||""} onChange={e=>setEditMember(p=>({...p,phone:e.target.value}))} t={t}/></Field>
           <Field label="Role / Designation" t={t}><Inp value={editMember.role||""} onChange={e=>setEditMember(p=>({...p,role:e.target.value}))} t={t}/></Field>
-          <Field label="Department" t={t}><Sel value={editMember.dept||""} onChange={e=>setEditMember(p=>({...p,dept:e.target.value}))} t={t}><option value="">Select dept.</option>{data.departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</Sel></Field>
+          <Field label="Department" t={t}><DeptSel value={editMember.dept||""} onChange={v=>setEditMember(p=>({...p,dept:v}))} data={data} setData={setData} t={t} toast={toast}/></Field>
           <Field label="Date of Birth" t={t}><Inp type="date" value={editMember.dob||""} onChange={e=>setEditMember(p=>({...p,dob:e.target.value}))} t={t}/></Field>
         </div>
         <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
@@ -1778,11 +1886,22 @@ function CalendarView({t,data,go}){
   const [view,setView]=useState("tasks"); // tasks | leaves | holidays
 
   const HOLIDAYS=[
-    {name:"Republic Day",date:"2026-01-26"},{name:"Holi",date:"2026-03-10"},
-    {name:"Good Friday",date:"2026-04-03"},{name:"Ambedkar Jayanti",date:"2026-04-14"},
-    {name:"Maharashtra Day",date:"2026-05-01"},{name:"Independence Day",date:"2026-08-15"},
-    {name:"Gandhi Jayanti",date:"2026-10-02"},{name:"Dussehra",date:"2026-10-17"},
-    {name:"Diwali",date:"2026-11-08"},{name:"Christmas",date:"2026-12-25"},
+    {name:"New Year's Day",       date:"2026-01-01"},
+    {name:"Republic Day",         date:"2026-01-26"},
+    {name:"Holi",                 date:"2026-03-03"},
+    {name:"Good Friday",          date:"2026-04-03"},
+    {name:"Dr. Ambedkar Jayanti", date:"2026-04-14"},
+    {name:"Maharashtra Day",      date:"2026-05-01"},
+    {name:"Eid ul-Fitr",          date:"2026-03-20"},
+    {name:"Eid ul-Adha",          date:"2026-05-27"},
+    {name:"Independence Day",     date:"2026-08-15"},
+    {name:"Janmashtami",          date:"2026-08-25"},
+    {name:"Gandhi Jayanti",       date:"2026-10-02"},
+    {name:"Dussehra",             date:"2026-10-19"},
+    {name:"Diwali",               date:"2026-10-28"},
+    {name:"Diwali (Lakshmi Puja)",date:"2026-10-29"},
+    {name:"Guru Nanak Jayanti",   date:"2026-11-14"},
+    {name:"Christmas",            date:"2026-12-25"},
   ];
 
   const y=month.getFullYear(), m=month.getMonth();
@@ -1851,13 +1970,18 @@ function CalendarView({t,data,go}){
 }
 
 // ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
-function Notifications({t,data,setData,go}){
+function Notifications({t,data,setData,go,currentUser}){
   const markRead=id=>setData(d=>({...d,notifications:d.notifications.map(n=>n.id===id?{...n,read:true}:n)}));
   const markAll=()=>setData(d=>({...d,notifications:d.notifications.map(n=>({...n,read:true}))}));
-  const typeIcon=type=>({leave_request:<Umbrella size={15}/>,deadline_missed:<AlertTriangle size={15}/>,ext_request:<AlarmClock size={15}/>,leave_approved:<CheckCircle2 size={15}/>,leave_rejected:<XCircle size={15}/>,ext_approved:<CheckCircle2 size={15}/>,birthday_today:<Cake size={15}/>,birthday_week:<Cake size={15}/>})[type]||<Bell size={15}/>;
-  const typeColor=type=>({leave_request:"amber",deadline_missed:"red",ext_request:"purple",leave_approved:"green",leave_rejected:"red",ext_approved:"lime",birthday_today:"amber",birthday_week:"amber"})[type]||"muted";
-  const navTarget=n=>({leave_request:"leaves",deadline_missed:"projects",ext_request:"leaves",leave_approved:"leaves",leave_rejected:"leaves",ext_approved:"projects",birthday_today:"team",birthday_week:"team"})[n.type]||"notifications";
-  const sorted=[...data.notifications].sort((a,b)=>new Date(b.at)-new Date(a.at));
+  const typeIcon=type=>({leave_request:<Umbrella size={15}/>,deadline_missed:<AlertTriangle size={15}/>,ext_request:<AlarmClock size={15}/>,leave_approved:<CheckCircle2 size={15}/>,leave_rejected:<XCircle size={15}/>,ext_approved:<CheckCircle2 size={15}/>,birthday_today:<Cake size={15}/>,birthday_week:<Cake size={15}/>,deadline_proposal:<AlarmClock size={15}/>,deadline_request:<AlarmClock size={15}/>})[type]||<Bell size={15}/>;
+  const typeColor=type=>({leave_request:"amber",deadline_missed:"red",ext_request:"purple",leave_approved:"green",leave_rejected:"red",ext_approved:"lime",birthday_today:"amber",birthday_week:"amber",deadline_proposal:"amber",deadline_request:"amber"})[type]||"muted";
+  const navTarget=n=>({leave_request:"leaves",deadline_missed:"projects",ext_request:"leaves",leave_approved:"leaves",leave_rejected:"leaves",ext_approved:"projects",birthday_today:"team",birthday_week:"team",deadline_proposal:"projects",deadline_request:"projects"})[n.type]||"notifications";
+  // Show notifications relevant to this user
+  const isFounder=currentUser?.role==="Founder"||currentUser?.role==="Admin";
+  const myNotifs=data.notifications.filter(n=>
+    isFounder || n.to===currentUser?.id || n.to==="all" || n.to==="managers"
+  );
+  const sorted=[...myNotifs].sort((a,b)=>new Date(b.at)-new Date(a.at));
   const unread=sorted.filter(n=>!n.read).length;
 
   const handleClick=n=>{markRead(n.id);go(navTarget(n));};
@@ -1945,20 +2069,21 @@ function Onboarding({t,data,setData,toast}){
 // ══════════════════════════════════════════════════════════════════════════════
 // ROOT
 // ══════════════════════════════════════════════════════════════════════════════
+// roles: "all" = everyone, "manager" = Founder+HoD, "founder" = Founder only
 const NAV=[
-  {id:"dashboard",    label:"Dashboard",      Icon:LayoutDashboard},
-  {id:"projects",     label:"Projects",       Icon:FolderKanban},
-  {id:"board",        label:"My Board",       Icon:KanbanSquare},
-  {id:"calendar",     label:"Calendar",       Icon:Calendar},
-  {id:"timelogs",     label:"Time Logs",      Icon:Clock3},
-  {id:"efficiency",   label:"Efficiency",     Icon:TrendingUp},
-  {id:"clients",      label:"Clients",        Icon:Briefcase},
-  {id:"meetings",     label:"Meetings",       Icon:CalendarDays},
-  {id:"leaves",       label:"Leaves",         Icon:Umbrella},
-  {id:"departments",  label:"Departments",    Icon:Building2},
-  {id:"team",         label:"Team",           Icon:Users2},
-  {id:"onboarding",   label:"Onboarding",     Icon:UserCheck},
-  {id:"notifications",label:"Notifications",  Icon:Bell},
+  {id:"dashboard",    label:"Dashboard",      Icon:LayoutDashboard,  roles:"all"},
+  {id:"projects",     label:"Projects",       Icon:FolderKanban,     roles:"all"},
+  {id:"board",        label:"My Board",       Icon:KanbanSquare,     roles:"all"},
+  {id:"calendar",     label:"Calendar",       Icon:Calendar,         roles:"all"},
+  {id:"timelogs",     label:"Time Logs",      Icon:Clock3,           roles:"all"},
+  {id:"efficiency",   label:"Efficiency",     Icon:TrendingUp,       roles:"manager"},
+  {id:"clients",      label:"Clients",        Icon:Briefcase,        roles:"manager"},
+  {id:"meetings",     label:"Meetings",       Icon:CalendarDays,     roles:"all"},
+  {id:"leaves",       label:"Leaves",         Icon:Umbrella,         roles:"all"},
+  {id:"departments",  label:"Departments",    Icon:Building2,        roles:"manager"},
+  {id:"team",         label:"Team",           Icon:Users2,           roles:"manager"},
+  {id:"onboarding",   label:"Onboarding",     Icon:UserCheck,        roles:"manager"},
+  {id:"notifications",label:"Notifications",  Icon:Bell,             roles:"all"},
 ];
 
 // ── LOGIN SCREEN ──────────────────────────────────────────────────────────────
@@ -2004,12 +2129,18 @@ function LoginScreen({onLogin}){
 
         <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:420,padding:"0 20px",animation:"fadeUp .5s ease both"}}>
           {/* Logo */}
-          <div style={{textAlign:"center",marginBottom:32}}>
-            <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:60,height:60,borderRadius:16,background:lime,marginBottom:14,animation:"float 3s ease-in-out infinite",boxShadow:`0 0 40px ${lime}44`}}>
-              <svg viewBox="0 0 40 40" width="34" height="34"><text x="50%" y="57%" textAnchor="middle" dominantBaseline="middle" fill="#0A0A0A" fontFamily="Poppins,sans-serif" fontWeight="800" fontSize="15">PP</text></svg>
+          <div style={{textAlign:"center",marginBottom:36}}>
+            {/* Animated lime badge with PP */}
+            <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:80,height:80,borderRadius:22,background:lime,marginBottom:20,animation:"float 3s ease-in-out infinite",boxShadow:`0 0 60px ${lime}66,0 0 20px ${lime}44`}}>
+              <svg viewBox="0 0 44 44" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
+                <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" fill="#0A0A0A" fontFamily="Arial Black,Arial,sans-serif" fontWeight="900" fontSize="20">PP</text>
+              </svg>
             </div>
-            <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:26,color:"#FAFAFA",letterSpacing:"-0.5px"}}>ProfitPenny</div>
-            <div style={{fontSize:11,color:"rgba(250,250,250,0.35)",marginTop:4,letterSpacing:"0.14em",textTransform:"uppercase",fontFamily:"'DM Sans',sans-serif"}}>Studio OS · Sign In</div>
+            {/* Full wordmark — white paths on dark bg */}
+            <div style={{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:8,filter:"brightness(1.2)"}}>
+              <PPLogo collapsed={false}/>
+            </div>
+            <div style={{fontSize:11,color:"rgba(250,250,250,0.4)",letterSpacing:"0.14em",textTransform:"uppercase",fontFamily:"'DM Sans',sans-serif"}}>Studio OS · Sign In</div>
           </div>
 
           {/* Card */}
@@ -2054,8 +2185,12 @@ function LoginScreen({onLogin}){
 // ── AUTH WRAPPER ──────────────────────────────────────────────────────────────
 export default function Root(){
   const [authState,setAuthState]=useState("loading"); // loading | out | in
+  const [firebaseUid,setFirebaseUid]=useState(null);
   useEffect(()=>{
-    const unsub = onAuth(user => setAuthState(user ? "in" : "out"));
+    const unsub = onAuth(user => {
+      setFirebaseUid(user?.uid||null);
+      setAuthState(user ? "in" : "out");
+    });
     return unsub;
   },[]);
   if(authState==="loading") return(
@@ -2069,13 +2204,13 @@ export default function Root(){
     </>
   );
   if(authState==="out") return <LoginScreen onLogin={()=>setAuthState("in")}/>;
-  return <App/>;
+  return <App firebaseUid={firebaseUid}/>;
 }
 
 // ── Firebase is schemaless — no parsing needed ────────────────────────────────
 const parseDoc = d => d;
 
-function App(){
+function App({firebaseUid}){
   const [dark,setDark]=useState(false);
   const [nav,setNav]=useState("dashboard");
   const [side,setSide]=useState(true);
@@ -2085,6 +2220,15 @@ function App(){
   const [pageKey,setPageKey]=useState(0);
   const [showTutorial,setShowTutorial]=useState(false);
   const t=dark?D.dark:D.light;
+
+  // The currently logged-in user — matched strictly by Firebase UID, then email.
+  // NO fallback to data.users[0] — that would give everyone the first user's role.
+  const fbUser = getCurrentUser();
+  const currentUser = data.users.find(u=>u.uid===firebaseUid)
+    || data.users.find(u=>u.email?.toLowerCase()===fbUser?.email?.toLowerCase());
+  const isFounder = currentUser?.role==="Founder"||currentUser?.role==="Admin";
+  const isHoD = currentUser?.role==="HoD"||currentUser?.role==="Head of Department"||currentUser?.role==="Manager";
+  const isMember = !isFounder&&!isHoD;
 
   const go=useCallback(id=>{setNav(id);setPageKey(p=>p+1);},[]);
   const closeTutorial=()=>{setData(d=>({...d,firstLogin:false}));setShowTutorial(false);};
@@ -2183,25 +2327,29 @@ function App(){
     });
   },[syncCreate,syncUpdate]);
 
-  const unread=data.notifications.filter(n=>!n.read).length;
+  const isFounder = currentUser?.role==="Founder"||currentUser?.role==="Admin";
+  const isHoD = currentUser?.role==="HoD"||currentUser?.role==="Head of Department";
+  const isMember = !isFounder&&!isHoD;
+  const myNotifs=data.notifications.filter(n=>isFounder||n.to===currentUser?.id||n.to==="all"||n.to==="managers");
+  const unread=myNotifs.filter(n=>!n.read).length;
   const pendLeave=data.leaves.filter(l=>l.status==="Pending").length;
   const pendExt=data.tasks.filter(tk=>tk.extRequest?.status==="Pending").length;
   const badge=id=>id==="notifications"?unread:id==="leaves"?(pendLeave+pendExt):0;
 
   const pages={
-    dashboard:    <Dashboard    t={t} data={data} go={go}/>,
-    projects:     <Projects     t={t} data={data} setData={setDataAndSync} toast={toast}/>,
-    board:        <BoardView    t={t} data={data} setData={setDataAndSync} toast={toast}/>,
+    dashboard:    <Dashboard    t={t} data={data} go={go} currentUser={currentUser}/>,
+    projects:     <Projects     t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
+    board:        <BoardView    t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
     calendar:     <CalendarView t={t} data={data} go={go}/>,
-    timelogs:     <TimeLogs     t={t} data={data} setData={setDataAndSync} toast={toast}/>,
-    efficiency:   <Efficiency   t={t} data={data}/>,
-    clients:      <Clients      t={t} data={data} setData={setDataAndSync} toast={toast}/>,
-    meetings:     <Meetings     t={t} data={data} setData={setDataAndSync} toast={toast}/>,
-    leaves:       <Leaves       t={t} data={data} setData={setDataAndSync} toast={toast}/>,
+    timelogs:     <TimeLogs     t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
+    efficiency:   <Efficiency   t={t} data={data} currentUser={currentUser}/>,
+    clients:      <Clients      t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
+    meetings:     <Meetings     t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
+    leaves:       <Leaves       t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
     departments:  <Departments  t={t} data={data} setData={setDataAndSync} toast={toast}/>,
     team:         <Team         t={t} data={data} setData={setDataAndSync} toast={toast}/>,
     onboarding:   <Onboarding   t={t} data={data} setData={setDataAndSync} toast={toast}/>,
-    notifications:<Notifications t={t} data={data} setData={setDataAndSync} go={go}/>,
+    notifications:<Notifications t={t} data={data} setData={setDataAndSync} go={go} currentUser={currentUser}/>,
   };
 
   if (loading) return (
@@ -2213,6 +2361,40 @@ function App(){
         <p style={{fontFamily:"'Poppins',sans-serif",fontWeight:600,fontSize:14,color:D.light.textMuted}}>Loading your workspace…</p>
       </div>
       <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+    </>
+  );
+
+  // First run — no users created yet (Founder setup)
+  if(!loading && data.users.length===0) return (
+    <>
+      <style>{CSS}</style>
+      <div style={{height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:D.light.bg,gap:16,padding:24}}>
+        <PPLogo collapsed={false}/>
+        <div style={{marginTop:16,textAlign:"center",maxWidth:420}}>
+          <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:22,color:D.light.text,marginBottom:8}}>Welcome, Founder 👋</div>
+          <div style={{fontSize:14,color:D.light.textMuted,lineHeight:1.7,marginBottom:24}}>You're logged in but no team profile exists yet. Go to the Admin panel to create your Founder profile, then refresh this page.</div>
+          <a href="/admin.html" style={{display:"inline-flex",alignItems:"center",gap:8,padding:"12px 24px",background:D.light.lime,color:"#0A0A0A",borderRadius:10,fontWeight:700,fontSize:14,textDecoration:"none"}}>Open Admin Panel →</a>
+          <div style={{marginTop:12}}><button onClick={()=>logoutUser()} style={{background:"none",border:"none",cursor:"pointer",color:D.light.textMuted,fontSize:12,textDecoration:"underline"}}>Sign out</button></div>
+        </div>
+      </div>
+    </>
+  );
+
+  // Logged in but no matching profile in users collection
+  if(!loading && !currentUser) return (
+    <>
+      <style>{CSS}</style>
+      <div style={{height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:D.light.bg,gap:16,padding:24}}>
+        <div style={{width:64,height:64,borderRadius:16,background:D.light.amberBg,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:8}}>
+          <AlertTriangle size={28} color={D.light.amber}/>
+        </div>
+        <div style={{textAlign:"center",maxWidth:420}}>
+          <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:20,color:D.light.text,marginBottom:8}}>Profile Not Found</div>
+          <div style={{fontSize:14,color:D.light.textMuted,lineHeight:1.7,marginBottom:8}}>You're signed in as <strong>{fbUser?.email}</strong>, but this email isn't linked to a team member profile.</div>
+          <div style={{fontSize:13,color:D.light.textMuted,lineHeight:1.7,marginBottom:24}}>Ask your admin to create a profile for this email address, or check that you're using the correct email to sign in.</div>
+          <button onClick={()=>logoutUser()} style={{display:"inline-flex",alignItems:"center",gap:8,padding:"11px 22px",background:D.light.text,color:D.light.bg,borderRadius:10,fontWeight:600,fontSize:14,border:"none",cursor:"pointer"}}>Sign Out & Try Again</button>
+        </div>
+      </div>
     </>
   );
 
@@ -2231,7 +2413,7 @@ function App(){
             </button>
           </div>
           <nav style={{flex:1,padding:"8px 6px",overflowY:"auto",overflowX:"hidden"}}>
-            {NAV.map(({id,label,Icon},i)=>{
+            {NAV.filter(n=>n.roles==="all"||(n.roles==="manager"&&(isFounder||isHoD))||(n.roles==="founder"&&isFounder)).map(({id,label,Icon},i)=>{
               const active=nav===id,b=badge(id);
               return(
                 <button key={id} onClick={()=>go(id)} title={!side?label:""} style={{width:"100%",display:"flex",alignItems:"center",gap:side?11:0,justifyContent:side?"flex-start":"center",padding:side?"8px 11px":"10px 0",borderRadius:10,border:"none",background:active?t.sideActive+"1A":"transparent",color:active?t.sideActive:t.sideText,fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:active?600:400,cursor:"pointer",marginBottom:1,position:"relative",transition:"all .15s",animation:`fadeUp .28s ${i*18}ms both`,whiteSpace:"nowrap",overflow:"hidden"}}
@@ -2252,10 +2434,10 @@ function App(){
               <RefreshCw size={12}/> Replay Tutorial
             </button>}
             <div style={{display:"flex",alignItems:"center",gap:9,justifyContent:side?"flex-start":"center"}}>
-              <Av init={data.users[0]?.av||"U"} size={30} t={t}/>
+              <Av init={currentUser?.av||"U"} size={30} t={t}/>
               {side&&<div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:12,fontWeight:600,color:"#FAFAFA",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{data.users[0]?.name||"User"}</div>
-                <div style={{fontSize:10,color:t.sideText}}>{data.users[0]?.role||"Member"}</div>
+                <div style={{fontSize:12,fontWeight:600,color:"#FAFAFA",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{currentUser?.name||"User"}</div>
+                <div style={{fontSize:10,color:t.sideText}}>{currentUser?.role||"Member"}</div>
               </div>}
               {side&&<button onClick={()=>{logoutUser();}} title="Sign out" style={{background:"none",border:"none",cursor:"pointer",color:t.sideText,display:"flex",alignItems:"center",padding:4,borderRadius:6,opacity:0.7}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.7}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
