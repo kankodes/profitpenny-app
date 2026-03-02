@@ -29,11 +29,21 @@ export const auth = getAuth(app);
 export const loginUser  = (email, pass) => signInWithEmailAndPassword(auth, email, pass);
 export const logoutUser = () => signOut(auth);
 export const onAuth     = (cb) => onAuthStateChanged(auth, cb);
+export const getCurrentUser = () => auth.currentUser;
 
-export async function createAuthUser(email) {
-  const tempPass = Math.random().toString(36).slice(-10) + "Pp1!";
-  await createUserWithEmailAndPassword(auth, email, tempPass);
-  await sendPasswordResetEmail(auth, email, { url: window.location.origin });
+// Creates user in Firestore + sends password-reset email so they can set their own password.
+// Does NOT use createUserWithEmailAndPassword (that would log the admin out).
+// Instead, we just send a password-reset link - if the user doesn't exist yet in Auth,
+// the admin must create them via the Firebase Admin Console or the Admin HTML.
+export async function inviteUser(email, name) {
+  try {
+    // Try sending a password reset email (works if user exists in Auth)
+    await sendPasswordResetEmail(auth, email, { url: window.location.origin });
+    return { sent: true };
+  } catch(e) {
+    // User doesn't exist in Auth yet — return flag so UI can show manual instructions
+    return { sent: false, reason: e.code };
+  }
 }
 
 export const COLS = {
