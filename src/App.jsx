@@ -2704,9 +2704,6 @@ function App({firebaseUid}){
     });
   },[syncCreate,syncUpdate]);
 
-  const isFounder = currentUser?.role==="Founder"||currentUser?.role==="Admin";
-  const isHoD = currentUser?.role==="HoD"||currentUser?.role==="Head of Department";
-  const isMember = !isFounder&&!isHoD;
   const myNotifs=data.notifications.filter(n=>isFounder||n.to===currentUser?.id||n.to==="all"||n.to==="managers");
   const unread=myNotifs.filter(n=>!n.read).length;
   const pendLeave=data.leaves.filter(l=>l.status==="Pending").length;
