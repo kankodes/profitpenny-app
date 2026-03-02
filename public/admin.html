@@ -374,7 +374,7 @@ function renderAccessDenied(){
     <div style="font-size:48px;margin-bottom:16px;">🚫</div>
     <div style="font-family:var(--font-head);font-size:22px;font-weight:800;color:var(--red);">Access Denied</div>
     <div style="color:var(--textMuted);margin-top:8px;font-size:13px;">Your account does not have admin backend access.<br/>Contact your Founder or Admin.</div>
-    <button class="btn btn-secondary" style="margin-top:20px;" onclick="signOut(getAuth())">← Sign Out</button>
+    <button class="btn btn-secondary" style="margin-top:20px;" onclick="doLogout()">← Sign Out</button>
   </div></div>`;
 }
 
@@ -527,7 +527,7 @@ function usersPage(){
                 </div>
               </td>
               <td><span class="badge badge-${ROLE_COLORS[u.role]||'dim'}">${u.role||'—'}</span></td>
-              <td>${dept?.name||<span style="color:var(--textDim)">—</span>}</td>
+              <td>${dept?.name||'—'}</td>
               <td><span class="badge ${u.active!==false?'badge-green':'badge-red'}">${u.active!==false?'Active':'Inactive'}</span></td>
               <td><span class="badge ${hasAdmin?'badge-accent':'badge-dim'}">${hasAdmin?'✓ Yes':'No'}</span></td>
               <td>
@@ -546,7 +546,6 @@ function usersPage(){
   </div>`;
 }
 
-window.setSearch = v => { state.search=v; $('page-content').innerHTML=(state.page==='users'?usersPage():state.page==='audit'?auditPage():'')(); try{$('page-content').innerHTML=({users:usersPage,audit:auditPage,roles:rolesPage,departments:deptPage}[state.page]||dashboard)();}catch(e){} };
 window.setSearch = v => { state.search=v; try{$('page-content').innerHTML=({users:usersPage,audit:auditPage,roles:rolesPage,departments:deptPage,dashboard,notifications:notifsPage,settings:settingsPage}[state.page]||dashboard)();}catch(e){console.error(e);} };
 
 window.sendReset = async email => {
