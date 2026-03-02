@@ -537,6 +537,7 @@ function Projects({t,data,setData,toast,currentUser}){
   const [extForm,setExtForm]=useState({reason:"",newDue:""});
   const [form,setForm]=useState({title:"",cId:"",aId:"",deptId:"",priority:"Medium",due:"",dueTime:"09:00",brief:"",drive:"",est:"",assetLinks:[""],noDeadline:false});
   const [dueWarn,setDueWarn]=useState("");
+  const [newSubtask,setNewSubtask]=useState("");
 
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
   const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
@@ -615,8 +616,25 @@ function Projects({t,data,setData,toast,currentUser}){
     toast("Task started — time tracking active","success");
   };
   const updStatus=(id,s)=>{
-    setData(d=>({...d,tasks:d.tasks.map(tk=>{if(tk.id!==id)return tk;const u={...tk,status:s};if(s==="In Progress"&&!tk.startedAt)u.startedAt=new Date().toISOString();return u;})}));
-    if(sel?.id===id)setSel(p=>({...p,status:s}));
+    const today=new Date().toISOString().split("T")[0];
+    setData(d=>({...d,tasks:d.tasks.map(tk=>{if(tk.id!==id)return tk;const u={...tk,status:s};if(s==="In Progress"&&!tk.startedAt)u.startedAt=new Date().toISOString();if(s==="Completed"&&!tk.completedAt)u.completedAt=today;return u;})}));
+    if(sel?.id===id)setSel(p=>({...p,status:s,completedAt:s==="Completed"?(p.completedAt||new Date().toISOString().split("T")[0]):p.completedAt}));
+  };
+
+  const addSubtask=()=>{
+    if(!newSubtask.trim()||!sel)return;
+    const st={id:"st"+Date.now(),title:newSubtask.trim(),done:false,aId:"",due:""};
+    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,subtasks:[...(tk.subtasks||[]),st]}:tk)}));
+    setSel(p=>({...p,subtasks:[...(p.subtasks||[]),st]}));
+    setNewSubtask("");
+  };
+  const toggleSubtask=(stId)=>{
+    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,subtasks:(tk.subtasks||[]).map(s=>s.id===stId?{...s,done:!s.done}:s)}:tk)}));
+    setSel(p=>({...p,subtasks:(p.subtasks||[]).map(s=>s.id===stId?{...s,done:!s.done}:s)}));
+  };
+  const deleteSubtask=(stId)=>{
+    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,subtasks:(tk.subtasks||[]).filter(s=>s.id!==stId)}:tk)}));
+    setSel(p=>({...p,subtasks:(p.subtasks||[]).filter(s=>s.id!==stId)}));
   };
   const submitExt=()=>{
     if(!extForm.reason||!extForm.newDue){toast("Fill all fields","error");return;}
@@ -637,20 +655,38 @@ function Projects({t,data,setData,toast,currentUser}){
     if(!form.title||!form.cId||!form.aId){toast("Fill required fields","error");return;}
     const id="t"+Date.now();
     const noDeadline=form.noDeadline||!form.due;
-    const newTask={...form,id,status:"Not Started",logged:0,startedAt:null,created:new Date().toISOString().split("T")[0],extRequest:null,est:parseInt(form.est)||0,assetLinks:form.assetLinks.filter(l=>l.trim()),awaitingDeadline:noDeadline,due:form.due||""};
-    setData(d=>({...d,tasks:[...d.tasks,newTask]}));
-    // If no deadline: notify HoD to propose one
-    if(noDeadline){
-      const dept=data.departments.find(d=>d.id===form.deptId);
-      const hod=data.users.find(u=>u.id===dept?.hodId);
-      if(hod){
-        setData(d=>({...d,notifications:[...d.notifications,{id:"n"+Date.now(),type:"deadline_request",title:"📅 Deadline Needed",body:`New task "${form.title}" needs a deadline from you.`,to:hod.id,from:"founder",ref:id,refType:"task",read:false,at:new Date().toISOString()}]}));
-        sendEmail(hod.email,hod.name,"Deadline Needed: "+form.title,`A new task has been created and needs your deadline proposal.\n\nTask: ${form.title}\nAssigned to: ${uName(form.aId)}\n\nPlease open the app and propose a deadline.`);
+    const newTask={...form,id,status:"Not Started",logged:0,startedAt:null,created:new Date().toISOString().split("T")[0],extRequest:null,est:parseInt(form.est)||0,assetLinks:form.assetLinks.filter(l=>l.trim()),awaitingDeadline:noDeadline,due:form.due||"",comments:[]};
+    setData(d=>{
+      const assignee=d.users.find(u=>u.id===form.aId);
+      const dept=d.departments.find(dep=>dep.id===form.deptId);
+      const hod=d.users.find(u=>u.id===dept?.hodId);
+      const managers=d.users.filter(u=>u.role==="Manager"||u.role==="Founder"||u.role==="Admin");
+      const notifs=[...d.notifications];
+      // Notify assignee
+      if(assignee&&assignee.id!==currentUser?.id){
+        notifs.push({id:"n"+Date.now()+"a",type:"task_assigned",title:"New Task Assigned",body:`"${form.title}" has been assigned to you. ${form.due?`Deadline: ${fd(form.due)}`:"Deadline TBD."}`,to:assignee.id,from:currentUser?.id,ref:id,refType:"task",read:false,at:new Date().toISOString()});
+        sendEmail(assignee.email,assignee.name,"New Task: "+form.title,`Hi ${assignee.name},\n\nA new task has been assigned to you.\n\nTask: ${form.title}\nClient: ${d.clients.find(c=>c.id===form.cId)?.name||"—"}\nPriority: ${form.priority}\nDeadline: ${form.due?fd(form.due):"TBD"}\n\n${form.brief?"Brief:\n"+form.brief+"\n\n":""}\nPlease open the app to start working.\n\n— ProfitPenny Studio OS`);
       }
-      toast("Task created — HoD notified to propose deadline","info");
-    } else {
-      toast("Task created","success");
-    }
+      // Notify HoD (if different from assignee and current user)
+      if(hod&&hod.id!==form.aId&&hod.id!==currentUser?.id){
+        notifs.push({id:"n"+Date.now()+"h",type:"task_assigned",title:"Task Created in Your Department",body:`"${form.title}" assigned to ${assignee?.name||"a team member"}. ${form.due?`Deadline: ${fd(form.due)}`:"Deadline TBD."}`,to:hod.id,from:currentUser?.id,ref:id,refType:"task",read:false,at:new Date().toISOString()});
+        sendEmail(hod.email,hod.name,"Task Created: "+form.title,`Hi ${hod.name},\n\nA new task has been created in your department.\n\nTask: ${form.title}\nAssigned to: ${assignee?.name||"—"}\nPriority: ${form.priority}\nDeadline: ${form.due?fd(form.due):"TBD"}\n\n— ProfitPenny Studio OS`);
+      }
+      // Notify Managers (if no deadline: also notify for proposal)
+      managers.forEach(mgr=>{
+        if(mgr.id!==currentUser?.id&&mgr.id!==hod?.id&&mgr.id!==form.aId){
+          notifs.push({id:"n"+Date.now()+mgr.id,type:"task_assigned",title:"New Task Created",body:`"${form.title}" assigned to ${assignee?.name||"—"}.`,to:mgr.id,from:currentUser?.id,ref:id,refType:"task",read:false,at:new Date().toISOString()});
+        }
+      });
+      // If no deadline: notify HoD to propose
+      if(noDeadline&&hod){
+        notifs.push({id:"n"+Date.now()+"d",type:"deadline_request",title:"📅 Deadline Needed",body:`New task "${form.title}" needs a deadline from you.`,to:hod.id,from:currentUser?.id||"founder",ref:id,refType:"task",read:false,at:new Date().toISOString()});
+        sendEmail(hod.email,hod.name,"Deadline Needed: "+form.title,`A new task has been created and needs your deadline proposal.\n\nTask: ${form.title}\nAssigned to: ${assignee?.name||"—"}\n\nPlease open the app and propose a deadline.`);
+      }
+      return {...d,tasks:[...d.tasks,newTask],notifications:notifs};
+    });
+    if(noDeadline) toast("Task created — HoD notified to propose deadline","info");
+    else toast("Task created — assignee notified","success");
     setShowAdd(false);
     setForm({title:"",cId:"",aId:"",deptId:"",priority:"Medium",due:"",dueTime:"09:00",brief:"",drive:"",est:"",assetLinks:[""],noDeadline:false});
     setDueWarn("");
@@ -817,6 +853,29 @@ function Projects({t,data,setData,toast,currentUser}){
               </div>
             </div>
           )}
+          {/* Sub-tasks */}
+          <div style={{borderTop:`1px solid ${t.border}`,paddingTop:14,marginTop:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <div style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em"}}>
+                Sub-tasks {(sel.subtasks||[]).length>0&&`(${(sel.subtasks||[]).filter(s=>s.done).length}/${(sel.subtasks||[]).length})`}
+              </div>
+              {(sel.subtasks||[]).length>0&&<div style={{fontSize:11,color:t.textMuted}}>{Math.round(((sel.subtasks||[]).filter(s=>s.done).length/(sel.subtasks||[]).length)*100)}% done</div>}
+            </div>
+            {(sel.subtasks||[]).length>0&&<PBar value={(sel.subtasks||[]).filter(s=>s.done).length} max={(sel.subtasks||[]).length} color="lime" t={t} h={3} delay={0} showPct={false}/>}
+            <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:5}}>
+              {(sel.subtasks||[]).map((st,i)=>(
+                <div key={st.id} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",background:st.done?t.limeBg:t.surfaceAlt,border:`1px solid ${st.done?t.lime+"40":t.border}`,borderRadius:8,transition:"all .15s"}}>
+                  <button onClick={()=>toggleSubtask(st.id)} style={{width:16,height:16,borderRadius:4,flexShrink:0,background:st.done?t.lime:"transparent",border:`2px solid ${st.done?t.lime:t.borderMid}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s"}}>{st.done&&<Check size={9} color="#0A0A0A" strokeWidth={3}/>}</button>
+                  <span style={{flex:1,fontSize:13,color:st.done?t.limeDeep:t.text,textDecoration:st.done?"line-through":"none"}}>{st.title}</span>
+                  <button onClick={()=>deleteSubtask(st.id)} style={{background:"none",border:"none",cursor:"pointer",color:t.red,opacity:0.5,padding:2,display:"flex",alignItems:"center"}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.5}><X size={11}/></button>
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:7,marginTop:10}}>
+              <input value={newSubtask} onChange={e=>setNewSubtask(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(e.preventDefault(),addSubtask())} placeholder="Add a sub-task… (Enter to add)" style={{...iStyle(t),flex:1,fontSize:12}}/>
+              <Btn v="secondary" t={t} size="sm" onClick={addSubtask} icon={<Plus size={11}/>}>Add</Btn>
+            </div>
+          </div>
           <div style={{borderTop:`1px solid ${t.border}`,paddingTop:12,marginTop:8,display:"flex",justifyContent:"flex-end"}}>
             <Btn v="danger" t={t} size="sm" icon={<Trash2 size={12}/>} onClick={()=>deleteTask(sel.id)}>Delete Task</Btn>
           </div>
@@ -1285,23 +1344,35 @@ function Clients({t,data,setData,toast,currentUser}){
 }
 
 // ── MEETINGS ─────────────────────────────────────────────────────────────────
-function Meetings({t,data,setData,toast}){
+function Meetings({t,data,setData,toast,currentUser}){
   const [showAdd,setShowAdd]=useState(false);
   const [sel,setSel]=useState(null);
   const [editingMom,setEditingMom]=useState(false);
   const [momText,setMomText]=useState("");
   const [newAction,setNewAction]=useState({item:"",due:"",owner:""});
-  const [form,setForm]=useState({cId:"",date:"",time:"",loc:"",attendees:"",agenda:"",mom:""});
+  const [form,setForm]=useState({cId:"",date:"",time:"",loc:"",attendees:[],agenda:""});
   const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
   const uName=id=>data.users.find(u=>u.id===id)?.name||id;
   const today=new Date();
 
+  const toggleAttendee=uid=>setForm(p=>({...p,attendees:p.attendees.includes(uid)?p.attendees.filter(i=>i!==uid):[...p.attendees,uid]}));
+
   const add=()=>{
     if(!form.cId||!form.date){toast("Client and date required","error");return;}
-    const calUrl=`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(cName(form.cId)+" Meeting")}&dates=${form.date.replace(/-/g,"")}T${(form.time||"090000").replace(/:/g,"")}00/${form.date.replace(/-/g,"")}T${(form.time||"100000").replace(/:/g,"")}00&details=${encodeURIComponent(form.agenda)}`;
-    setData(d=>({...d,meetings:[...d.meetings,{...form,id:"m"+Date.now(),attendees:form.attendees.split(",").map(s=>s.trim()).filter(Boolean),actions:[],calLink:calUrl}]}));
-    setShowAdd(false);setForm({cId:"",date:"",time:"",loc:"",attendees:"",agenda:"",mom:""});
-    toast("Meeting scheduled");
+    const calUrl=`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(cName(form.cId)+" Meeting")}&dates=${form.date.replace(/-/g,"")}T${(form.time||"090000").replace(/:/g,"")}00/${form.date.replace(/-/g,"")}T${(form.time||"100000").replace(/:/g,"")}00&details=${encodeURIComponent(form.agenda)}&location=${encodeURIComponent(form.loc||"")}`;
+    const meeting={...form,id:"m"+Date.now(),actions:[],calLink:calUrl,mom:"",createdBy:currentUser?.id};
+    setData(d=>({...d,meetings:[...d.meetings,meeting]}));
+    // Notify all attendees
+    const notifs=form.attendees.filter(uid=>uid!==currentUser?.id).map(uid=>({id:"n"+Date.now()+uid,type:"meeting",title:"Meeting Scheduled",body:`You've been added to a meeting with ${cName(form.cId)} on ${fdt(form.date)}${form.time?" at "+form.time:""}.`,to:uid,from:currentUser?.id,read:false,at:new Date().toISOString()}));
+    if(notifs.length>0){
+      setData(d=>({...d,meetings:[...d.meetings.slice(0,-1),meeting],notifications:[...d.notifications,...notifs]}));
+      form.attendees.filter(uid=>uid!==currentUser?.id).forEach(uid=>{
+        const u=data.users.find(x=>x.id===uid);
+        sendEmail(u?.email,u?.name,"Meeting: "+cName(form.cId),`Hi ${u?.name},\n\nYou've been scheduled for a meeting.\n\nClient: ${cName(form.cId)}\nDate: ${fdt(form.date)}${form.time?" at "+form.time:""}\nLocation: ${form.loc||"TBD"}\nAgenda: ${form.agenda}\n\nPlease add it to your calendar.\n\n— ProfitPenny Studio OS`);
+      });
+    }
+    setShowAdd(false);setForm({cId:"",date:"",time:"",loc:"",attendees:[],agenda:""});
+    toast("Meeting scheduled — attendees notified");
   };
 
   const saveMom=()=>{
@@ -1312,9 +1383,23 @@ function Meetings({t,data,setData,toast}){
   const addAction=()=>{
     if(!newAction.item)return;
     const action={...newAction,id:"a"+Date.now()};
-    setData(d=>({...d,meetings:d.meetings.map(m=>m.id===sel?.id?{...m,actions:[...(m.actions||[]),action]}:m)}));
+    setData(d=>{
+      const notifs=[...d.notifications];
+      // Notify owner
+      if(newAction.owner&&newAction.owner!==currentUser?.id){
+        const owner=d.users.find(u=>u.id===newAction.owner);
+        notifs.push({id:"n"+Date.now(),type:"action_item",title:"Action Item Assigned",body:`"${newAction.item}" — due ${newAction.due?fd(newAction.due):"TBD"}`,to:newAction.owner,from:currentUser?.id,read:false,at:new Date().toISOString()});
+        sendEmail(owner?.email,owner?.name,"Action Item: "+newAction.item,`Hi ${owner?.name},\n\nAn action item has been assigned to you.\n\nItem: ${newAction.item}\nDue: ${newAction.due?fd(newAction.due):"TBD"}\nMeeting: ${d.clients.find(c=>c.id===sel?.cId)?.name||""} on ${fdt(sel?.date)}\n\n— ProfitPenny Studio OS`);
+      }
+      return {...d,meetings:d.meetings.map(m=>m.id===sel?.id?{...m,actions:[...(m.actions||[]),action]}:m),notifications:notifs};
+    });
     setSel(p=>({...p,actions:[...(p.actions||[]),action]}));
-    setNewAction({item:"",due:"",owner:""});toast("Action item added");
+    setNewAction({item:"",due:"",owner:""});toast("Action item added — owner notified");
+  };
+
+  const toggleActionDone=actionId=>{
+    setData(d=>({...d,meetings:d.meetings.map(m=>m.id===sel?.id?{...m,actions:(m.actions||[]).map(a=>a.id===actionId?{...a,done:!a.done}:a)}:m)}));
+    setSel(p=>({...p,actions:(p.actions||[]).map(a=>a.id===actionId?{...a,done:!a.done}:a)}));
   };
 
   const sorted=[...data.meetings].sort((a,b)=>new Date(a.date)-new Date(b.date));
@@ -1326,6 +1411,7 @@ function Meetings({t,data,setData,toast}){
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         {sorted.map((m,i)=>{
           const isPast=new Date(m.date)<today,d=new Date(m.date);
+          const pendingActions=(m.actions||[]).filter(a=>!a.done).length;
           return(
             <div key={m.id} className="hover-lift" onClick={()=>{setSel(m);setMomText(m.mom||"");setEditingMom(false);}}
               style={{display:"flex",background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden",cursor:"pointer",animation:`fadeUp .32s ${i*38}ms both`,boxShadow:`0 1px 4px ${t.shadow}`}}>
@@ -1337,64 +1423,88 @@ function Meetings({t,data,setData,toast}){
               <div style={{flex:1,padding:"14px 18px",display:"flex",alignItems:"center",gap:16}}>
                 <div style={{flex:1}}>
                   <div style={{fontSize:14,fontWeight:700,color:t.text,fontFamily:"'Poppins',sans-serif"}}>{cName(m.cId)}</div>
-                  <div style={{fontSize:12,color:t.textMuted,marginTop:3,display:"flex",alignItems:"center",gap:6}}><MapPin size={11}/>{m.loc}</div>
-                  <div style={{fontSize:12,color:t.textMid,marginTop:5}}>{m.agenda}</div>
+                  <div style={{fontSize:12,color:t.textMuted,marginTop:3,display:"flex",alignItems:"center",gap:6}}><MapPin size={11}/>{m.loc||"TBD"}</div>
+                  <div style={{fontSize:12,color:t.textMid,marginTop:4,lineHeight:1.4}}>{m.agenda}</div>
+                  {(m.attendees||[]).length>0&&<div style={{display:"flex",gap:4,marginTop:6,flexWrap:"wrap"}}>{(m.attendees||[]).slice(0,4).map(uid=>{const u=data.users.find(x=>x.id===uid);return u?<Av key={uid} init={u.av} size={20} t={t}/>:null;})}{(m.attendees||[]).length>4&&<span style={{fontSize:10,color:t.textMuted}}>+{(m.attendees||[]).length-4}</span>}</div>}
                 </div>
-                <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end"}}>
+                <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end",flexShrink:0}}>
                   {m.mom?<Badge label="Notes Done" color="green" t={t} small/>:isPast?<Badge label="Notes Pending" color="red" t={t} small/>:<Badge label="Upcoming" color="lime" t={t} small/>}
-                  <a href={m.calLink} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:t.blue,textDecoration:"none",fontWeight:600,padding:"3px 8px",background:t.blueBg,borderRadius:99}}><CalendarPlus size={11}/>Add to Calendar</a>
+                  {pendingActions>0&&<Badge label={`${pendingActions} action${pendingActions>1?"s":""} open`} color="amber" t={t} small/>}
+                  <a href={m.calLink} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:t.blue,textDecoration:"none",fontWeight:600,padding:"3px 8px",background:t.blueBg,borderRadius:99}}><CalendarPlus size={11}/>Calendar</a>
                 </div>
               </div>
             </div>
           );
         })}
+        {sorted.length===0&&<Card t={t}><p style={{color:t.textMuted,textAlign:"center",padding:"20px 0",fontSize:14}}>No meetings yet.</p></Card>}
       </div>
 
+      {/* Meeting Detail Modal */}
       {sel&&(
-        <Modal open title={`${cName(sel.cId)} — Meeting`} onClose={()=>{setSel(null);setEditingMom(false);}} t={t} w={620} subtitle={`${fdt(sel.date)} · ${sel.time} · ${sel.loc}`}>
-          <a href={sel.calLink} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 13px",background:t.blueBg,color:t.blue,borderRadius:10,fontSize:12,fontWeight:600,textDecoration:"none",marginBottom:16}}><CalendarPlus size={13}/> Add to Google Calendar</a>
-          <Field label="Attendees" t={t}><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{(sel.attendees||[]).map((a,i)=>{const u=data.users.find(u=>u.id===a);return <span key={i} style={{fontSize:12,color:t.textMid,background:t.surfaceAlt,padding:"4px 10px",borderRadius:99}}>{u?.name||a}</span>;})}</div></Field>
-          <Field label="Agenda" t={t}><p style={{margin:0,fontSize:13,color:t.textMid,lineHeight:1.7}}>{sel.agenda}</p></Field>
+        <Modal open title={`${cName(sel.cId)} — Meeting`} onClose={()=>{setSel(null);setEditingMom(false);}} t={t} w={640} subtitle={`${fdt(sel.date)}${sel.time?" · "+sel.time:""}${sel.loc?" · "+sel.loc:""}`}>
+          <a href={sel.calLink} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"6px 12px",background:t.blueBg,color:t.blue,borderRadius:9,fontSize:12,fontWeight:600,textDecoration:"none",marginBottom:16}}><CalendarPlus size={12}/> Add to Google Calendar</a>
 
-          {/* Meeting Notes */}
+          {/* Attendees */}
+          {(sel.attendees||[]).length>0&&<div style={{marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:7}}>Attendees</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {(sel.attendees||[]).map(uid=>{
+                const u=data.users.find(x=>x.id===uid);
+                return u?<div key={uid} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",background:t.surfaceAlt,borderRadius:99,fontSize:12}}><Av init={u.av} size={18} t={t}/>{u.name.split(" ")[0]}</div>:null;
+              })}
+            </div>
+          </div>}
+
+          {/* Agenda */}
+          {sel.agenda&&<div style={{padding:"10px 14px",background:t.surfaceAlt,borderRadius:10,marginBottom:14}}>
+            <div style={{fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>Agenda</div>
+            <p style={{margin:0,fontSize:13,color:t.textMid,lineHeight:1.7}}>{sel.agenda}</p>
+          </div>}
+
+          {/* MoM */}
           <div style={{marginBottom:16}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-              <label style={{fontSize:11,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",color:t.textMuted}}>Meeting Notes (MoM)</label>
+              <div style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Meeting Notes (MoM)</div>
               <Btn v="ghost" t={t} size="sm" icon={<Edit size={11}/>} onClick={()=>setEditingMom(!editingMom)}>{editingMom?"Cancel":"Edit"}</Btn>
             </div>
             {editingMom?(
               <div>
-                <Tex value={momText} onChange={e=>setMomText(e.target.value)} placeholder="Write meeting notes here..." t={t} rows={4}/>
+                <Tex value={momText} onChange={e=>setMomText(e.target.value)} placeholder="Write meeting notes, key decisions, discussion points..." t={t} rows={5}/>
                 <Btn v="lime" t={t} size="sm" style={{marginTop:8}} onClick={saveMom} icon={<Check size={11}/>}>Save Notes</Btn>
               </div>
             ):(
-              <p style={{margin:0,fontSize:13,color:sel.mom?t.textMid:t.textMuted,lineHeight:1.7,padding:"10px 12px",background:t.surfaceAlt,borderRadius:10,fontStyle:sel.mom?"normal":"italic"}}>{sel.mom||"No notes yet. Click Edit to add."}</p>
+              <p style={{margin:0,fontSize:13,color:sel.mom?t.textMid:t.textMuted,lineHeight:1.7,padding:"11px 13px",background:t.surfaceAlt,borderRadius:10,fontStyle:sel.mom?"normal":"italic",whiteSpace:"pre-wrap"}}>{sel.mom||"No notes yet. Click Edit to add."}</p>
             )}
           </div>
 
           {/* Action Items */}
           <div>
-            <label style={{fontSize:11,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",color:t.textMuted,display:"block",marginBottom:8}}>Action Items</label>
+            <div style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:8}}>Action Items</div>
+            {(sel.actions||[]).length===0&&<p style={{fontSize:13,color:t.textMuted,marginBottom:10,fontStyle:"italic"}}>No action items yet.</p>}
             {(sel.actions||[]).map((a,i)=>(
-              <div key={a.id||i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",background:t.surfaceAlt,borderRadius:10,marginBottom:7}}>
-                <span style={{fontSize:13,color:t.text}}>{a.item}</span>
+              <div key={a.id||i} onClick={()=>toggleActionDone(a.id)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",background:a.done?t.greenBg:t.surfaceAlt,border:`1px solid ${a.done?t.green+"40":t.border}`,borderRadius:10,marginBottom:6,cursor:"pointer",transition:"all .15s"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:16,height:16,borderRadius:4,background:a.done?t.green:"transparent",border:`2px solid ${a.done?t.green:t.borderMid}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{a.done&&<Check size={9} color="#fff" strokeWidth={3}/>}</div>
+                  <span style={{fontSize:13,color:a.done?t.green:t.text,textDecoration:a.done?"line-through":"none"}}>{a.item}</span>
+                </div>
                 <div style={{textAlign:"right",marginLeft:12,flexShrink:0}}>
                   <div style={{fontSize:11,color:t.textMuted}}>{uName(a.owner)}</div>
-                  <div style={{fontSize:11,color:t.lime,fontWeight:600}}>By {fd(a.due)}</div>
+                  {a.due&&<div style={{fontSize:11,color:a.done?t.green:t.lime,fontWeight:600}}>{fd(a.due)}</div>}
                 </div>
               </div>
             ))}
-            <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr auto",gap:8,marginTop:10,alignItems:"flex-end"}}>
+            <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr auto",gap:7,marginTop:10,alignItems:"flex-end"}}>
               <Inp value={newAction.item} onChange={e=>setNewAction(p=>({...p,item:e.target.value}))} placeholder="Action item..." t={t}/>
               <Inp type="date" value={newAction.due} onChange={e=>setNewAction(p=>({...p,due:e.target.value}))} t={t}/>
-              <Sel value={newAction.owner} onChange={e=>setNewAction(p=>({...p,owner:e.target.value}))} t={t}><option value="">Owner</option>{data.users.map(u=><option key={u.id} value={u.id}>{u.name.split(" ")[0]}</option>)}</Sel>
+              <Sel value={newAction.owner} onChange={e=>setNewAction(p=>({...p,owner:e.target.value}))} t={t}><option value="">Owner</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name.split(" ")[0]}</option>)}</Sel>
               <Btn v="lime" t={t} size="sm" onClick={addAction} icon={<Plus size={12}/>}>Add</Btn>
             </div>
           </div>
         </Modal>
       )}
 
-      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Schedule Meeting" t={t}>
+      {/* New Meeting Modal */}
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Schedule Meeting" t={t} w={520}>
         <Field label="Client *" t={t}><Sel value={form.cId} onChange={e=>setForm(p=>({...p,cId:e.target.value}))} t={t}><option value="">Select client</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <Field label="Date *" t={t}><Inp type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} t={t}/></Field>
@@ -1402,9 +1512,18 @@ function Meetings({t,data,setData,toast}){
         </div>
         <Field label="Location / Platform" t={t}><Inp value={form.loc} onChange={e=>setForm(p=>({...p,loc:e.target.value}))} placeholder="Google Meet / Mumbai Office" t={t}/></Field>
         <Field label="Agenda" t={t}><Tex value={form.agenda} onChange={e=>setForm(p=>({...p,agenda:e.target.value}))} t={t} rows={2}/></Field>
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",display:"block",marginBottom:7}}>Attendees (select team members)</label>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {data.users.filter(u=>u.role!=="Admin").map(u=>{
+              const sel=form.attendees.includes(u.id);
+              return <button key={u.id} onClick={()=>toggleAttendee(u.id)} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 11px",borderRadius:99,border:`1.5px solid ${sel?t.lime:t.border}`,background:sel?t.limeBg:"transparent",color:sel?t.limeDeep:t.textMid,fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .14s"}}><Av init={u.av} size={16} t={t}/>{u.name.split(" ")[0]}</button>;
+            })}
+          </div>
+        </div>
         <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
           <Btn v="secondary" t={t} onClick={()=>setShowAdd(false)}>Cancel</Btn>
-          <Btn v="lime" t={t} onClick={add}>Schedule</Btn>
+          <Btn v="lime" t={t} onClick={add} icon={<CalendarPlus size={13}/>}>Schedule Meeting</Btn>
         </div>
       </Modal>
     </div>
@@ -1831,24 +1950,80 @@ function Team({t,data,setData,toast}){
 }
 
 // ── BOARD VIEW ────────────────────────────────────────────────────────────────
-function BoardView({t,data,setData,toast}){
+function BoardView({t,data,setData,toast,currentUser}){
   const COLS_BOARD=["Not Started","In Progress","Review","Rework","Completed"];
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
   const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
   const colColor={"Not Started":t.textMuted,"In Progress":t.blue,"Review":t.amber,"Rework":t.purple,"Completed":t.green};
-  const colBg={"Not Started":t.surfaceAlt,"In Progress":t.blueBg,"Review":t.amberBg,"Rework":t.purpleBg,"Completed":t.greenBg};
   const [dragId,setDragId]=useState(null);
+  const [sel,setSel]=useState(null);          // selected task for detail modal
+  const [comment,setComment]=useState("");    // new comment text
+  const [reviewModal,setReviewModal]=useState(null); // {taskId} - pick reviewer
+  const [reviewerId,setReviewerId]=useState("");
+
   const move=(taskId,newStatus)=>{
-    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===taskId?{...tk,status:newStatus,startedAt:newStatus==="In Progress"&&!tk.startedAt?new Date().toISOString():tk.startedAt}:tk)}));
+    const task=data.tasks.find(t=>t.id===taskId);
+    if(!task)return;
+    // When moving to "Review" — open reviewer picker first
+    if(newStatus==="Review"&&task.status!=="Review"){
+      setReviewModal({taskId,newStatus});
+      setReviewerId("");
+      return;
+    }
+    const was=task.status;
+    setData(d=>{
+      const tasks=d.tasks.map(tk=>tk.id===taskId?{...tk,status:newStatus,startedAt:newStatus==="In Progress"&&!tk.startedAt?new Date().toISOString():tk.startedAt}:tk);
+      // Notify assignee if someone else changed status
+      const notifs=[...d.notifications];
+      if(currentUser&&currentUser.id!==task.aId){
+        notifs.push({id:"n"+Date.now(),type:"task_update",title:"Task Status Updated",body:`"${task.title}" moved from ${was} → ${newStatus}`,to:task.aId,from:currentUser.id,ref:taskId,refType:"task",read:false,at:new Date().toISOString()});
+        const assignee=d.users.find(u=>u.id===task.aId);
+        sendEmail(assignee?.email,assignee?.name,"Task Updated: "+task.title,`Hi ${assignee?.name},\n\nYour task "${task.title}" has been moved from ${was} to ${newStatus}.\n\n— ProfitPenny Studio OS`);
+      }
+      return {...d,tasks,notifications:notifs};
+    });
+    if(sel?.id===taskId)setSel(p=>({...p,status:newStatus}));
   };
+
+  const confirmReview=()=>{
+    if(!reviewerId){toast("Select a reviewer","error");return;}
+    const {taskId}=reviewModal;
+    const task=data.tasks.find(t=>t.id===taskId);
+    if(!task)return;
+    setData(d=>{
+      const tasks=d.tasks.map(tk=>tk.id===taskId?{...tk,status:"Review",reviewerId}:tk);
+      const reviewer=d.users.find(u=>u.id===reviewerId);
+      const notifs=[...d.notifications,{id:"n"+Date.now(),type:"review_request",title:"Review Requested",body:`${currentUser?.name||"Someone"} has sent "${task.title}" for your review.`,to:reviewerId,from:currentUser?.id,ref:taskId,refType:"task",read:false,at:new Date().toISOString()}];
+      sendEmail(reviewer?.email,reviewer?.name,"Review Requested: "+task.title,`Hi ${reviewer?.name},\n\n${currentUser?.name||"A team member"} has requested your review on the task "${task.title}".\n\nPlease open the app to review it.\n\n— ProfitPenny Studio OS`);
+      return {...d,tasks,notifications:notifs};
+    });
+    setReviewModal(null);setReviewerId("");
+    toast("Sent for review — reviewer notified");
+  };
+
+  const addComment=()=>{
+    if(!comment.trim()||!sel)return;
+    const c={id:"c"+Date.now(),text:comment.trim(),by:currentUser?.id,byName:currentUser?.name||"You",at:new Date().toISOString()};
+    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,comments:[...(tk.comments||[]),c]}:tk)}));
+    setSel(p=>({...p,comments:[...(p.comments||[]),c]}));
+    setComment("");
+    // Notify assignee if commenter is different
+    if(currentUser&&currentUser.id!==sel.aId){
+      const assignee=data.users.find(u=>u.id===sel.aId);
+      setData(d=>({...d,notifications:[...d.notifications,{id:"n"+Date.now(),type:"comment",title:"New Comment on Your Task",body:`${currentUser.name}: "${comment.trim().slice(0,60)}${comment.trim().length>60?"...":""}"`,to:sel.aId,from:currentUser.id,ref:sel.id,refType:"task",read:false,at:new Date().toISOString()}]}));
+    }
+  };
+
+  const taskForSel=sel?data.tasks.find(t=>t.id===sel.id)||sel:null;
+
   return(
     <div>
-      <SHead t={t} title="My Board" sub="Kanban view — drag tasks across columns"/>
+      <SHead t={t} title="My Board" sub="Kanban view — drag tasks across columns, click a card for details"/>
       <div style={{display:"flex",gap:14,overflowX:"auto",paddingBottom:12,alignItems:"flex-start"}}>
         {COLS_BOARD.map(col=>{
           const tasks=data.tasks.filter(tk=>tk.status===col);
           return(
-            <div key={col} style={{minWidth:220,maxWidth:240,flexShrink:0,background:t.surfaceAlt,borderRadius:14,padding:12,borderTop:`3px solid ${colColor[col]}`}}
+            <div key={col} style={{minWidth:230,maxWidth:250,flexShrink:0,background:t.surfaceAlt,borderRadius:14,padding:12,borderTop:`3px solid ${colColor[col]}`}}
               onDragOver={e=>e.preventDefault()}
               onDrop={e=>{e.preventDefault();if(dragId)move(dragId,col);setDragId(null);}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
@@ -1857,25 +2032,119 @@ function BoardView({t,data,setData,toast}){
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 {tasks.map(task=>(
-                  <div key={task.id} draggable onDragStart={()=>setDragId(task.id)}
-                    style={{background:t.card,border:`1px solid ${t.border}`,borderRadius:10,padding:"11px 12px",cursor:"grab",transition:"all .15s",userSelect:"none"}}
-                    onMouseEnter={e=>e.currentTarget.style.borderColor=colColor[col]}
-                    onMouseLeave={e=>e.currentTarget.style.borderColor=t.border}>
-                    <div style={{fontSize:12,fontWeight:700,color:t.text,marginBottom:6,lineHeight:1.4}}>{task.title}</div>
-                    <div style={{fontSize:11,color:t.textMuted,marginBottom:6}}>{cName(task.cId).split(" ")[0]}</div>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:5}}><Av init={data.users.find(u=>u.id===task.aId)?.av||"?"} size={20} t={t}/><span style={{fontSize:11,color:t.textMuted}}>{uName(task.aId).split(" ")[0]}</span></div>
-                      <span style={{fontSize:10,color:task.due?isOverdue(task.due)&&col!=="Completed"?t.red:t.textMuted:t.amber,fontWeight:600}}>{task.due?fd(task.due):"No date"}</span>
+                  <div key={task.id} draggable
+                    onDragStart={()=>setDragId(task.id)}
+                    onClick={()=>setSel(task)}
+                    style={{background:t.card,border:`1px solid ${t.border}`,borderRadius:10,padding:"11px 12px",cursor:"pointer",transition:"all .15s",userSelect:"none",position:"relative"}}
+                    onMouseEnter={e=>{e.currentTarget.style.borderColor=colColor[col];e.currentTarget.style.boxShadow=`0 4px 16px ${t.shadowMd}`;}}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor=t.border;e.currentTarget.style.boxShadow="none";}}>
+                    {/* Priority strip */}
+                    <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,borderRadius:"10px 0 0 10px",background:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted}}/>
+                    <div style={{paddingLeft:6}}>
+                      <div style={{fontSize:12,fontWeight:700,color:t.text,marginBottom:4,lineHeight:1.4}}>{task.title}</div>
+                      <div style={{fontSize:11,color:t.textMuted,marginBottom:6}}>{cName(task.cId).split(" ")[0]}</div>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:5}}>
+                          <Av init={data.users.find(u=>u.id===task.aId)?.av||"?"} size={20} t={t}/>
+                          <span style={{fontSize:11,color:t.textMuted}}>{uName(task.aId).split(" ")[0]}</span>
+                        </div>
+                        <span style={{fontSize:10,color:isOverdue(task.due)&&col!=="Completed"?t.red:t.textMuted,fontWeight:600}}>{task.due?fd(task.due):"No date"}</span>
+                      </div>
+                      {task.status==="In Progress"&&task.startedAt&&<div style={{marginTop:5,display:"flex",alignItems:"center",gap:4}}><div style={{width:5,height:5,borderRadius:"50%",background:t.lime,animation:"ping 1.5s ease-out infinite"}}/><LiveTimer startedAt={task.startedAt} t={t} active/></div>}
+                      {(task.comments||[]).length>0&&<div style={{marginTop:5,fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:3}}><Hash size={9}/>{task.comments.length} comment{task.comments.length!==1?"s":""}</div>}
                     </div>
-                    {task.status==="In Progress"&&task.startedAt&&<div style={{marginTop:6,display:"flex",alignItems:"center",gap:4}}><div style={{width:6,height:6,borderRadius:"50%",background:t.lime}}/><LiveTimer startedAt={task.startedAt} t={t} active/></div>}
                   </div>
                 ))}
-                {tasks.length===0&&<div style={{fontSize:12,color:t.textMuted,textAlign:"center",padding:"16px 0",opacity:0.5}}>Drop here</div>}
+                {tasks.length===0&&<div style={{fontSize:12,color:t.textMuted,textAlign:"center",padding:"16px 0",opacity:0.4,borderRadius:8,border:`1.5px dashed ${t.border}`}}>Drop here</div>}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Task Detail Modal */}
+      {sel&&taskForSel&&(
+        <Modal open title={taskForSel.title} onClose={()=>setSel(null)} t={t} w={620} subtitle={`${cName(taskForSel.cId)} · ${uName(taskForSel.aId)}`}>
+          {/* Status + priority badges */}
+          <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+            <Badge label={taskForSel.status} color={SC(taskForSel.status)} t={t}/>
+            <Badge label={taskForSel.priority||"Medium"} color={PC(taskForSel.priority)} t={t}/>
+            {taskForSel.status==="In Progress"&&taskForSel.startedAt&&<div style={{display:"flex",alignItems:"center",gap:6,padding:"3px 10px",background:t.limeBg,borderRadius:99,border:`1px solid ${t.lime}40`}}><Timer size={11} color={t.limeDeep}/><LiveTimer startedAt={taskForSel.startedAt} t={t} active/></div>}
+            {taskForSel.reviewerId&&<div style={{fontSize:11,color:t.amber,display:"flex",alignItems:"center",gap:4}}><UserCheck size={11}/>Review: {uName(taskForSel.reviewerId)}</div>}
+          </div>
+          {/* Time budget */}
+          {taskForSel.est>0&&<div style={{padding:"11px 14px",background:t.surfaceAlt,borderRadius:10,marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+              <span style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Time Budget</span>
+              <span style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:taskForSel.logged>taskForSel.est?t.red:t.green}}>{taskForSel.logged}h / {taskForSel.est}h</span>
+            </div>
+            <PBar value={taskForSel.logged} max={Math.max(taskForSel.est,taskForSel.logged,1)} color={taskForSel.logged>taskForSel.est?"red":"lime"} t={t}/>
+          </div>}
+          {/* Key facts */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
+            {[["Deadline",taskForSel.due?fd(taskForSel.due):"TBD"],["Created",fd(taskForSel.created)],["Dept",data.departments.find(d=>d.id===taskForSel.deptId)?.name||"—"]].map(([k,v])=>(
+              <div key={k} style={{padding:"9px 12px",background:t.surfaceAlt,borderRadius:9}}>
+                <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:t.textMuted,marginBottom:3}}>{k}</div>
+                <div style={{fontSize:13,color:t.text,fontWeight:600}}>{v}</div>
+              </div>
+            ))}
+          </div>
+          {taskForSel.brief&&<div style={{marginBottom:14,padding:"10px 14px",background:t.surfaceAlt,borderRadius:10}}>
+            <div style={{fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:5}}>Brief</div>
+            <p style={{fontSize:13,color:t.textMid,lineHeight:1.7,margin:0}}>{taskForSel.brief}</p>
+          </div>}
+          {/* Links */}
+          <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:14}}>
+            {taskForSel.drive&&<a href={taskForSel.drive} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 12px",background:t.blueBg,color:t.blue,borderRadius:9,fontSize:12,fontWeight:600,textDecoration:"none"}}><ExternalLink size={11}/> Drive</a>}
+            {(taskForSel.assetLinks||[]).filter(l=>l).map((l,i)=><a key={i} href={l} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 12px",background:t.surfaceAlt,color:t.textMid,borderRadius:9,fontSize:12,fontWeight:600,textDecoration:"none"}}><Link2 size={11}/> Asset {i+1}</a>)}
+          </div>
+          {/* Move status */}
+          <div style={{borderTop:`1px solid ${t.border}`,paddingTop:14,marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:9}}>Move to</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {COLS_BOARD.map(s=>(
+                <button key={s} onClick={()=>{move(taskForSel.id,s);if(s!=="Review")setSel(p=>({...p,status:s}));}}
+                  style={{padding:"6px 13px",borderRadius:8,border:`1.5px solid ${taskForSel.status===s?colColor[s]:t.border}`,background:taskForSel.status===s?colColor[s]+"22":"transparent",color:taskForSel.status===s?colColor[s]:t.textMuted,fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .15s"}}>{s}</button>
+              ))}
+            </div>
+          </div>
+          {/* Comments */}
+          <div style={{borderTop:`1px solid ${t.border}`,paddingTop:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>Comments {(taskForSel.comments||[]).length>0&&`(${taskForSel.comments.length})`}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12,maxHeight:220,overflowY:"auto"}}>
+              {(taskForSel.comments||[]).length===0&&<div style={{fontSize:13,color:t.textMuted,fontStyle:"italic"}}>No comments yet — be the first.</div>}
+              {(taskForSel.comments||[]).map((c,i)=>(
+                <div key={c.id||i} style={{padding:"9px 12px",background:t.surfaceAlt,borderRadius:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                    <span style={{fontSize:12,fontWeight:700,color:t.text}}>{c.byName||uName(c.by)}</span>
+                    <span style={{fontSize:10,color:t.textMuted}}>{new Date(c.at).toLocaleDateString("en-IN",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</span>
+                  </div>
+                  <p style={{fontSize:13,color:t.textMid,margin:0,lineHeight:1.6}}>{c.text}</p>
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <input value={comment} onChange={e=>setComment(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),addComment())} placeholder="Add a comment… (Enter to post)" style={{...iStyle(t),flex:1,fontSize:13}}/>
+              <Btn v="lime" t={t} size="sm" onClick={addComment} icon={<Send size={12}/>}>Post</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Reviewer picker modal */}
+      <Modal open={!!reviewModal} onClose={()=>setReviewModal(null)} title="Send for Review" t={t} w={400}>
+        <div style={{fontSize:13,color:t.textMid,marginBottom:16,lineHeight:1.6}}>Choose who should review this task. They'll get an in-app notification and email.</div>
+        <Field label="Reviewer *" t={t}>
+          <Sel value={reviewerId} onChange={e=>setReviewerId(e.target.value)} t={t}>
+            <option value="">Select reviewer</option>
+            {data.users.filter(u=>u.role!=="Admin"&&u.id!==currentUser?.id).map(u=><option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+          </Sel>
+        </Field>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+          <Btn v="secondary" t={t} onClick={()=>setReviewModal(null)}>Cancel</Btn>
+          <Btn v="lime" t={t} onClick={confirmReview} icon={<Send size={12}/>}>Send for Review</Btn>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -1883,25 +2152,25 @@ function BoardView({t,data,setData,toast}){
 // ── CALENDAR VIEW ─────────────────────────────────────────────────────────────
 function CalendarView({t,data,go}){
   const [month,setMonth]=useState(()=>new Date());
-  const [view,setView]=useState("tasks"); // tasks | leaves | holidays
+  const [filters,setFilters]=useState({tasks:true,leaves:true,meetings:true,holidays:true});
+  const [selDay,setSelDay]=useState(null); // date string for day detail popover
 
+  // Official Gazetted National Holidays of India 2026
+  // Source: Ministry of Personnel, Public Grievances & Pensions Circular
   const HOLIDAYS=[
-    {name:"New Year's Day",       date:"2026-01-01"},
-    {name:"Republic Day",         date:"2026-01-26"},
-    {name:"Holi",                 date:"2026-03-03"},
-    {name:"Good Friday",          date:"2026-04-03"},
-    {name:"Dr. Ambedkar Jayanti", date:"2026-04-14"},
-    {name:"Maharashtra Day",      date:"2026-05-01"},
-    {name:"Eid ul-Fitr",          date:"2026-03-20"},
-    {name:"Eid ul-Adha",          date:"2026-05-27"},
-    {name:"Independence Day",     date:"2026-08-15"},
-    {name:"Janmashtami",          date:"2026-08-25"},
-    {name:"Gandhi Jayanti",       date:"2026-10-02"},
-    {name:"Dussehra",             date:"2026-10-19"},
-    {name:"Diwali",               date:"2026-10-28"},
-    {name:"Diwali (Lakshmi Puja)",date:"2026-10-29"},
-    {name:"Guru Nanak Jayanti",   date:"2026-11-14"},
-    {name:"Christmas",            date:"2026-12-25"},
+    {name:"Republic Day",          date:"2026-01-26"},
+    {name:"Holi",                  date:"2026-03-04"},
+    {name:"Good Friday",           date:"2026-04-03"},
+    {name:"Dr. Ambedkar Jayanti",  date:"2026-04-14"},
+    {name:"Id-ul-Fitr",            date:"2026-03-31"},
+    {name:"Id-ul-Zuha",            date:"2026-06-07"},
+    {name:"Independence Day",      date:"2026-08-15"},
+    {name:"Janmashtami",           date:"2026-08-14"},
+    {name:"Gandhi Jayanti",        date:"2026-10-02"},
+    {name:"Vijaya Dashami",        date:"2026-10-20"},
+    {name:"Diwali (Deepawali)",    date:"2026-10-30"},
+    {name:"Guru Nanak Jayanti",    date:"2026-11-24"},
+    {name:"Christmas Day",         date:"2026-12-25"},
   ];
 
   const y=month.getFullYear(), m=month.getMonth();
@@ -1911,58 +2180,110 @@ function CalendarView({t,data,go}){
   for(let i=0;i<first;i++) cells.push(null);
   for(let d=1;d<=days;d++) cells.push(new Date(y,m,d));
 
-  const dateStr=d=>d?`${y}-${String(m+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`:"";
+  const ds=d=>d?`${y}-${String(m+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`:"";
 
   const eventsOn=d=>{
     if(!d)return[];
-    const ds=dateStr(d);
+    const s=ds(d);
     const evs=[];
-    if(view==="tasks"||view==="all") data.tasks.filter(tk=>tk.due===ds).forEach(tk=>evs.push({label:tk.title,color:t.lime,type:"task"}));
-    if(view==="leaves"||view==="all") data.leaves.filter(l=>l.status==="Approved"&&ds>=l.from&&ds<=l.to).forEach(l=>evs.push({label:data.users.find(u=>u.id===l.uId)?.name||"Leave",color:t.blue,type:"leave"}));
-    if(view==="holidays"||view==="all") HOLIDAYS.filter(h=>h.date===ds).forEach(h=>evs.push({label:h.name,color:t.amber,type:"holiday"}));
+    if(filters.tasks){
+      // Task deadlines
+      data.tasks.filter(tk=>tk.due===s).forEach(tk=>evs.push({label:tk.title,color:t.red,type:"deadline",dot:"deadline"}));
+      // Task started
+      data.tasks.filter(tk=>tk.startedAt&&tk.startedAt.startsWith(s)).forEach(tk=>evs.push({label:tk.title+" (started)",color:t.lime,type:"started",dot:"started"}));
+      // Task completed
+      data.tasks.filter(tk=>tk.status==="Completed"&&tk.completedAt===s).forEach(tk=>evs.push({label:tk.title+" ✓",color:t.green,type:"completed",dot:"completed"}));
+    }
+    if(filters.leaves) data.leaves.filter(l=>l.status==="Approved"&&s>=l.from&&s<=l.to).forEach(l=>evs.push({label:(data.users.find(u=>u.id===l.uId)?.name||"?")+": Leave",color:t.blue,type:"leave",dot:"leave"}));
+    if(filters.meetings) data.meetings.filter(mt=>mt.date===s).forEach(mt=>evs.push({label:data.clients.find(c=>c.id===mt.cId)?.name||"Meeting",color:t.purple,type:"meeting",dot:"meeting"}));
+    if(filters.holidays) HOLIDAYS.filter(h=>h.date===s).forEach(h=>evs.push({label:h.name,color:t.amber,type:"holiday",dot:"holiday"}));
     return evs;
   };
 
   const todayStr=new Date().toISOString().split("T")[0];
+  const toggleFilter=k=>setFilters(p=>({...p,[k]:!p[k]}));
+
+  const FILTER_LABELS=[
+    {key:"tasks",   label:"Tasks",    color:t.lime},
+    {key:"leaves",  label:"Leaves",   color:t.blue},
+    {key:"meetings",label:"Meetings", color:t.purple},
+    {key:"holidays",label:"Holidays", color:t.amber},
+  ];
 
   return(
     <div>
-      <SHead t={t} title="Calendar" sub="Tasks, leaves, and holidays in one view"
-        action={<div style={{display:"flex",gap:6}}>
-          {["tasks","leaves","holidays"].map(v=>(
-            <button key={v} onClick={()=>setView(v)} style={{padding:"6px 13px",borderRadius:99,border:`1.5px solid ${view===v?t.lime:t.border}`,background:view===v?t.limeBg:"transparent",color:view===v?t.limeDeep:t.textMuted,fontSize:12,fontWeight:600,cursor:"pointer",textTransform:"capitalize"}}>{v}</button>
-          ))}
-        </div>}/>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-        <button onClick={()=>setMonth(d=>{const n=new Date(d);n.setMonth(n.getMonth()-1);return n;})} style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:9,padding:"7px 13px",cursor:"pointer",color:t.text,fontSize:13,fontWeight:600}}><ChevronLeft size={14}/></button>
-        <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:17,color:t.text}}>{month.toLocaleString("en-IN",{month:"long",year:"numeric"})}</div>
-        <button onClick={()=>setMonth(d=>{const n=new Date(d);n.setMonth(n.getMonth()+1);return n;})} style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:9,padding:"7px 13px",cursor:"pointer",color:t.text,fontSize:13,fontWeight:600}}><ChevronRight size={14}/></button>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
-        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=>(
-          <div key={d} style={{textAlign:"center",fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em",padding:"6px 0"}}>{d}</div>
+      <SHead t={t} title="Calendar" sub="Tasks, leaves, meetings, and national holidays"/>
+      {/* Filter row */}
+      <div style={{display:"flex",gap:7,marginBottom:16,flexWrap:"wrap"}}>
+        {FILTER_LABELS.map(({key,label,color})=>(
+          <button key={key} onClick={()=>toggleFilter(key)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 13px",borderRadius:99,border:`1.5px solid ${filters[key]?color:t.border}`,background:filters[key]?color+"22":"transparent",color:filters[key]?color:t.textMuted,fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .15s"}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:filters[key]?color:t.border,transition:"background .15s"}}/>
+            {label}
+          </button>
         ))}
       </div>
+      {/* Month nav */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <button onClick={()=>setMonth(d=>{const n=new Date(d);n.setMonth(n.getMonth()-1);return n;})} style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:9,padding:"7px 13px",cursor:"pointer",color:t.text,fontSize:13,fontWeight:600,display:"flex",alignItems:"center"}}><ChevronLeft size={14}/></button>
+        <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:17,color:t.text}}>{month.toLocaleString("en-IN",{month:"long",year:"numeric"})}</div>
+        <button onClick={()=>setMonth(d=>{const n=new Date(d);n.setMonth(n.getMonth()+1);return n;})} style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:9,padding:"7px 13px",cursor:"pointer",color:t.text,fontSize:13,fontWeight:600,display:"flex",alignItems:"center"}}><ChevronRight size={14}/></button>
+      </div>
+      {/* Day headers */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:6}}>
+        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=>(
+          <div key={d} style={{textAlign:"center",fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em",padding:"5px 0"}}>{d}</div>
+        ))}
+      </div>
+      {/* Grid */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
         {cells.map((d,i)=>{
-          const ds=dateStr(d);
-          const isToday=ds===todayStr;
+          const s=ds(d);
+          const isToday=s===todayStr;
           const isSun=d&&d.getDay()===0;
           const evs=eventsOn(d);
+          const shown=evs.slice(0,3);
+          const more=evs.length-3;
           return(
-            <div key={i} style={{minHeight:72,background:isToday?t.limeBg:isSun?t.redBg:t.card,border:`1px solid ${isToday?t.lime:t.border}`,borderRadius:10,padding:"6px 7px",opacity:d?1:0.2}}>
-              {d&&<div style={{fontSize:11,fontWeight:700,color:isToday?t.limeDeep:isSun?t.red:t.textMuted,marginBottom:4}}>{d.getDate()}</div>}
-              {evs.slice(0,3).map((ev,j)=>(
-                <div key={j} style={{fontSize:9,padding:"2px 5px",borderRadius:4,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",background:ev.color+"22",color:ev.color,fontWeight:700}}>{ev.label}</div>
+            <div key={i} onClick={()=>d&&setSelDay(selDay===s?null:s)}
+              style={{minHeight:70,background:isToday?t.limeBg:isSun?t.redBg:t.card,border:`1px solid ${isToday?t.lime:selDay===s?t.blue:t.border}`,borderRadius:10,padding:"5px 6px",opacity:d?1:0,cursor:d?"pointer":"default",transition:"border-color .12s"}}>
+              {d&&<div style={{fontSize:11,fontWeight:700,color:isToday?t.limeDeep:isSun?t.red:t.textMuted,marginBottom:3}}>{d.getDate()}</div>}
+              {shown.map((ev,j)=>(
+                <div key={j} style={{fontSize:9,padding:"1px 4px",borderRadius:3,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",background:ev.color+"22",color:ev.color,fontWeight:700}}>{ev.label}</div>
               ))}
-              {evs.length>3&&<div style={{fontSize:9,color:t.textMuted,fontWeight:600}}>+{evs.length-3} more</div>}
+              {more>0&&<div style={{fontSize:9,color:t.textMuted,fontWeight:700}}>+{more} more</div>}
             </div>
           );
         })}
       </div>
+      {/* Day detail panel */}
+      {selDay&&(()=>{
+        const dayEvs=eventsOn(new Date(selDay));
+        const dObj=new Date(selDay+"T12:00:00");
+        return(
+          <div style={{marginTop:16,padding:"16px 18px",background:t.surfaceAlt,borderRadius:14,border:`1px solid ${t.border}`,animation:"fadeUp .25s both"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:t.text}}>{dObj.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div>
+              <button onClick={()=>setSelDay(null)} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted}}><X size={14}/></button>
+            </div>
+            {dayEvs.length===0&&<div style={{fontSize:13,color:t.textMuted}}>Nothing scheduled.</div>}
+            <div style={{display:"flex",flexDirection:"column",gap:7}}>
+              {dayEvs.map((ev,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",background:t.card,borderRadius:9,border:`1px solid ${ev.color}30`}}>
+                  <div style={{width:8,height:8,borderRadius:"50%",background:ev.color,flexShrink:0}}/>
+                  <span style={{fontSize:13,color:t.text,fontWeight:500}}>{ev.label}</span>
+                  <span style={{marginLeft:"auto",fontSize:10,color:ev.color,fontWeight:700,textTransform:"uppercase"}}>{ev.type}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+      {/* Legend */}
       <div style={{display:"flex",gap:14,marginTop:14,flexWrap:"wrap"}}>
-        {[["Task deadline",t.lime],["Approved leave",t.blue],["Holiday",t.amber]].map(([l,c])=>(
-          <div key={l} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:t.textMuted}}><div style={{width:10,height:10,borderRadius:3,background:c}}/>{l}</div>
+        {[["Deadline",t.red],["Started",t.lime],["Completed",t.green],["Leave",t.blue],["Meeting",t.purple],["Holiday",t.amber]].map(([l,c])=>(
+          <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:t.textMuted}}>
+            <div style={{width:9,height:9,borderRadius:2,background:c}}/>{l}
+          </div>
         ))}
       </div>
     </div>
@@ -2014,39 +2335,85 @@ function Notifications({t,data,setData,go,currentUser}){
 }
 
 // ── ONBOARDING ────────────────────────────────────────────────────────────────
-function Onboarding({t,data,setData,toast}){
+function Onboarding({t,data,setData,toast,currentUser}){
   const [showAdd,setShowAdd]=useState(false);
-  const [form,setForm]=useState({uId:"",startDate:""});
-  const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
+  const [form,setForm]=useState({name:"",email:"",phone:"",designation:"",dob:"",dept:"",startDate:""});
+  const isManager=currentUser?.role==="Founder"||currentUser?.role==="Admin"||currentUser?.role==="HoD"||currentUser?.role==="Manager";
+
   const create=()=>{
-    if(!form.uId){toast("Select a member","error");return;}
-    if(data.onboarding.find(ob=>ob.uId===form.uId)){toast("Already exists","error");return;}
-    setData(d=>({...d,onboarding:[...d.onboarding,{id:"ob"+Date.now(),uId:form.uId,startDate:form.startDate,completedAt:null,steps:OB_STEPS.map(s=>({...s,done:false}))}]}));
-    setShowAdd(false);setForm({uId:"",startDate:""});toast("Onboarding started");
+    if(!form.name){toast("Name required","error");return;}
+    if(data.onboarding.find(ob=>ob.name===form.name)){toast("Already exists","error");return;}
+    const id="ob"+Date.now();
+    setData(d=>({...d,onboarding:[...d.onboarding,{
+      id,name:form.name,email:form.email,phone:form.phone,
+      designation:form.designation,dob:form.dob,dept:form.dept,
+      startDate:form.startDate,completedAt:null,
+      steps:OB_STEPS.map(s=>({...s,done:false}))
+    }]}));
+    // Send invite email if email provided
+    if(form.email){
+      sendEmail(form.email,form.name,"Welcome to ProfitPenny Studio!",
+        `Hi ${form.name},\n\nWelcome to the team! Your onboarding has been started.\n\nYou'll receive a separate email with your login credentials once onboarding is complete.\n\nStart date: ${form.startDate?fdt(form.startDate):"TBD"}\n\n— ProfitPenny Studio OS`);
+    }
+    setShowAdd(false);
+    setForm({name:"",email:"",phone:"",designation:"",dob:"",dept:"",startDate:""});
+    toast("Onboarding started — welcome email sent");
   };
-  const toggle=(obId,stepId)=>setData(d=>({...d,onboarding:d.onboarding.map(ob=>{if(ob.id!==obId)return ob;const steps=ob.steps.map(s=>s.id===stepId?{...s,done:!s.done}:s);return{...ob,steps,completedAt:steps.every(s=>s.done)?new Date().toISOString().split("T")[0]:null};})}));
+
+  const toggle=(obId,stepId)=>{
+    setData(d=>{
+      const onboarding=d.onboarding.map(ob=>{
+        if(ob.id!==obId)return ob;
+        const steps=ob.steps.map(s=>s.id===stepId?{...s,done:!s.done}:s);
+        const allDone=steps.every(s=>s.done);
+        const justCompleted=allDone&&!ob.completedAt;
+        const updated={...ob,steps,completedAt:allDone?new Date().toISOString().split("T")[0]:null};
+        // Auto-create team member when 100% complete
+        if(justCompleted&&ob.email&&!d.users.find(u=>u.email?.toLowerCase()===ob.email?.toLowerCase())){
+          const initials=(ob.name||"?").split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2);
+          const newUser={id:"u"+Date.now(),name:ob.name,email:ob.email,phone:ob.phone||"",role:"Member",dept:ob.dept||"",designation:ob.designation||"",av:initials,active:true,leaveTotal:12,leaveTaken:0};
+          d={...d,users:[...d.users,newUser]};
+          sendEmail(ob.email,ob.name,"You've been added to ProfitPenny Studio OS",
+            `Hi ${ob.name},\n\nCongratulations — your onboarding is complete! 🎉\n\nYou've been added as a team member. Your admin will send your login link shortly.\n\n— ProfitPenny Studio OS`);
+          toast("🎉 Onboarding complete — team member created & invite sent!","success");
+        }
+        return updated;
+      });
+      return {...d,onboarding};
+    });
+  };
+
   return(
     <div>
-      <SHead t={t} title="Onboarding" sub="New hire setup — step by step"
-        action={<Btn v="lime" t={t} onClick={()=>setShowAdd(true)} icon={<Plus size={14}/>}>New Onboarding</Btn>}/>
+      <SHead t={t} title="Onboarding" sub="New hire setup — completes automatically when all steps done"
+        action={isManager?<Btn v="lime" t={t} onClick={()=>setShowAdd(true)} icon={<Plus size={14}/>}>New Onboarding</Btn>:null}/>
       {data.onboarding.length===0?<Card t={t}><p style={{color:t.textMuted,textAlign:"center",padding:"24px 0",fontSize:14}}>No active onboardings.</p></Card>
         :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(340px,1fr))",gap:16}}>
             {data.onboarding.map((ob,oi)=>{
               const done=ob.steps.filter(s=>s.done).length,total=ob.steps.length,pct=Math.round((done/total)*100);
-              const u=data.users.find(u=>u.id===ob.uId);
               return(
                 <Card t={t} key={ob.id} style={{animation:`fadeUp .38s ${oi*55}ms both`}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-                    <div style={{display:"flex",alignItems:"center",gap:10}}><Av init={u?.av||"?"} size={36} t={t}/><div><div style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:t.text}}>{uName(ob.uId)}</div>{ob.startDate&&<div style={{fontSize:11,color:t.textMuted,marginTop:2}}>Started {fdt(ob.startDate)}</div>}</div></div>
-                    <div style={{textAlign:"right"}}><div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:26,color:pct===100?t.lime:t.text,lineHeight:1}}>{pct}%</div><div style={{fontSize:9,color:t.textMuted,textTransform:"uppercase",fontWeight:600}}>{done}/{total}</div></div>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <Av init={(ob.name||"?")[0]} size={36} t={t}/>
+                      <div>
+                        <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:t.text}}>{ob.name}</div>
+                        <div style={{fontSize:11,color:t.textMuted,marginTop:1}}>{ob.designation||""}{ob.designation&&ob.dept?" · ":""}{data.departments.find(d=>d.id===ob.dept)?.name||""}</div>
+                        {ob.startDate&&<div style={{fontSize:11,color:t.textMuted,marginTop:1}}>Starts {fdt(ob.startDate)}</div>}
+                      </div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:26,color:pct===100?t.lime:t.text,lineHeight:1}}>{pct}%</div>
+                      <div style={{fontSize:9,color:t.textMuted,textTransform:"uppercase",fontWeight:600}}>{done}/{total}</div>
+                    </div>
                   </div>
                   <PBar value={done} max={total} color={pct===100?"lime":"blue"} t={t} delay={oi*50}/>
-                  {ob.completedAt&&<div style={{marginTop:10,padding:"6px 12px",background:t.limeBg,color:t.limeDeep,borderRadius:8,fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:6}}><CheckCircle2 size={13}/> Completed {fdt(ob.completedAt)}</div>}
+                  {ob.completedAt&&<div style={{marginTop:10,padding:"6px 12px",background:t.limeBg,color:t.limeDeep,borderRadius:8,fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:6}}><CheckCircle2 size={13}/> Completed {fdt(ob.completedAt)} · Team member created</div>}
                   <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:4}}>
-                    {ob.steps.map((step,si)=>(
+                    {ob.steps.map((step)=>(
                       <button key={step.id} onClick={()=>toggle(ob.id,step.id)} className="btn-press" style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",background:step.done?t.limeBg:t.surfaceAlt,border:`1px solid ${step.done?t.lime+"50":t.border}`,borderRadius:8,cursor:"pointer",textAlign:"left",transition:"all .18s"}}>
                         <div style={{width:17,height:17,borderRadius:5,flexShrink:0,background:step.done?t.lime:"transparent",border:`2px solid ${step.done?t.lime:t.borderMid}`,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .18s"}}>{step.done&&<Check size={10} color="#0A0A0A" strokeWidth={3}/>}</div>
-                        <span style={{fontSize:12,color:step.done?t.limeDeep:t.textMid,fontWeight:step.done?600:400,textDecoration:step.done?"line-through":"none",transition:"all .18s"}}>{step.label}</span>
+                        <span style={{fontSize:12,color:step.done?t.limeDeep:t.textMid,fontWeight:step.done?600:400,textDecoration:step.done?"line-through":"none"}}>{step.label}</span>
                       </button>
                     ))}
                   </div>
@@ -2054,12 +2421,22 @@ function Onboarding({t,data,setData,toast}){
               );
             })}
           </div>}
-      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Start Onboarding" t={t} w={400}>
-        <Field label="New Hire *" t={t}><Sel value={form.uId} onChange={e=>setForm(p=>({...p,uId:e.target.value}))} t={t}><option value="">Select member</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
-        <Field label="Start Date" t={t}><Inp type="date" value={form.startDate} onChange={e=>setForm(p=>({...p,startDate:e.target.value}))} t={t}/></Field>
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Start Onboarding" t={t} w={480}>
+        <div style={{padding:"10px 14px",background:t.limeBg,borderRadius:10,marginBottom:16,fontSize:12,color:t.limeDeep,lineHeight:1.6}}>
+          <strong>💡 When all onboarding steps are marked complete</strong>, this person will be automatically added as a team member and sent a welcome email.
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="Full Name *" t={t}><Inp value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="Rahul Sharma" t={t}/></Field>
+          <Field label="Designation" t={t}><Inp value={form.designation} onChange={e=>setForm(p=>({...p,designation:e.target.value}))} placeholder="Graphic Designer" t={t}/></Field>
+          <Field label="Email" t={t}><Inp type="email" value={form.email} onChange={e=>setForm(p=>({...p,email:e.target.value}))} placeholder="rahul@studio.in" t={t}/></Field>
+          <Field label="Phone" t={t}><Inp value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))} placeholder="+91 98765 43210" t={t}/></Field>
+          <Field label="Date of Birth" t={t}><Inp type="date" value={form.dob} onChange={e=>setForm(p=>({...p,dob:e.target.value}))} t={t}/></Field>
+          <Field label="Start Date" t={t}><Inp type="date" value={form.startDate} onChange={e=>setForm(p=>({...p,startDate:e.target.value}))} t={t}/></Field>
+        </div>
+        <Field label="Department" t={t}><DeptSel value={form.dept} onChange={v=>setForm(p=>({...p,dept:v}))} data={data} setData={setData} t={t} toast={toast}/></Field>
         <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
           <Btn v="secondary" t={t} onClick={()=>setShowAdd(false)}>Cancel</Btn>
-          <Btn v="lime" t={t} onClick={create} icon={<UserCheck size={13}/>}>Start</Btn>
+          <Btn v="lime" t={t} onClick={create} icon={<UserCheck size={13}/>}>Start Onboarding</Btn>
         </div>
       </Modal>
     </div>
@@ -2348,7 +2725,7 @@ function App({firebaseUid}){
     leaves:       <Leaves       t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
     departments:  <Departments  t={t} data={data} setData={setDataAndSync} toast={toast}/>,
     team:         <Team         t={t} data={data} setData={setDataAndSync} toast={toast}/>,
-    onboarding:   <Onboarding   t={t} data={data} setData={setDataAndSync} toast={toast}/>,
+    onboarding:   <Onboarding   t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
     notifications:<Notifications t={t} data={data} setData={setDataAndSync} go={go} currentUser={currentUser}/>,
   };
 
