@@ -56,8 +56,6 @@ body{font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes scaleIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
 @keyframes ping{0%{transform:scale(1);opacity:1}75%,100%{transform:scale(2);opacity:0}}
-.glass{backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);background:rgba(255,255,255,0.04)!important;border:1px solid rgba(255,255,255,0.08)!important;}
-.glass-dark{backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);background:rgba(12,12,10,0.7)!important;border:1px solid rgba(255,255,255,0.07)!important;}
 @keyframes timerPulse{0%,100%{opacity:1}50%{opacity:0.6}}
 @keyframes toastSlide{from{opacity:0;transform:translateX(110%)}to{opacity:1;transform:translateX(0)}}
 @keyframes notifPop{0%{transform:scale(1)}30%{transform:scale(1.5)}100%{transform:scale(1)}}
@@ -175,7 +173,7 @@ function Btn({children,onClick,v="primary",t,style={},disabled=false,size="md",i
   return <button className="btn-press" onClick={disabled?undefined:onClick} disabled={disabled} style={{...base,...(V[v]||V.secondary),...style}}>{icon&&<span style={{display:"flex"}}>{icon}</span>}{children}</button>;
 }
 function Card({children,t,style={},lift=false,onClick,pad=20}){
-  return <div className={lift?"hover-lift":""} onClick={onClick} style={{background:t.dark?"rgba(20,20,18,0.65)":t.card,backdropFilter:t.dark?"blur(12px)":"none",WebkitBackdropFilter:t.dark?"blur(12px)":"none",border:`1px solid ${t.dark?"rgba(255,255,255,0.07)":t.border}`,borderRadius:16,padding:pad,cursor:onClick?"pointer":"default",boxShadow:t.dark?`0 4px 24px rgba(0,0,0,0.35),0 0 0 1px rgba(255,255,255,0.04)`:`0 1px 4px ${t.shadow}`,transition:"border-color .15s,box-shadow .18s",...style}}>{children}</div>;
+  return <div className={lift?"hover-lift":""} onClick={onClick} style={{background:t.card,border:`1px solid ${t.border}`,borderRadius:16,padding:pad,cursor:onClick?"pointer":"default",boxShadow:`0 1px 4px ${t.shadow}`,transition:"border-color .15s,box-shadow .18s",...style}}>{children}</div>;
 }
 function PBar({value,max=100,color="lime",t,h=5,delay=0,showPct=true}){
   const pct=clamp(max>0?Math.round((value/max)*100):0,0,100);
@@ -231,8 +229,8 @@ function Modal({open,onClose,title,children,t,w=560,subtitle}){
   useEffect(()=>{document.body.style.overflow=open?"hidden":"";return()=>{document.body.style.overflow="";};},[open]);
   if(!open)return null;
   return(
-    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .18s ease"}}>
-      <div onClick={e=>e.stopPropagation()} className="scale-in" style={{background:t.dark?"rgba(18,18,16,0.88)":t.surface,backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",borderRadius:20,border:`1px solid ${t.dark?"rgba(255,255,255,0.09)":t.border}`,width:"100%",maxWidth:w,maxHeight:"92vh",overflow:"auto",boxShadow:`0 32px 80px rgba(0,0,0,0.45),0 0 0 1px rgba(255,255,255,0.04)`,padding:28}}>
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",backdropFilter:"blur(6px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .18s ease"}}>
+      <div onClick={e=>e.stopPropagation()} className="scale-in" style={{background:t.surface,borderRadius:20,border:`1px solid ${t.border}`,width:"100%",maxWidth:w,maxHeight:"92vh",overflow:"auto",boxShadow:`0 24px 80px ${t.shadowMd}`,padding:28}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,paddingBottom:16,borderBottom:`1px solid ${t.border}`}}>
           <div><h3 style={{margin:0,fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:18,color:t.text}}>{title}</h3>{subtitle&&<p style={{margin:"4px 0 0",fontSize:13,color:t.textMuted}}>{subtitle}</p>}</div>
           <button onClick={onClose} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,width:32,height:32,cursor:"pointer",color:t.textMuted,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginLeft:12,transition:"all .14s"}} onMouseEnter={e=>{e.currentTarget.style.background=t.surfaceAlt;}} onMouseLeave={e=>{e.currentTarget.style.background="none";}}><X size={15}/></button>
@@ -913,11 +911,16 @@ Please open the app to accept or reject.
             <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:t.textMuted,marginBottom:10}}>Update Status</div>
             <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
               {sel.status==="Not Started"&&<Btn v="lime" t={t} size="sm" icon={<Play size={12}/>} onClick={()=>{startTask(sel.id);setSel(p=>({...p,status:"In Progress",startedAt:new Date().toISOString()}));}}>Start Task</Btn>}
-              {["In Progress","Review","Completed","Delayed"].map(st=>{
-              const cfg={"In Progress":{bg:"#1D4ED820",border:"#3B82F6",color:"#60A5FA",icon:<Play size={10}/>},"Review":{bg:"#92400E20",border:"#F59E0B",color:"#FBB040",icon:<Eye size={10}/>},"Completed":{bg:"#14532D20",border:"#22C55E",color:"#4ADE80",icon:<CheckCircle2 size={10}/>},"Delayed":{bg:"#7F1D1D20",border:"#EF4444",color:"#F87171",icon:<AlertTriangle size={10}/>}}[st];
-              const active=sel.status===st;
-              return <button key={st} onClick={()=>updStatus(sel.id,st)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 13px",borderRadius:9,border:`1.5px solid ${active?cfg.border:t.border}`,background:active?cfg.bg:t.surfaceAlt,color:active?cfg.color:t.textMuted,fontSize:12,fontWeight:active?700:500,cursor:"pointer",transition:"all .15s"}}>{active&&<Check size={10}/>}{cfg.icon} {st}</button>;
-            })}
+              {(()=>{
+              const STATUS_CFG={"In Progress":{activeColor:"#60A5FA",activeBg:"#1D4ED825",activeBorder:"#3B82F6",inactiveColor:"#4A90D9",inactiveBorder:"#3B82F640"},"Review":{activeColor:"#FBB040",activeBg:"#92400E25",activeBorder:"#F59E0B",inactiveColor:"#C8913A",inactiveBorder:"#F59E0B40"},"Completed":{activeColor:"#4ADE80",activeBg:"#14532D25",activeBorder:"#22C55E",inactiveColor:"#3AAD60",inactiveBorder:"#22C55E40"},"Delayed":{activeColor:"#F87171",activeBg:"#7F1D1D25",activeBorder:"#EF4444",inactiveColor:"#C05050",inactiveBorder:"#EF444440"}};
+              return ["In Progress","Review","Completed","Delayed"].map(st=>{
+                const cfg=STATUS_CFG[st];
+                const active=sel.status===st;
+                return <button key={st} onClick={()=>updStatus(sel.id,st)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",borderRadius:9,border:`1.5px solid ${active?cfg.activeBorder:cfg.inactiveBorder}`,background:active?cfg.activeBg:t.surfaceAlt,color:active?cfg.activeColor:cfg.inactiveColor,fontSize:12,fontWeight:active?700:500,cursor:"pointer",transition:"all .15s"}}>
+                  {active&&<Check size={10}/>} {st}
+                </button>;
+              });
+            })()}
               {sel.status==="Delayed"&&!sel.extRequest&&<Btn v="outline" t={t} size="sm" icon={<AlarmClock size={12}/>} onClick={()=>setShowExt(true)}>Request Extension</Btn>}
             </div>
           </div>
@@ -2219,10 +2222,11 @@ function BoardView({t,data,setData,toast,currentUser}){
             <div style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:9}}>Move to</div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               {COLS_BOARD.map(st=>{
-                const cmap={"Not Started":{border:t.textMuted,bg:t.surfaceAlt,color:t.textMuted},"In Progress":{border:"#3B82F6",bg:"#1D4ED820",color:"#60A5FA"},"Review":{border:"#F59E0B",bg:"#92400E20",color:"#FBB040"},"Rework":{border:"#A78BFA",bg:"#4C1D9520",color:"#A78BFA"},"Completed":{border:"#22C55E",bg:"#14532D20",color:"#4ADE80"}}[st]||{border:t.border,bg:t.surfaceAlt,color:t.textMuted};
+                const BOARD_CFG={"Not Started":{activeColor:t.textMid,activeBg:t.hover,activeBorder:t.borderMid,inactiveColor:t.textMuted,inactiveBorder:t.border},"In Progress":{activeColor:"#60A5FA",activeBg:"#1D4ED825",activeBorder:"#3B82F6",inactiveColor:"#4A90D9",inactiveBorder:"#3B82F640"},"Review":{activeColor:"#FBB040",activeBg:"#92400E25",activeBorder:"#F59E0B",inactiveColor:"#C8913A",inactiveBorder:"#F59E0B40"},"Rework":{activeColor:"#A78BFA",activeBg:"#4C1D9525",activeBorder:"#A78BFA",inactiveColor:"#8B6FD4",inactiveBorder:"#A78BFA40"},"Completed":{activeColor:"#4ADE80",activeBg:"#14532D25",activeBorder:"#22C55E",inactiveColor:"#3AAD60",inactiveBorder:"#22C55E40"}};
+                const cmap=BOARD_CFG[st]||{activeColor:t.textMid,activeBg:t.surfaceAlt,activeBorder:t.border,inactiveColor:t.textMuted,inactiveBorder:t.border};
                 const active=taskForSel.status===st;
                 return <button key={st} onClick={()=>{move(taskForSel.id,st);if(st!=="Review")setSel(p=>({...p,status:st}));}}
-                  style={{padding:"6px 13px",borderRadius:8,border:`1.5px solid ${active?cmap.border:t.border}`,background:active?cmap.bg:t.surfaceAlt,color:active?cmap.color:t.textMuted,fontSize:12,fontWeight:active?700:500,cursor:"pointer",transition:"all .15s"}}>{active&&<Check size={10}/>} {st}</button>;
+                  style={{padding:"6px 13px",borderRadius:8,border:`1.5px solid ${active?cmap.activeBorder:cmap.inactiveBorder}`,background:active?cmap.activeBg:t.surfaceAlt,color:active?cmap.activeColor:cmap.inactiveColor,fontSize:12,fontWeight:active?700:500,cursor:"pointer",transition:"all .15s"}}>{active&&<Check size={10}/>} {st}</button>;
               })}
             </div>
           </div>
@@ -2916,7 +2920,7 @@ function App({firebaseUid}){
       <div style={{display:"flex",height:"100vh",overflow:"hidden",background:t.bg}}>
 
         {/* SIDEBAR */}
-        <aside style={{width:side?224:62,flexShrink:0,background:t.dark?"rgba(10,10,8,0.85)":t.sidebar,backdropFilter:t.dark?"blur(20px)":"none",WebkitBackdropFilter:t.dark?"blur(20px)":"none",display:"flex",flexDirection:"column",transition:"width .3s cubic-bezier(.22,1,.36,1)",overflow:"hidden",borderRight:`1px solid ${t.dark?"rgba(255,255,255,0.06)":"transparent"}`,boxShadow:"4px 0 28px rgba(0,0,0,0.2)"}}>
+        <aside style={{width:side?224:62,flexShrink:0,background:t.sidebar,display:"flex",flexDirection:"column",transition:"width .3s cubic-bezier(.22,1,.36,1)",overflow:"hidden",boxShadow:"4px 0 24px rgba(0,0,0,0.15)"}}>
           <div style={{padding:side?"16px 14px 14px":"16px 0 14px",display:"flex",alignItems:"center",justifyContent:side?"space-between":"center",borderBottom:`1px solid ${t.sideHover}`,minHeight:64}}>
             <div style={{overflow:"hidden"}}><PPLogo collapsed={!side}/></div>
             <button onClick={()=>setSide(p=>!p)} style={{background:"none",border:"none",cursor:"pointer",padding:4,borderRadius:6,color:t.sideText,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color=t.sideText}>
@@ -2959,7 +2963,7 @@ function App({firebaseUid}){
 
         {/* MAIN */}
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
-          <header style={{height:56,background:t.topbar,borderBottom:`1px solid ${t.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 22px",flexShrink:0,background:t.dark?"rgba(12,12,10,0.75)":"rgba(255,255,255,0.8)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderBottom:`1px solid ${t.dark?"rgba(255,255,255,0.06)":t.border}`}}>
+          <header style={{height:56,background:t.topbar,borderBottom:`1px solid ${t.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 22px",flexShrink:0}}>
             <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:12,color:t.textMuted,letterSpacing:"0.08em",textTransform:"uppercase"}}>{NAV.find(n=>n.id===nav)?.label}</div>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <button onClick={()=>go("notifications")} style={{position:"relative",background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:10,width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted,transition:"all .15s"}} onMouseEnter={e=>{e.currentTarget.style.background=t.hover;}} onMouseLeave={e=>{e.currentTarget.style.background=t.surfaceAlt;}}>
