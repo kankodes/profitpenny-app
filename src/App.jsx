@@ -14,11 +14,14 @@ import {
 // ── EMAIL via Resend ─────────────────────────────────────────────────────────
 // Get free API key at resend.com (3000 emails/month free)
 // Add your key below and set the from address to a verified domain/email.
-const RESEND_KEY = "re_T161gBMm...";  // e.g. "re_AbCdEf123..."
-const RESEND_FROM = "ProfitPenny Studio OS <no-reply@profitpenny.in>"; // must be verified on Resend
+const RESEND_KEY = "YOUR_RESEND_API_KEY";  // e.g. "re_AbCdEf123..."
+const RESEND_FROM = "ProfitPenny Studio OS <no-reply@yourdomain.com>"; // must be verified on Resend
 
 async function sendEmail(to_email, to_name, subject, message){
-  if(!to_email||RESEND_KEY==="YOUR_RESEND_API_KEY") return; // not configured yet
+  if(!to_email) return;
+  if(!RESEND_KEY||RESEND_KEY==="YOUR_RESEND_API_KEY"||RESEND_KEY.length<10){
+    console.warn("Resend not configured — set RESEND_KEY in App.jsx lines 17-18"); return;
+  }
   try{
     await fetch("https://api.resend.com/emails",{
       method:"POST",
@@ -520,9 +523,9 @@ function HoDDeadlineProposal({sel,setSel,data,setData,uName,t,toast}){
 }
 
 // ── PROJECTS ─────────────────────────────────────────────────────────────────
-function Projects({t,data,setData,toast,currentUser}){
+function Projects({t,data,setData,toast,currentUser,pendingTaskId,clearPendingTask}){
   const isFounder=currentUser?.role==="Founder"||currentUser?.role==="Admin";
-  const isHoD=currentUser?.role==="HoD"||currentUser?.role==="Head of Department";
+  const isHoD=currentUser?.role==="HoD"||currentUser?.role==="Head of Department"||currentUser?.role==="Manager";
   const isMember=!isFounder&&!isHoD;
   const [filterStatus,setFilterStatus]=useState("All");
   const [filterClient,setFilterClient]=useState("All");
@@ -535,9 +538,17 @@ function Projects({t,data,setData,toast,currentUser}){
   const [sel,setSel]=useState(null);
   const [showExt,setShowExt]=useState(false);
   const [extForm,setExtForm]=useState({reason:"",newDue:""});
+  const [counterDate,setCounterDate]=useState("");
   const [form,setForm]=useState({title:"",cId:"",aId:"",deptId:"",priority:"Medium",due:"",dueTime:"09:00",brief:"",drive:"",est:"",assetLinks:[""],noDeadline:false});
   const [dueWarn,setDueWarn]=useState("");
-  const [newSubtask,setNewSubtask]=useState("");
+  useEffect(()=>{
+    if(pendingTaskId&&data.tasks.length>0){
+      const task=data.tasks.find(tk=>tk.id===pendingTaskId);
+      if(task){setFilterStatus("All");setFilterClient("All");setFilterDept("All");setFilterMember("All");setFilterDate("All");setSearch("");setSel(task);}
+      if(clearPendingTask) clearPendingTask();
+    }
+  },[pendingTaskId]);
+  const [newSubtask,setNewSubtask]=useState({title:"",aId:"",due:"",est:"",deptId:"",drive:"",refLink:""});
 
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
   const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
@@ -622,11 +633,11 @@ function Projects({t,data,setData,toast,currentUser}){
   };
 
   const addSubtask=()=>{
-    if(!newSubtask.trim()||!sel)return;
-    const st={id:"st"+Date.now(),title:newSubtask.trim(),done:false,aId:"",due:""};
+    if(!newSubtask.title.trim()||!sel)return;
+    const st={id:"st"+Date.now(),title:newSubtask.title.trim(),done:false,aId:newSubtask.aId,due:newSubtask.due,est:parseInt(newSubtask.est)||0,deptId:newSubtask.deptId,drive:newSubtask.drive,refLink:newSubtask.refLink};
     setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,subtasks:[...(tk.subtasks||[]),st]}:tk)}));
     setSel(p=>({...p,subtasks:[...(p.subtasks||[]),st]}));
-    setNewSubtask("");
+    setNewSubtask({title:"",aId:"",due:"",est:"",deptId:"",drive:"",refLink:""});
   };
   const toggleSubtask=(stId)=>{
     setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,subtasks:(tk.subtasks||[]).map(s=>s.id===stId?{...s,done:!s.done}:s)}:tk)}));
@@ -635,6 +646,44 @@ function Projects({t,data,setData,toast,currentUser}){
   const deleteSubtask=(stId)=>{
     setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,subtasks:(tk.subtasks||[]).filter(s=>s.id!==stId)}:tk)}));
     setSel(p=>({...p,subtasks:(p.subtasks||[]).filter(s=>s.id!==stId)}));
+  };
+  const approveDeadline=(taskId,due)=>{
+    const task=data.tasks.find(tk=>tk.id===taskId);
+    const hod=data.departments.find(d=>d.id===task?.deptId);
+    const hodUser=data.users.find(u=>u.id===hod?.hodId);
+    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===taskId?{...tk,due,awaitingDeadline:false,deadlineProposal:{...tk.deadlineProposal,status:"Approved"}}:tk)}));
+    setSel(p=>({...p,due,awaitingDeadline:false,deadlineProposal:{...p.deadlineProposal,status:"Approved"}}));
+    if(hodUser) setData(d=>({...d,notifications:[...d.notifications,{id:"n"+Date.now(),type:"deadline_approved",title:"Deadline Approved",body:`Your proposed deadline of ${fd(due)} for "${task?.title}" was approved.`,to:hodUser.id,from:currentUser?.id,ref:taskId,refType:"task",read:false,at:new Date().toISOString()}]}));
+    toast("Deadline approved — task updated","success");
+  };
+  const rejectDeadline=(taskId)=>{
+    const task=data.tasks.find(tk=>tk.id===taskId);
+    const hod=data.departments.find(d=>d.id===task?.deptId);
+    const hodUser=data.users.find(u=>u.id===hod?.hodId);
+    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===taskId?{...tk,deadlineProposal:{...tk.deadlineProposal,status:"Rejected"}}:tk)}));
+    setSel(p=>({...p,deadlineProposal:{...p.deadlineProposal,status:"Rejected"}}));
+    if(hodUser) setData(d=>({...d,notifications:[...d.notifications,{id:"n"+Date.now(),type:"deadline_rejected",title:"Deadline Rejected",body:`Your deadline proposal for "${task?.title}" was rejected. Please propose again.`,to:hodUser.id,from:currentUser?.id,ref:taskId,refType:"task",read:false,at:new Date().toISOString()}]}));
+    toast("Proposal rejected — HoD notified to re-propose","info");
+  };
+  const counterDeadline=(taskId,counterDue)=>{
+    if(!counterDue){toast("Pick a date first","error");return;}
+    const task=data.tasks.find(tk=>tk.id===taskId);
+    const hod=data.departments.find(d=>d.id===task?.deptId);
+    const hodUser=data.users.find(u=>u.id===hod?.hodId);
+    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===taskId?{...tk,deadlineProposal:{...tk.deadlineProposal,status:"CounterProposed",counterDue}}:tk)}));
+    setSel(p=>({...p,deadlineProposal:{...p.deadlineProposal,status:"CounterProposed",counterDue}}));
+    if(hodUser){
+      setData(d=>({...d,notifications:[...d.notifications,{id:"n"+Date.now(),type:"deadline_counter",title:"Counter-Deadline Proposed",body:`Founder suggested ${fd(counterDue)} for "${task?.title}". Please accept or reject.`,to:hodUser.id,from:currentUser?.id,ref:taskId,refType:"task",read:false,at:new Date().toISOString()}]}));
+      sendEmail(hodUser.email,hodUser.name,"Counter-Deadline Proposed: "+task?.title,`Hi ${hodUser.name},
+
+The Founder has counter-proposed a deadline of ${fd(counterDue)} for the task "${task?.title}".
+
+Please open the app to accept or reject.
+
+— ProfitPenny Studio OS`);
+    }
+    setCounterDate("");
+    toast("Counter-proposal sent to HoD","success");
   };
   const submitExt=()=>{
     if(!extForm.reason||!extForm.newDue){toast("Fill all fields","error");return;}
@@ -680,7 +729,8 @@ function Projects({t,data,setData,toast,currentUser}){
       });
       // If no deadline: notify HoD to propose
       if(noDeadline&&hod){
-        notifs.push({id:"n"+Date.now()+"d",type:"deadline_request",title:"📅 Deadline Needed",body:`New task "${form.title}" needs a deadline from you.`,to:hod.id,from:currentUser?.id||"founder",ref:id,refType:"task",read:false,at:new Date().toISOString()});
+        notifs.push({id:"n"+Date.now()+"d",type:"deadline_request",title:"📅 Deadline Needed",body:`New task "${form.title}" needs a deadline from you. Click to open the task.`,to:hod.id,from:currentUser?.id||"founder",ref:id,refType:"task",read:false,at:new Date().toISOString()});
+        sendEmail(hod.email,hod.name,"Action Required: Propose Deadline for \""+form.title+"\"",`Hi ${hod.name},\n\nA new task has been created and requires your deadline proposal.\n\nTask: ${form.title}\nAssigned to: ${assignee?.name||"—"}\nBrief: ${form.brief||"—"}\n\nPlease open the app to propose a deadline.\n\n— ProfitPenny Studio OS`);
         sendEmail(hod.email,hod.name,"Deadline Needed: "+form.title,`A new task has been created and needs your deadline proposal.\n\nTask: ${form.title}\nAssigned to: ${assignee?.name||"—"}\n\nPlease open the app and propose a deadline.`);
       }
       return {...d,tasks:[...d.tasks,newTask],notifications:notifs};
@@ -822,9 +872,32 @@ function Projects({t,data,setData,toast,currentUser}){
           {sel.awaitingDeadline&&!sel.deadlineProposal&&(
             <HoDDeadlineProposal sel={sel} setSel={setSel} data={data} setData={setData} uName={uName} t={t} toast={toast}/>
           )}
-          {sel.deadlineProposal&&sel.deadlineProposal.status!=="Approved"&&(
-            <div style={{padding:"10px 14px",background:t.amberBg,borderRadius:10,marginBottom:14,fontSize:13,color:t.amber}}>
-              {sel.deadlineProposal.status==="Pending"?"⏳ Deadline proposed — awaiting Founder approval":sel.deadlineProposal.status==="Rejected"?"❌ Deadline proposal rejected — please propose again":""}
+          {sel.deadlineProposal&&sel.deadlineProposal.status==="Pending"&&(isFounder?(
+            <div style={{padding:"12px 14px",background:t.amberBg,borderRadius:10,marginBottom:14,border:`1px solid ${t.amber}40`}}>
+              <div style={{fontSize:12,fontWeight:700,color:t.amber,marginBottom:6}}>📅 HoD proposed deadline: <strong>{fd(sel.deadlineProposal.due)}</strong></div>
+              {sel.deadlineProposal.note&&<div style={{fontSize:12,color:t.textMid,marginBottom:8}}>Note: {sel.deadlineProposal.note}</div>}
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                <Btn v="lime" t={t} size="sm" onClick={()=>approveDeadline(sel.id,sel.deadlineProposal.due)}>✓ Approve</Btn>
+                <Btn v="danger" t={t} size="sm" onClick={()=>rejectDeadline(sel.id)}>✕ Reject</Btn>
+                <div style={{display:"flex",gap:6,alignItems:"center",flex:1,minWidth:200}}>
+                  <Inp type="date" value={counterDate} onChange={e=>setCounterDate(e.target.value)} t={t} style={{flex:1}}/>
+                  <Btn v="secondary" t={t} size="sm" onClick={()=>counterDeadline(sel.id,counterDate)} disabled={!counterDate}>Counter-propose</Btn>
+                </div>
+              </div>
+            </div>
+          ):(
+            <div style={{padding:"10px 14px",background:t.amberBg,borderRadius:10,marginBottom:14,fontSize:13,color:t.amber}}>⏳ Deadline proposed ({fd(sel.deadlineProposal.due)}) — awaiting Founder approval</div>
+          ))}
+          {sel.deadlineProposal&&sel.deadlineProposal.status==="Rejected"&&(
+            <div style={{padding:"10px 14px",background:t.redBg,borderRadius:10,marginBottom:14,fontSize:13,color:t.red}}>❌ Deadline proposal rejected — please propose a new date below</div>
+          )}
+          {sel.deadlineProposal&&sel.deadlineProposal.status==="CounterProposed"&&!isFounder&&(
+            <div style={{padding:"12px 14px",background:t.blueBg,borderRadius:10,marginBottom:14,border:`1px solid ${t.blue}40`}}>
+              <div style={{fontSize:12,fontWeight:700,color:t.blue,marginBottom:6}}>📅 Founder counter-proposed: <strong>{fd(sel.deadlineProposal.counterDue)}</strong></div>
+              <div style={{display:"flex",gap:8}}>
+                <Btn v="lime" t={t} size="sm" onClick={()=>approveDeadline(sel.id,sel.deadlineProposal.counterDue)}>✓ Accept</Btn>
+                <Btn v="danger" t={t} size="sm" onClick={()=>rejectDeadline(sel.id)}>✕ Reject & Re-propose</Btn>
+              </div>
             </div>
           )}
           {sel.extRequest&&(
@@ -866,14 +939,34 @@ function Projects({t,data,setData,toast,currentUser}){
               {(sel.subtasks||[]).map((st,i)=>(
                 <div key={st.id} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",background:st.done?t.limeBg:t.surfaceAlt,border:`1px solid ${st.done?t.lime+"40":t.border}`,borderRadius:8,transition:"all .15s"}}>
                   <button onClick={()=>toggleSubtask(st.id)} style={{width:16,height:16,borderRadius:4,flexShrink:0,background:st.done?t.lime:"transparent",border:`2px solid ${st.done?t.lime:t.borderMid}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s"}}>{st.done&&<Check size={9} color="#0A0A0A" strokeWidth={3}/>}</button>
-                  <span style={{flex:1,fontSize:13,color:st.done?t.limeDeep:t.text,textDecoration:st.done?"line-through":"none"}}>{st.title}</span>
-                  <button onClick={()=>deleteSubtask(st.id)} style={{background:"none",border:"none",cursor:"pointer",color:t.red,opacity:0.5,padding:2,display:"flex",alignItems:"center"}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.5}><X size={11}/></button>
+                  <div style={{flex:1}}>
+                    <span style={{fontSize:13,color:st.done?t.limeDeep:t.text,textDecoration:st.done?"line-through":"none",fontWeight:500}}>{st.title}</span>
+                    <div style={{display:"flex",gap:10,marginTop:3,flexWrap:"wrap"}}>
+                      {st.aId&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:3}}><User size={9}/>{uName(st.aId)}</span>}
+                      {st.deptId&&<span style={{fontSize:10,color:t.textMuted}}>{data.departments.find(d=>d.id===st.deptId)?.name}</span>}
+                      {st.due&&<span style={{fontSize:10,color:t.textMuted,fontWeight:600}}>{fd(st.due)}</span>}
+                      {st.est>0&&<span style={{fontSize:10,color:t.textMuted}}>{st.est}h</span>}
+                      {st.drive&&<a href={st.drive} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:t.blue,textDecoration:"none"}}>Drive</a>}
+                      {st.refLink&&<a href={st.refLink} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:t.textMuted,textDecoration:"none"}}>Ref</a>}
+                    </div>
+                  </div>
+                  <button onClick={()=>deleteSubtask(st.id)} style={{background:"none",border:"none",cursor:"pointer",color:t.red,opacity:0.5,padding:2,display:"flex",alignItems:"center",flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.5}><X size={11}/></button>
                 </div>
               ))}
             </div>
-            <div style={{display:"flex",gap:7,marginTop:10}}>
-              <input value={newSubtask} onChange={e=>setNewSubtask(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(e.preventDefault(),addSubtask())} placeholder="Add a sub-task… (Enter to add)" style={{...iStyle(t),flex:1,fontSize:12}}/>
-              <Btn v="secondary" t={t} size="sm" onClick={addSubtask} icon={<Plus size={11}/>}>Add</Btn>
+            <div style={{marginTop:10,padding:"12px 14px",background:t.surfaceAlt,borderRadius:10,border:`1px solid ${t.border}`}}>
+              <Inp value={newSubtask.title} onChange={e=>setNewSubtask(p=>({...p,title:e.target.value}))} placeholder="Sub-task name *" t={t}/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,margin:"8px 0"}}>
+                <Field label="Allocated To" t={t}><Sel value={newSubtask.aId} onChange={e=>setNewSubtask(p=>({...p,aId:e.target.value}))} t={t}><option value="">Select member</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
+                <Field label="Department" t={t}><Sel value={newSubtask.deptId} onChange={e=>setNewSubtask(p=>({...p,deptId:e.target.value}))} t={t}><option value="">Select dept</option>{data.departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</Sel></Field>
+                <Field label="Deadline" t={t}><Inp type="date" value={newSubtask.due} onChange={e=>setNewSubtask(p=>({...p,due:e.target.value}))} t={t}/></Field>
+                <Field label="Est. Hours" t={t}><Inp type="number" value={newSubtask.est} onChange={e=>setNewSubtask(p=>({...p,est:e.target.value}))} placeholder="e.g. 3" t={t}/></Field>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                <Field label="Drive Link" t={t}><Inp value={newSubtask.drive} onChange={e=>setNewSubtask(p=>({...p,drive:e.target.value}))} placeholder="https://drive.google.com/..." t={t}/></Field>
+                <Field label="Reference Link" t={t}><Inp value={newSubtask.refLink} onChange={e=>setNewSubtask(p=>({...p,refLink:e.target.value}))} placeholder="https://..." t={t}/></Field>
+              </div>
+              <Btn v="lime" t={t} size="sm" onClick={addSubtask} icon={<Plus size={11}/>}>Add Sub-task</Btn>
             </div>
           </div>
           <div style={{borderTop:`1px solid ${t.border}`,paddingTop:12,marginTop:8,display:"flex",justifyContent:"flex-end"}}>
@@ -1349,8 +1442,8 @@ function Meetings({t,data,setData,toast,currentUser}){
   const [sel,setSel]=useState(null);
   const [editingMom,setEditingMom]=useState(false);
   const [momText,setMomText]=useState("");
-  const [newAction,setNewAction]=useState({item:"",due:"",owner:""});
-  const [form,setForm]=useState({cId:"",date:"",time:"",loc:"",attendees:[],agenda:""});
+  const [newAction,setNewAction]=useState({item:"",due:"",dueTime:"",owner:"",projectId:""});
+  const [form,setForm]=useState({cId:"",projectId:"",date:"",time:"",loc:"",attendees:[],agenda:""});
   const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
   const uName=id=>data.users.find(u=>u.id===id)?.name||id;
   const today=new Date();
@@ -1359,7 +1452,11 @@ function Meetings({t,data,setData,toast,currentUser}){
 
   const add=()=>{
     if(!form.cId||!form.date){toast("Client and date required","error");return;}
-    const calUrl=`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(cName(form.cId)+" Meeting")}&dates=${form.date.replace(/-/g,"")}T${(form.time||"090000").replace(/:/g,"")}00/${form.date.replace(/-/g,"")}T${(form.time||"100000").replace(/:/g,"")}00&details=${encodeURIComponent(form.agenda)}&location=${encodeURIComponent(form.loc||"")}`;
+    const startTime=(form.time||"09:00").replace(/:/g,"")+"00";
+    const endHr=String(parseInt((form.time||"09:00").split(":")[0])+1).padStart(2,"0");
+    const endTime=endHr+((form.time||"09:00").split(":")[1]||"00")+"00";
+    const dateStr=form.date.replace(/-/g,"");
+    const calUrl=`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(cName(form.cId)+" Meeting")}&dates=${dateStr}T${startTime}/${dateStr}T${endTime}&details=${encodeURIComponent(form.agenda||"")}&location=${encodeURIComponent(form.loc||"")}&sf=true&output=xml`;
     const meeting={...form,id:"m"+Date.now(),actions:[],calLink:calUrl,mom:"",createdBy:currentUser?.id};
     setData(d=>({...d,meetings:[...d.meetings,meeting]}));
     // Notify all attendees
@@ -1391,10 +1488,16 @@ function Meetings({t,data,setData,toast,currentUser}){
         notifs.push({id:"n"+Date.now(),type:"action_item",title:"Action Item Assigned",body:`"${newAction.item}" — due ${newAction.due?fd(newAction.due):"TBD"}`,to:newAction.owner,from:currentUser?.id,read:false,at:new Date().toISOString()});
         sendEmail(owner?.email,owner?.name,"Action Item: "+newAction.item,`Hi ${owner?.name},\n\nAn action item has been assigned to you.\n\nItem: ${newAction.item}\nDue: ${newAction.due?fd(newAction.due):"TBD"}\nMeeting: ${d.clients.find(c=>c.id===sel?.cId)?.name||""} on ${fdt(sel?.date)}\n\n— ProfitPenny Studio OS`);
       }
-      return {...d,meetings:d.meetings.map(m=>m.id===sel?.id?{...m,actions:[...(m.actions||[]),action]}:m),notifications:notifs};
+      // Also add as sub-task on the related project task if projectId is set
+      let tasks=d.tasks;
+      if(sel?.projectId&&newAction.item){
+        const subTask={id:"st"+Date.now(),title:newAction.item,done:false,aId:newAction.owner,due:newAction.due,deptId:"",drive:"",refLink:""};
+        tasks=d.tasks.map(tk=>tk.id===sel.projectId?{...tk,subtasks:[...(tk.subtasks||[]),subTask]}:tk);
+      }
+      return {...d,meetings:d.meetings.map(m=>m.id===sel?.id?{...m,actions:[...(m.actions||[]),action]}:m),tasks,notifications:notifs};
     });
     setSel(p=>({...p,actions:[...(p.actions||[]),action]}));
-    setNewAction({item:"",due:"",owner:""});toast("Action item added — owner notified");
+    setNewAction({item:"",due:"",dueTime:"",owner:"",projectId:""});toast("Action item added — owner notified");
   };
 
   const toggleActionDone=actionId=>{
@@ -1489,13 +1592,13 @@ function Meetings({t,data,setData,toast,currentUser}){
                 </div>
                 <div style={{textAlign:"right",marginLeft:12,flexShrink:0}}>
                   <div style={{fontSize:11,color:t.textMuted}}>{uName(a.owner)}</div>
-                  {a.due&&<div style={{fontSize:11,color:a.done?t.green:t.lime,fontWeight:600}}>{fd(a.due)}</div>}
+                  {a.due&&<div style={{fontSize:11,color:a.done?t.green:t.lime,fontWeight:600}}>{fd(a.due)}{a.dueTime?" · "+a.dueTime:""}</div>}
                 </div>
               </div>
             ))}
             <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr auto",gap:7,marginTop:10,alignItems:"flex-end"}}>
               <Inp value={newAction.item} onChange={e=>setNewAction(p=>({...p,item:e.target.value}))} placeholder="Action item..." t={t}/>
-              <Inp type="date" value={newAction.due} onChange={e=>setNewAction(p=>({...p,due:e.target.value}))} t={t}/>
+              <div style={{display:"flex",gap:6}}><Inp type="date" value={newAction.due} onChange={e=>setNewAction(p=>({...p,due:e.target.value}))} t={t}/><Inp type="time" value={newAction.dueTime} onChange={e=>setNewAction(p=>({...p,dueTime:e.target.value}))} t={t} style={{width:100}}/></div>
               <Sel value={newAction.owner} onChange={e=>setNewAction(p=>({...p,owner:e.target.value}))} t={t}><option value="">Owner</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name.split(" ")[0]}</option>)}</Sel>
               <Btn v="lime" t={t} size="sm" onClick={addAction} icon={<Plus size={12}/>}>Add</Btn>
             </div>
@@ -1505,7 +1608,8 @@ function Meetings({t,data,setData,toast,currentUser}){
 
       {/* New Meeting Modal */}
       <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Schedule Meeting" t={t} w={520}>
-        <Field label="Client *" t={t}><Sel value={form.cId} onChange={e=>setForm(p=>({...p,cId:e.target.value}))} t={t}><option value="">Select client</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
+        <Field label="Client *" t={t}><Sel value={form.cId} onChange={e=>setForm(p=>({...p,cId:e.target.value,projectId:""}))} t={t}><option value="">Select client</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
+        {form.cId&&<Field label="Related Project (optional)" t={t}><Sel value={form.projectId} onChange={e=>setForm(p=>({...p,projectId:e.target.value}))} t={t}><option value="">No specific project</option>{data.tasks.filter(tk=>tk.cId===form.cId).map(tk=><option key={tk.id} value={tk.id}>{tk.title}</option>)}</Sel></Field>}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <Field label="Date *" t={t}><Inp type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} t={t}/></Field>
           <Field label="Time" t={t}><Inp type="time" value={form.time} onChange={e=>setForm(p=>({...p,time:e.target.value}))} t={t}/></Field>
@@ -2158,18 +2262,23 @@ function CalendarView({t,data,go}){
   // Official Gazetted National Holidays of India 2026
   // Source: Ministry of Personnel, Public Grievances & Pensions Circular
   const HOLIDAYS=[
+    {name:"Makar Sankranti",       date:"2026-01-14"},
     {name:"Republic Day",          date:"2026-01-26"},
-    {name:"Holi",                  date:"2026-03-04"},
+    {name:"Maha Shivaratri",       date:"2026-02-26"},
+    {name:"Holi",                  date:"2026-03-20"},
+    {name:"Id-ul-Fitr (Eid)",      date:"2026-03-31"},
+    {name:"Ram Navami",            date:"2026-04-02"},
     {name:"Good Friday",           date:"2026-04-03"},
     {name:"Dr. Ambedkar Jayanti",  date:"2026-04-14"},
-    {name:"Id-ul-Fitr",            date:"2026-03-31"},
-    {name:"Id-ul-Zuha",            date:"2026-06-07"},
+    {name:"Bakrid (Id-ul-Zuha)",   date:"2026-06-07"},
+    {name:"Muharram",              date:"2026-07-06"},
     {name:"Independence Day",      date:"2026-08-15"},
-    {name:"Janmashtami",           date:"2026-08-14"},
+    {name:"Janmashtami",           date:"2026-08-24"},
+    {name:"Milad-un-Nabi",         date:"2026-09-05"},
     {name:"Gandhi Jayanti",        date:"2026-10-02"},
-    {name:"Vijaya Dashami",        date:"2026-10-20"},
-    {name:"Diwali (Deepawali)",    date:"2026-10-30"},
-    {name:"Guru Nanak Jayanti",    date:"2026-11-24"},
+    {name:"Dussehra",              date:"2026-10-22"},
+    {name:"Diwali",                date:"2026-11-11"},
+    {name:"Guru Nanak Jayanti",    date:"2026-11-13"},
     {name:"Christmas Day",         date:"2026-12-25"},
   ];
 
@@ -2189,6 +2298,8 @@ function CalendarView({t,data,go}){
     if(filters.tasks){
       // Task deadlines
       data.tasks.filter(tk=>tk.due===s).forEach(tk=>evs.push({label:tk.title,color:t.red,type:"deadline",dot:"deadline"}));
+      // Task in-progress (shows on start date)
+      data.tasks.filter(tk=>tk.status==="In Progress"&&tk.startedAt&&tk.startedAt.startsWith(s)).forEach(tk=>evs.push({label:tk.title+" ⚡",color:t.amber,type:"in-progress",dot:"in-progress"}));
       // Task started
       data.tasks.filter(tk=>tk.startedAt&&tk.startedAt.startsWith(s)).forEach(tk=>evs.push({label:tk.title+" (started)",color:t.lime,type:"started",dot:"started"}));
       // Task completed
@@ -2299,13 +2410,18 @@ function Notifications({t,data,setData,go,currentUser}){
   const navTarget=n=>({leave_request:"leaves",deadline_missed:"projects",ext_request:"leaves",leave_approved:"leaves",leave_rejected:"leaves",ext_approved:"projects",birthday_today:"team",birthday_week:"team",deadline_proposal:"projects",deadline_request:"projects"})[n.type]||"notifications";
   // Show notifications relevant to this user
   const isFounder=currentUser?.role==="Founder"||currentUser?.role==="Admin";
-  const myNotifs=data.notifications.filter(n=>
-    isFounder || n.to===currentUser?.id || n.to==="all" || n.to==="managers"
-  );
+  const isHoDLocal=currentUser?.role==="HoD"||currentUser?.role==="Head of Department"||currentUser?.role==="Manager";
+  const myNotifs=data.notifications.filter(n=>{
+    if(n.to===currentUser?.id) return true;
+    if(n.to==="all") return true;
+    if(n.to==="managers"&&(isFounder||isHoDLocal)) return true;
+    if(n.to==="founders"&&isFounder) return true;
+    return false;
+  });
   const sorted=[...myNotifs].sort((a,b)=>new Date(b.at)-new Date(a.at));
   const unread=sorted.filter(n=>!n.read).length;
 
-  const handleClick=n=>{markRead(n.id);go(navTarget(n));};
+  const handleClick=n=>{markRead(n.id);const tgt=navTarget(n);go(tgt,n.refType==="task"&&tgt==="projects"?n.ref:null);};
 
   return(
     <div>
@@ -2595,6 +2711,7 @@ function App({firebaseUid}){
   const [loading,setLoading]=useState(true);
   const [toasts,toast]=useToast();
   const [pageKey,setPageKey]=useState(0);
+  const [pendingTaskId,setPendingTaskId]=useState(null);
   const [showTutorial,setShowTutorial]=useState(false);
   const t=dark?D.dark:D.light;
 
@@ -2607,7 +2724,7 @@ function App({firebaseUid}){
   const isHoD = currentUser?.role==="HoD"||currentUser?.role==="Head of Department"||currentUser?.role==="Manager";
   const isMember = !isFounder&&!isHoD;
 
-  const go=useCallback(id=>{setNav(id);setPageKey(p=>p+1);},[]);
+  const go=useCallback((id,taskId=null)=>{setNav(id);setPageKey(p=>p+1);if(taskId)setPendingTaskId(taskId);},[]);
   const closeTutorial=()=>{setData(d=>({...d,firstLogin:false}));setShowTutorial(false);};
 
   // ── Load all data from Firebase on mount ─────────────────────────────────
@@ -2704,7 +2821,13 @@ function App({firebaseUid}){
     });
   },[syncCreate,syncUpdate]);
 
-  const myNotifs=data.notifications.filter(n=>isFounder||n.to===currentUser?.id||n.to==="all"||n.to==="managers");
+  const myNotifs=data.notifications.filter(n=>{
+    if(n.to===currentUser?.id) return true;
+    if(n.to==="all") return true;
+    if(n.to==="managers"&&(isFounder||isHoD)) return true;
+    if(n.to==="founders"&&isFounder) return true;
+    return false;
+  });
   const unread=myNotifs.filter(n=>!n.read).length;
   const pendLeave=data.leaves.filter(l=>l.status==="Pending").length;
   const pendExt=data.tasks.filter(tk=>tk.extRequest?.status==="Pending").length;
@@ -2712,7 +2835,7 @@ function App({firebaseUid}){
 
   const pages={
     dashboard:    <Dashboard    t={t} data={data} go={go} currentUser={currentUser}/>,
-    projects:     <Projects     t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
+    projects:     <Projects     t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser} pendingTaskId={pendingTaskId} clearPendingTask={()=>setPendingTaskId(null)}/>,
     board:        <BoardView    t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
     calendar:     <CalendarView t={t} data={data} go={go}/>,
     timelogs:     <TimeLogs     t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
