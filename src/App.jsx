@@ -512,7 +512,7 @@ function HoDDeadlineProposal({sel,setSel,data,setData,uName,t,toast}){
   };
   return(
     <div style={{padding:"13px 15px",background:t.amberBg,borderRadius:12,marginBottom:14,border:`1px solid ${t.amber}30`}}>
-      <div style={{fontWeight:700,fontSize:13,color:t.amber,marginBottom:10}}>📅 Propose a deadline for this task</div>
+      <div style={{fontWeight:700,fontSize:13,color:t.amber,marginBottom:10}}>{sel.deadlineProposal?.status==="Rejected"?"🔄 Propose a new deadline":sel.deadlineProposal?.status==="CounterProposed"?"📅 Founder counter-proposed — enter your response":"📅 Propose a deadline for this task"}</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
         <Field label="Proposed Date *" t={t}><Inp type="date" value={proposed.due} onChange={e=>setProposed(p=>({...p,due:e.target.value}))} t={t}/></Field>
         <Field label="Note to Founder" t={t}><Inp value={proposed.note} onChange={e=>setProposed(p=>({...p,note:e.target.value}))} placeholder="Any context..." t={t}/></Field>
@@ -649,17 +649,17 @@ function Projects({t,data,setData,toast,currentUser,pendingTaskId,clearPendingTa
   const addSubtask=()=>{
     if(!newSubtask.title.trim()||!sel)return;
     const st={id:"st"+Date.now(),title:newSubtask.title.trim(),brief:newSubtask.brief,done:false,aId:newSubtask.aId,due:newSubtask.due,dueTime:newSubtask.dueTime,est:parseInt(newSubtask.est)||0,deptId:newSubtask.deptId,drive:newSubtask.drive,refLink:newSubtask.refLink};
-    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,subtasks:[...(tk.subtasks||[]),st]}:tk)}));
+    setData(d=>({...d,tasks:d.tasks.map(tsk=>tsk.id===sel.id?{...tsk,subtasks:[...(tsk.subtasks||[]),st]}:tsk)}));
     setSel(p=>({...p,subtasks:[...(p.subtasks||[]),st]}));
     setNewSubtask({title:"",brief:"",aId:"",due:"",dueTime:"",est:"",deptId:"",drive:"",refLink:""});
   };
   const toggleSubtask=(stId)=>{
-    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,subtasks:(tk.subtasks||[]).map(s=>s.id===stId?{...s,done:!s.done}:s)}:tk)}));
-    setSel(p=>({...p,subtasks:(p.subtasks||[]).map(s=>s.id===stId?{...s,done:!s.done}:s)}));
+    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,subtasks:(tk.subtasks||[]).map(sub=>sub.id===stId?{...sub,done:!sub.done}:sub)}:tk)}));
+    setSel(p=>({...p,subtasks:(p.subtasks||[]).map(sub=>sub.id===stId?{...sub,done:!sub.done}:sub)}));
   };
   const deleteSubtask=(stId)=>{
-    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,subtasks:(tk.subtasks||[]).filter(s=>s.id!==stId)}:tk)}));
-    setSel(p=>({...p,subtasks:(p.subtasks||[]).filter(s=>s.id!==stId)}));
+    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,subtasks:(tk.subtasks||[]).filter(sub=>sub.id!==stId)}:tk)}));
+    setSel(p=>({...p,subtasks:(p.subtasks||[]).filter(sub=>sub.id!==stId)}));
   };
   const approveDeadline=(taskId,due)=>{
     const task=data.tasks.find(tk=>tk.id===taskId);
@@ -883,7 +883,7 @@ Please open the app to accept or reject.
             {(sel.assetLinks||[]).filter(l=>l).map((l,i)=><a key={i} href={l} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 12px",background:t.surfaceAlt,color:t.textMid,borderRadius:10,fontSize:12,fontWeight:600,textDecoration:"none"}}><Link2 size={12}/> Asset {i+1}</a>)}
           </div>
           {/* HoD: propose deadline when awaiting */}
-          {sel.awaitingDeadline&&!sel.deadlineProposal&&(
+          {(sel.awaitingDeadline||sel.deadlineProposal?.status==="Rejected"||sel.deadlineProposal?.status==="CounterProposed")&&(
             <HoDDeadlineProposal sel={sel} setSel={setSel} data={data} setData={setData} uName={uName} t={t} toast={toast}/>
           )}
           {sel.deadlineProposal&&sel.deadlineProposal.status==="Pending"&&(isFounder?(
@@ -944,11 +944,11 @@ Please open the app to accept or reject.
           <div style={{borderTop:`1px solid ${t.border}`,paddingTop:14,marginTop:8}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
               <div style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em"}}>
-                Sub-tasks {(sel.subtasks||[]).length>0&&`(${(sel.subtasks||[]).filter(s=>s.done).length}/${(sel.subtasks||[]).length})`}
+                Sub-tasks {(sel.subtasks||[]).length>0&&`(${(sel.subtasks||[]).filter(sub=>sub.done).length}/${(sel.subtasks||[]).length})`}
               </div>
-              {(sel.subtasks||[]).length>0&&<div style={{fontSize:11,color:t.textMuted}}>{Math.round(((sel.subtasks||[]).filter(s=>s.done).length/(sel.subtasks||[]).length)*100)}% done</div>}
+              {(sel.subtasks||[]).length>0&&<div style={{fontSize:11,color:t.textMuted}}>{Math.round(((sel.subtasks||[]).filter(sub=>sub.done).length/(sel.subtasks||[]).length)*100)}% done</div>}
             </div>
-            {(sel.subtasks||[]).length>0&&<PBar value={(sel.subtasks||[]).filter(s=>s.done).length} max={(sel.subtasks||[]).length} color="lime" t={t} h={3} delay={0} showPct={false}/>}
+            {(sel.subtasks||[]).length>0&&<PBar value={(sel.subtasks||[]).filter(sub=>sub.done).length} max={(sel.subtasks||[]).length} color="lime" t={t} h={3} delay={0} showPct={false}/>}
             <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:5}}>
               {(sel.subtasks||[]).map((st,si)=>(
                 <div key={st.id||si} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",background:st.done?t.limeBg:t.surfaceAlt,border:`1px solid ${st.done?t.lime+"40":t.border}`,borderRadius:8,transition:"all .15s"}}>
@@ -957,7 +957,7 @@ Please open the app to accept or reject.
                     <span style={{fontSize:13,color:st.done?t.limeDeep:t.text,textDecoration:st.done?"line-through":"none",fontWeight:500}}>{st.title}</span>
                     <div style={{display:"flex",gap:10,marginTop:3,flexWrap:"wrap"}}>
                       {st.aId&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:3}}><User size={9}/>{uName(st.aId)}</span>}
-                      {st.deptId&&<span style={{fontSize:10,color:t.textMuted}}>{data.departments.find(d=>d.id===st.deptId)?.name}</span>}
+                      {st.deptId&&<span style={{fontSize:10,color:t.textMuted}}>{data.departments.find(dep=>dep.id===st.deptId)?.name}</span>}
                       {st.due&&<span style={{fontSize:10,color:t.textMuted,fontWeight:600}}>{fd(st.due)}{st.dueTime?" · "+st.dueTime:""}</span>}
                       {st.est>0&&<span style={{fontSize:10,color:t.textMuted}}>{st.est}h</span>}
                       {st.drive&&<a href={st.drive} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:t.blue,textDecoration:"none"}}>Drive</a>}
