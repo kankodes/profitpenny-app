@@ -14,8 +14,8 @@ import {
 // ── EMAIL via Resend ─────────────────────────────────────────────────────────
 // Get free API key at resend.com (3000 emails/month free)
 // Add your key below and set the from address to a verified domain/email.
-const RESEND_KEY = "re_3U7HF8hq_Kr7K2n26JYhL3dPwjvi9gCsU";  // e.g. "re_AbCdEf123..."
-const RESEND_FROM = "ProfitPenny Studio OS <no-reply@profitpenny.in>"; // must be verified on Resend
+const RESEND_KEY = "re_3U7HF8hq_Kr7K2n26JYhL3dPwjvi9gCsU";
+const RESEND_FROM = "ProfitPenny Studio OS <no-reply@profitpenny.in>";
 
 async function sendEmail(to_email, to_name, subject, message){
   if(!to_email) return;
@@ -190,7 +190,7 @@ function PBar({value,max=100,color="lime",t,h=5,delay=0,showPct=true}){
     </div>
   );
 }
-function Inp({value,onChange,placeholder,type="text",t}){return <input type={type} value={value} onChange={onChange} placeholder={placeholder} style={iStyle(t)} onFocus={e=>e.target.style.borderColor=t.lime} onBlur={e=>e.target.style.borderColor=t.border}/>;}
+function Inp({value,onChange,placeholder,type="text",t,style={}}){return <input type={type} value={value} onChange={onChange} placeholder={placeholder} style={{...iStyle(t),...style}} onFocus={e=>e.target.style.borderColor=t.lime} onBlur={e=>e.target.style.borderColor=t.border}/>;}
 function Sel({value,onChange,children,t}){return <select value={value} onChange={onChange} style={{...iStyle(t),cursor:"pointer"}}>{children}</select>;}
 // Smart department selector with inline "+Add New Department" option
 function DeptSel({value,onChange,data,setData,t,toast,placeholder="Select dept."}){
@@ -503,11 +503,11 @@ function HoDDeadlineProposal({sel,setSel,data,setData,uName,t,toast}){
     if(!proposed.due){toast("Enter a proposed date","error");return;}
     const founder=data.users.find(u=>u.role==="Admin"||u.role==="Founder");
     setData(d=>({...d,
-      tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,deadlineProposal:{proposedDue:proposed.due,note:proposed.note,status:"Pending"}}:tk),
+      tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,deadlineProposal:{due:proposed.due,note:proposed.note,status:"Pending"}}:tk),
       notifications:[...d.notifications,{id:"n"+Date.now(),type:"deadline_proposal",title:"📅 Deadline Proposed",body:`HoD proposed ${fd(proposed.due)} for "${sel.title}"`,to:founder?.id||"",from:"hod",ref:sel.id,refType:"task",read:false,at:new Date().toISOString()}]
     }));
     if(founder) sendEmail(founder.email,founder.name,"Deadline Proposed: "+sel.title,`Your HoD has proposed a deadline of ${fd(proposed.due)} for the task "${sel.title}".\n\nNote: ${proposed.note||"None"}\n\nPlease review and approve in the app.`);
-    setSel(p=>({...p,deadlineProposal:{proposedDue:proposed.due,note:proposed.note,status:"Pending"}}));
+    setSel(p=>({...p,deadlineProposal:{due:proposed.due,note:proposed.note,status:"Pending"}}));
     toast("Deadline proposed — Founder notified");
   };
   return(
@@ -520,6 +520,20 @@ function HoDDeadlineProposal({sel,setSel,data,setData,uName,t,toast}){
       <Btn v="lime" t={t} size="sm" icon={<Send size={11}/>} onClick={submit}>Submit Proposal</Btn>
     </div>
   );
+}
+
+// ── STATUS BUTTONS ───────────────────────────────────────────────────────────
+const STATUS_CFG_MAP={"In Progress":{activeColor:"#60A5FA",activeBg:"#1D4ED825",activeBorder:"#3B82F6",inactiveColor:"#4A90D9",inactiveBorder:"#3B82F640"},"Review":{activeColor:"#FBB040",activeBg:"#92400E25",activeBorder:"#F59E0B",inactiveColor:"#C8913A",inactiveBorder:"#F59E0B40"},"Completed":{activeColor:"#4ADE80",activeBg:"#14532D25",activeBorder:"#22C55E",inactiveColor:"#3AAD60",inactiveBorder:"#22C55E40"},"Delayed":{activeColor:"#F87171",activeBg:"#7F1D1D25",activeBorder:"#EF4444",inactiveColor:"#C05050",inactiveBorder:"#EF444440"}};
+function StatusButtons({sel,updStatus,t}){
+  return <>
+    {["In Progress","Review","Completed","Delayed"].map(st=>{
+      const cfg=STATUS_CFG_MAP[st]||{activeColor:t.lime,activeBg:t.limeBg,activeBorder:t.lime,inactiveColor:t.textMuted,inactiveBorder:t.border};
+      const active=sel.status===st;
+      return <button key={st} onClick={()=>updStatus(sel.id,st)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",borderRadius:9,border:`1.5px solid ${active?cfg.activeBorder:cfg.inactiveBorder}`,background:active?cfg.activeBg:t.surfaceAlt,color:active?cfg.activeColor:cfg.inactiveColor,fontSize:12,fontWeight:active?700:500,cursor:"pointer",transition:"all .15s"}}>
+        {active&&<Check size={10}/>} {st}
+      </button>;
+    })}
+  </>;
 }
 
 // ── PROJECTS ─────────────────────────────────────────────────────────────────
@@ -762,11 +776,11 @@ Please open the app to accept or reject.
             <div key={tk.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap",background:t.surface,borderRadius:9,padding:"9px 13px",marginBottom:6}}>
               <div>
                 <div style={{fontWeight:600,fontSize:13,color:t.text}}>{tk.title}</div>
-                <div style={{fontSize:12,color:t.textMuted}}>HoD proposes <strong style={{color:t.amber}}>{fd(tk.deadlineProposal?.proposedDue)}</strong>{tk.deadlineProposal?.note&&` — "${tk.deadlineProposal.note}"`}</div>
+                <div style={{fontSize:12,color:t.textMuted}}>HoD proposes <strong style={{color:t.amber}}>{fd(tk.deadlineProposal?.due)}</strong>{tk.deadlineProposal?.note&&` — "${tk.deadlineProposal.note}"`}</div>
               </div>
               <div style={{display:"flex",gap:7}}>
                 <Btn v="success" t={t} size="sm" icon={<Check size={12}/>} onClick={()=>{
-                  setData(d=>({...d,tasks:d.tasks.map(x=>x.id===tk.id?{...x,due:tk.deadlineProposal.proposedDue,awaitingDeadline:false,deadlineProposal:{...x.deadlineProposal,status:"Approved"}}:x)}));
+                  setData(d=>({...d,tasks:d.tasks.map(x=>x.id===tk.id?{...x,due:tk.deadlineProposal.due,awaitingDeadline:false,deadlineProposal:{...x.deadlineProposal,status:"Approved"}}:x)}));
                   toast("Deadline approved");
                 }}>Approve</Btn>
                 <Btn v="danger" t={t} size="sm" onClick={()=>{
@@ -911,16 +925,7 @@ Please open the app to accept or reject.
             <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:t.textMuted,marginBottom:10}}>Update Status</div>
             <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
               {sel.status==="Not Started"&&<Btn v="lime" t={t} size="sm" icon={<Play size={12}/>} onClick={()=>{startTask(sel.id);setSel(p=>({...p,status:"In Progress",startedAt:new Date().toISOString()}));}}>Start Task</Btn>}
-              {(()=>{
-              const STATUS_CFG={"In Progress":{activeColor:"#60A5FA",activeBg:"#1D4ED825",activeBorder:"#3B82F6",inactiveColor:"#4A90D9",inactiveBorder:"#3B82F640"},"Review":{activeColor:"#FBB040",activeBg:"#92400E25",activeBorder:"#F59E0B",inactiveColor:"#C8913A",inactiveBorder:"#F59E0B40"},"Completed":{activeColor:"#4ADE80",activeBg:"#14532D25",activeBorder:"#22C55E",inactiveColor:"#3AAD60",inactiveBorder:"#22C55E40"},"Delayed":{activeColor:"#F87171",activeBg:"#7F1D1D25",activeBorder:"#EF4444",inactiveColor:"#C05050",inactiveBorder:"#EF444440"}};
-              return ["In Progress","Review","Completed","Delayed"].map(st=>{
-                const cfg=STATUS_CFG[st];
-                const active=sel.status===st;
-                return <button key={st} onClick={()=>updStatus(sel.id,st)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",borderRadius:9,border:`1.5px solid ${active?cfg.activeBorder:cfg.inactiveBorder}`,background:active?cfg.activeBg:t.surfaceAlt,color:active?cfg.activeColor:cfg.inactiveColor,fontSize:12,fontWeight:active?700:500,cursor:"pointer",transition:"all .15s"}}>
-                  {active&&<Check size={10}/>} {st}
-                </button>;
-              });
-            })()}
+              <StatusButtons sel={sel} updStatus={updStatus} t={t}/>
               {sel.status==="Delayed"&&!sel.extRequest&&<Btn v="outline" t={t} size="sm" icon={<AlarmClock size={12}/>} onClick={()=>setShowExt(true)}>Request Extension</Btn>}
             </div>
           </div>
@@ -2222,11 +2227,14 @@ function BoardView({t,data,setData,toast,currentUser}){
             <div style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:9}}>Move to</div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               {COLS_BOARD.map(st=>{
-                const BOARD_CFG={"Not Started":{activeColor:t.textMid,activeBg:t.hover,activeBorder:t.borderMid,inactiveColor:t.textMuted,inactiveBorder:t.border},"In Progress":{activeColor:"#60A5FA",activeBg:"#1D4ED825",activeBorder:"#3B82F6",inactiveColor:"#4A90D9",inactiveBorder:"#3B82F640"},"Review":{activeColor:"#FBB040",activeBg:"#92400E25",activeBorder:"#F59E0B",inactiveColor:"#C8913A",inactiveBorder:"#F59E0B40"},"Rework":{activeColor:"#A78BFA",activeBg:"#4C1D9525",activeBorder:"#A78BFA",inactiveColor:"#8B6FD4",inactiveBorder:"#A78BFA40"},"Completed":{activeColor:"#4ADE80",activeBg:"#14532D25",activeBorder:"#22C55E",inactiveColor:"#3AAD60",inactiveBorder:"#22C55E40"}};
-                const cmap=BOARD_CFG[st]||{activeColor:t.textMid,activeBg:t.surfaceAlt,activeBorder:t.border,inactiveColor:t.textMuted,inactiveBorder:t.border};
+                const bcfg={activeColor:"#60A5FA",activeBg:"#1D4ED825",activeBorder:"#3B82F6",inactiveColor:"#4A90D9",inactiveBorder:"#3B82F640"};
+                const activeCols={"Not Started":{activeColor:t.textMid,activeBg:t.hover,activeBorder:t.borderMid},"In Progress":{activeColor:"#60A5FA",activeBg:"#1D4ED825",activeBorder:"#3B82F6"},"Review":{activeColor:"#FBB040",activeBg:"#92400E25",activeBorder:"#F59E0B"},"Rework":{activeColor:"#A78BFA",activeBg:"#4C1D9525",activeBorder:"#A78BFA"},"Completed":{activeColor:"#4ADE80",activeBg:"#14532D25",activeBorder:"#22C55E"}};
+                const inactiveCols={"Not Started":{inactiveColor:t.textMuted,inactiveBorder:t.border},"In Progress":{inactiveColor:"#4A90D9",inactiveBorder:"#3B82F640"},"Review":{inactiveColor:"#C8913A",inactiveBorder:"#F59E0B40"},"Rework":{inactiveColor:"#8B6FD4",inactiveBorder:"#A78BFA40"},"Completed":{inactiveColor:"#3AAD60",inactiveBorder:"#22C55E40"}};
+                const ac=activeCols[st]||{activeColor:t.lime,activeBg:t.limeBg,activeBorder:t.lime};
+                const ic=inactiveCols[st]||{inactiveColor:t.textMuted,inactiveBorder:t.border};
                 const active=taskForSel.status===st;
                 return <button key={st} onClick={()=>{move(taskForSel.id,st);if(st!=="Review")setSel(p=>({...p,status:st}));}}
-                  style={{padding:"6px 13px",borderRadius:8,border:`1.5px solid ${active?cmap.activeBorder:cmap.inactiveBorder}`,background:active?cmap.activeBg:t.surfaceAlt,color:active?cmap.activeColor:cmap.inactiveColor,fontSize:12,fontWeight:active?700:500,cursor:"pointer",transition:"all .15s"}}>{active&&<Check size={10}/>} {st}</button>;
+                  style={{padding:"6px 13px",borderRadius:8,border:`1.5px solid ${active?ac.activeBorder:ic.inactiveBorder}`,background:active?ac.activeBg:t.surfaceAlt,color:active?ac.activeColor:ic.inactiveColor,fontSize:12,fontWeight:active?700:500,cursor:"pointer",transition:"all .15s"}}>{active&&<Check size={10}/>} {st}</button>;
               })}
             </div>
           </div>
