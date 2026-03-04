@@ -1704,19 +1704,7 @@ function Leaves({t,data,setData,toast,currentUser}){
     const notif={id:"n"+Date.now(),type:"leave_request",title:"Leave Request"+(isUnpaid?" (Unpaid)":""),body:u.name+" applied for "+d+"-day "+form.type+(isUnpaid?" unpaid":"")+" leave ("+fd(form.from)+"–"+fd(form.to)+")",to:hodId,from:form.uId,ref:lv.id,refType:"leave",read:false,at:new Date().toISOString()};
     setData(d2=>({...d2,leaves:[...d2.leaves,lv],notifications:[...d2.notifications,notif]}));
     if(isUnpaid){
-      sendEmail(u.email,u.name,"Unpaid Leave Acknowledgement","Hi "+u.name+",
-
-This confirms your acknowledgement that your paid leaves are exhausted.
-
-You have applied for "+d+" day(s) of UNPAID leave:
-Type: "+form.type+"
-From: "+fd(form.from)+"
-To: "+fd(form.to)+"
-Reason: "+form.reason+"
-
-These days will be deducted from your salary. Please contact HR if you have any questions.
-
-— ProfitPenny Studio OS");
+      sendEmail(u.email,u.name,"Unpaid Leave Acknowledgement","Hi "+u.name+",\n\nThis confirms your acknowledgement that your paid leaves are exhausted.\n\nYou have applied for "+d+" day(s) of UNPAID leave:\nType: "+form.type+"\nFrom: "+fd(form.from)+"\nTo: "+fd(form.to)+"\nReason: "+form.reason+"\n\nThese days will be deducted from your salary. Please contact HR if you have any questions.\n\n— ProfitPenny Studio OS");
     }
     setShowAdd(false);setShowUnpaidConfirm(false);setForm({uId:"",type:"Casual",from:"",to:"",reason:""});
     toast(isUnpaid?"Unpaid leave applied — acknowledgement sent to your email":"Leave applied — HoD notified","info");
