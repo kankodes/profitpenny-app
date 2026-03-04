@@ -14,8 +14,8 @@ import {
 // ── EMAIL via Resend ─────────────────────────────────────────────────────────
 // Get free API key at resend.com (3000 emails/month free)
 // Add your key below and set the from address to a verified domain/email.
-const RESEND_KEY = "re_3U7HF8hq_Kr7K2n26JYhL3dPwjvi9gCsU";  // e.g. "re_AbCdEf123..."
-const RESEND_FROM = "ProfitPenny Studio OS <no-reply@profitpenny.in>"; // must be verified on Resend
+const RESEND_KEY = "YOUR_RESEND_API_KEY";  // e.g. "re_AbCdEf123..."
+const RESEND_FROM = "ProfitPenny Studio OS <no-reply@yourdomain.com>"; // must be verified on Resend
 
 async function sendEmail(to_email, to_name, subject, message){
   if(!to_email) return;
@@ -548,7 +548,7 @@ function Projects({t,data,setData,toast,currentUser,pendingTaskId,clearPendingTa
       if(clearPendingTask) clearPendingTask();
     }
   },[pendingTaskId]);
-  const [newSubtask,setNewSubtask]=useState({title:"",brief:"",aId:"",due:"",est:"",deptId:"",drive:"",refLink:""});
+  const [newSubtask,setNewSubtask]=useState({title:"",brief:"",aId:"",due:"",dueTime:"",est:"",deptId:"",drive:"",refLink:""});
 
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
   const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
@@ -634,10 +634,10 @@ function Projects({t,data,setData,toast,currentUser,pendingTaskId,clearPendingTa
 
   const addSubtask=()=>{
     if(!newSubtask.title.trim()||!sel)return;
-    const st={id:"st"+Date.now(),title:newSubtask.title.trim(),brief:newSubtask.brief,done:false,aId:newSubtask.aId,due:newSubtask.due,est:parseInt(newSubtask.est)||0,deptId:newSubtask.deptId,drive:newSubtask.drive,refLink:newSubtask.refLink};
+    const st={id:"st"+Date.now(),title:newSubtask.title.trim(),brief:newSubtask.brief,done:false,aId:newSubtask.aId,due:newSubtask.due,dueTime:newSubtask.dueTime,est:parseInt(newSubtask.est)||0,deptId:newSubtask.deptId,drive:newSubtask.drive,refLink:newSubtask.refLink};
     setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,subtasks:[...(tk.subtasks||[]),st]}:tk)}));
     setSel(p=>({...p,subtasks:[...(p.subtasks||[]),st]}));
-    setNewSubtask({title:"",brief:"",aId:"",due:"",est:"",deptId:"",drive:"",refLink:""});
+    setNewSubtask({title:"",brief:"",aId:"",due:"",dueTime:"",est:"",deptId:"",drive:"",refLink:""});
   };
   const toggleSubtask=(stId)=>{
     setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===sel.id?{...tk,subtasks:(tk.subtasks||[]).map(s=>s.id===stId?{...s,done:!s.done}:s)}:tk)}));
@@ -945,15 +945,15 @@ Please open the app to accept or reject.
             </div>
             {(sel.subtasks||[]).length>0&&<PBar value={(sel.subtasks||[]).filter(s=>s.done).length} max={(sel.subtasks||[]).length} color="lime" t={t} h={3} delay={0} showPct={false}/>}
             <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:5}}>
-              {(sel.subtasks||[]).map((st,i)=>(
-                <div key={st.id} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",background:st.done?t.limeBg:t.surfaceAlt,border:`1px solid ${st.done?t.lime+"40":t.border}`,borderRadius:8,transition:"all .15s"}}>
+              {(sel.subtasks||[]).map((st,si)=>(
+                <div key={st.id||si} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",background:st.done?t.limeBg:t.surfaceAlt,border:`1px solid ${st.done?t.lime+"40":t.border}`,borderRadius:8,transition:"all .15s"}}>
                   <button onClick={()=>toggleSubtask(st.id)} style={{width:16,height:16,borderRadius:4,flexShrink:0,background:st.done?t.lime:"transparent",border:`2px solid ${st.done?t.lime:t.borderMid}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s"}}>{st.done&&<Check size={9} color="#0A0A0A" strokeWidth={3}/>}</button>
                   <div style={{flex:1}}>
                     <span style={{fontSize:13,color:st.done?t.limeDeep:t.text,textDecoration:st.done?"line-through":"none",fontWeight:500}}>{st.title}</span>
                     <div style={{display:"flex",gap:10,marginTop:3,flexWrap:"wrap"}}>
                       {st.aId&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:3}}><User size={9}/>{uName(st.aId)}</span>}
                       {st.deptId&&<span style={{fontSize:10,color:t.textMuted}}>{data.departments.find(d=>d.id===st.deptId)?.name}</span>}
-                      {st.due&&<span style={{fontSize:10,color:t.textMuted,fontWeight:600}}>{fd(st.due)}</span>}
+                      {st.due&&<span style={{fontSize:10,color:t.textMuted,fontWeight:600}}>{fd(st.due)}{st.dueTime?" · "+st.dueTime:""}</span>}
                       {st.est>0&&<span style={{fontSize:10,color:t.textMuted}}>{st.est}h</span>}
                       {st.drive&&<a href={st.drive} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:t.blue,textDecoration:"none"}}>Drive</a>}
                       {st.refLink&&<a href={st.refLink} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:t.textMuted,textDecoration:"none"}}>Ref</a>}
@@ -969,7 +969,7 @@ Please open the app to accept or reject.
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,margin:"8px 0"}}>
                 <Field label="Allocated To" t={t}><Sel value={newSubtask.aId} onChange={e=>setNewSubtask(p=>({...p,aId:e.target.value}))} t={t}><option value="">Select member</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
                 <Field label="Department" t={t}><Sel value={newSubtask.deptId} onChange={e=>setNewSubtask(p=>({...p,deptId:e.target.value}))} t={t}><option value="">Select dept</option>{data.departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</Sel></Field>
-                <Field label="Deadline" t={t}><Inp type="date" value={newSubtask.due} onChange={e=>setNewSubtask(p=>({...p,due:e.target.value}))} t={t}/></Field>
+                <Field label="Deadline" t={t}><div style={{display:"flex",gap:5}}><Inp type="date" value={newSubtask.due} onChange={e=>setNewSubtask(p=>({...p,due:e.target.value}))} t={t}/><Inp type="time" value={newSubtask.dueTime} onChange={e=>setNewSubtask(p=>({...p,dueTime:e.target.value}))} t={t} style={{width:95}}/></div></Field>
                 <Field label="Est. Hours" t={t}><Inp type="number" value={newSubtask.est} onChange={e=>setNewSubtask(p=>({...p,est:e.target.value}))} placeholder="e.g. 3" t={t}/></Field>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
