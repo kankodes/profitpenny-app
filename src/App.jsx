@@ -1683,23 +1683,56 @@ function Meetings({t,data,setData,toast,currentUser}){
 }
 
 // ── LEAVES ───────────────────────────────────────────────────────────────────
-function Leaves({t,data,setData,toast}){
+function Leaves({t,data,setData,toast,currentUser}){
   const [showAdd,setShowAdd]=useState(false);
   const [form,setForm]=useState({uId:"",type:"Casual",from:"",to:"",reason:""});
+  const [showUnpaidConfirm,setShowUnpaidConfirm]=useState(false);
+  const [unpaidDays,setUnpaidDays]=useState(0);
+  const [historyUser,setHistoryUser]=useState(null);
+  const isManager=currentUser?.role==="Founder"||currentUser?.role==="Admin"||currentUser?.role==="HoD"||currentUser?.role==="Head of Department"||currentUser?.role==="Manager";
+
   const days=(f,to)=>!f||!to?0:Math.max(1,Math.round((new Date(to)-new Date(f))/86400000)+1);
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
   const getHod=uId=>data.departments.find(d=>d.id===data.users.find(u=>u.id===uId)?.dept)?.hodId;
+
+  const doSubmit=(isUnpaid=false)=>{
+    const u=data.users.find(u=>u.id===form.uId);
+    if(!u||!form.from||!form.to){toast("Fill all fields","error");return;}
+    const d=days(form.from,form.to);
+    const hodId=getHod(form.uId)||"u2";
+    const lv={...form,id:"l"+Date.now(),days:d,status:"Pending",unpaid:isUnpaid,on:new Date().toISOString().split("T")[0]};
+    const notif={id:"n"+Date.now(),type:"leave_request",title:"Leave Request"+(isUnpaid?" (Unpaid)":""),body:u.name+" applied for "+d+"-day "+form.type+(isUnpaid?" unpaid":"")+" leave ("+fd(form.from)+"–"+fd(form.to)+")",to:hodId,from:form.uId,ref:lv.id,refType:"leave",read:false,at:new Date().toISOString()};
+    setData(d2=>({...d2,leaves:[...d2.leaves,lv],notifications:[...d2.notifications,notif]}));
+    if(isUnpaid){
+      sendEmail(u.email,u.name,"Unpaid Leave Acknowledgement","Hi "+u.name+",
+
+This confirms your acknowledgement that your paid leaves are exhausted.
+
+You have applied for "+d+" day(s) of UNPAID leave:
+Type: "+form.type+"
+From: "+fd(form.from)+"
+To: "+fd(form.to)+"
+Reason: "+form.reason+"
+
+These days will be deducted from your salary. Please contact HR if you have any questions.
+
+— ProfitPenny Studio OS");
+    }
+    setShowAdd(false);setShowUnpaidConfirm(false);setForm({uId:"",type:"Casual",from:"",to:"",reason:""});
+    toast(isUnpaid?"Unpaid leave applied — acknowledgement sent to your email":"Leave applied — HoD notified","info");
+  };
 
   const submit=()=>{
     const u=data.users.find(u=>u.id===form.uId);
     if(!u||!form.from||!form.to){toast("Fill all fields","error");return;}
     const d=days(form.from,form.to);
-    const hodId=getHod(form.uId)||"u2";
-    const lv={...form,id:"l"+Date.now(),days:d,status:"Pending",on:new Date().toISOString().split("T")[0]};
-    const notif={id:"n"+Date.now(),type:"leave_request",title:"Leave Request",body:`${u.name} applied for ${d}-day ${form.type} leave (${fd(form.from)}–${fd(form.to)})`,to:hodId,from:form.uId,ref:lv.id,refType:"leave",read:false,at:new Date().toISOString()};
-    setData(d2=>({...d2,leaves:[...d2.leaves,lv],notifications:[...d2.notifications,notif]}));
-    setShowAdd(false);setForm({uId:"",type:"Casual",from:"",to:"",reason:""});
-    toast("Leave applied — HoD notified via app + email","info");
+    const bal=data.leaveBalances[form.uId]||{total:12,taken:0};
+    const avail=bal.total-bal.taken;
+    // Already exhausted — force unpaid confirm
+    if(avail<=0){setUnpaidDays(d);setShowUnpaidConfirm(true);return;}
+    // Will become exhausted/overdraft with this leave
+    if(d>avail){setUnpaidDays(d-avail);setShowUnpaidConfirm(true);return;}
+    doSubmit(false);
   };
 
   const respond=(id,status,modifiedDue)=>{
@@ -1784,17 +1817,28 @@ function Leaves({t,data,setData,toast}){
         {data.users.filter(u=>u.role!=="Admin").map((u,i)=>{
           const bal=data.leaveBalances[u.id]||{total:12,taken:0};
           const avail=bal.total-bal.taken;
+          const pct=Math.round((bal.taken/Math.max(bal.total,1))*100);
+          const warn20=pct>=80&&pct<100;
+          const exhausted=avail<=0;
           return(
-            <Card t={t} key={u.id} style={{borderTop:`3px solid ${avail<=0?t.red:avail<=2?t.amber:t.lime}`,animation:`fadeUp .36s ${i*40}ms both`}}>
+            <Card t={t} key={u.id} lift={isManager} onClick={isManager?()=>setHistoryUser(u):undefined}
+              style={{borderTop:`3px solid ${exhausted?t.red:warn20?t.amber:t.lime}`,animation:`fadeUp .36s ${i*40}ms both`,position:"relative"}}>
+              {isManager&&<div style={{position:"absolute",top:10,right:10,fontSize:9,color:t.textMuted,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>View history →</div>}
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
                 <Av init={u.av} size={30} t={t}/>
-                <div><div style={{fontSize:13,fontWeight:700,color:t.text}}>{u.name.split(" ")[0]}</div><div style={{fontSize:10,color:t.textMuted}}>{u.role}</div></div>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:t.text}}>{u.name.split(" ")[0]}</div>
+                  <div style={{fontSize:10,color:t.textMuted}}>{u.role}</div>
+                </div>
               </div>
-              <div style={{display:"flex",justifyContent:"space-around",textAlign:"center"}}>
-                {[["Taken",bal.taken,t.textMid],["Left",Math.max(0,avail),avail>0?t.lime:t.red],["Total",bal.total,t.textMuted]].map(([l,v,c])=>(
+              <div style={{display:"flex",justifyContent:"space-around",textAlign:"center",marginBottom:10}}>
+                {[["Taken",bal.taken,t.textMid],["Left",Math.max(0,avail),exhausted?t.red:warn20?t.amber:t.lime],["Total",bal.total,t.textMuted]].map(([l,v,c])=>(
                   <div key={l}><div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:18,color:c}}>{v}</div><div style={{fontSize:9,textTransform:"uppercase",color:t.textMuted,fontWeight:600}}>{l}</div></div>
                 ))}
               </div>
+              <PBar value={bal.taken} max={bal.total} color={exhausted?"red":warn20?"amber":"lime"} t={t} h={4} delay={0} showPct={false}/>
+              {exhausted&&<div style={{marginTop:8,fontSize:10,fontWeight:700,color:t.red,display:"flex",alignItems:"center",gap:4}}><AlertTriangle size={10}/> Leaves exhausted — next leave will be unpaid</div>}
+              {warn20&&!exhausted&&<div style={{marginTop:8,fontSize:10,fontWeight:700,color:t.amber,display:"flex",alignItems:"center",gap:4}}><AlertTriangle size={10}/> Only {avail} day(s) left ({100-pct}% remaining)</div>}
             </Card>
           );
         })}
@@ -1836,6 +1880,58 @@ function Leaves({t,data,setData,toast}){
         })}
       </Card>
 
+      {/* Unpaid leave confirmation */}
+      <Modal open={showUnpaidConfirm} onClose={()=>setShowUnpaidConfirm(false)} title="⚠️ Paid Leaves Exhausted" t={t} w={420}>
+        <div style={{padding:"16px",background:t.redBg,borderRadius:12,marginBottom:16,border:`1px solid ${t.red}30`}}>
+          <div style={{fontSize:14,fontWeight:700,color:t.red,marginBottom:8}}>Your paid leaves are fully used up.</div>
+          <div style={{fontSize:13,color:t.textMid,lineHeight:1.7}}>
+            {unpaidDays>0&&<>This leave request includes <strong>{unpaidDays} unpaid day(s)</strong> that will be deducted from your salary.<br/></>}
+            By confirming, you acknowledge that this leave (or part of it) will be <strong>unpaid</strong> and a confirmation email will be sent to your registered address.
+          </div>
+        </div>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end"}}>
+          <Btn v="secondary" t={t} onClick={()=>setShowUnpaidConfirm(false)}>Cancel</Btn>
+          <Btn v="danger" t={t} onClick={()=>doSubmit(true)} icon={<Send size={13}/>}>Yes, submit as unpaid</Btn>
+        </div>
+      </Modal>
+
+      {/* Member leave history modal */}
+      {historyUser&&(()=>{
+        const userLeaves=data.leaves.filter(l=>l.uId===historyUser.id).sort((a,b)=>new Date(b.on)-new Date(a.on));
+        const bal=data.leaveBalances[historyUser.id]||{total:12,taken:0};
+        const avail=bal.total-bal.taken;
+        return(
+          <Modal open={true} onClose={()=>setHistoryUser(null)} title={"Leave History — "+historyUser.name} t={t} w={500}>
+            <div style={{display:"flex",gap:12,marginBottom:16}}>
+              {[["Taken",bal.taken,t.textMid],["Remaining",Math.max(0,avail),avail>0?t.lime:t.red],["Total",bal.total,t.textMuted]].map(([l,v,c])=>(
+                <div key={l} style={{flex:1,textAlign:"center",padding:"12px 8px",background:t.surfaceAlt,borderRadius:12,border:`1px solid ${t.border}`}}>
+                  <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:22,color:c}}>{v}</div>
+                  <div style={{fontSize:10,textTransform:"uppercase",color:t.textMuted,fontWeight:600,marginTop:2}}>{l}</div>
+                </div>
+              ))}
+            </div>
+            <PBar value={bal.taken} max={bal.total} color={avail<=0?"red":avail<=2?"amber":"lime"} t={t} h={6} delay={0} showPct={true}/>
+            <div style={{marginTop:16,display:"flex",flexDirection:"column",gap:8}}>
+              {userLeaves.length===0&&<div style={{textAlign:"center",padding:"24px 0",color:t.textMuted,fontSize:13}}>No leaves taken yet. 🎉</div>}
+              {userLeaves.map(lv=>(
+                <div key={lv.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:t.surfaceAlt,borderRadius:10,border:`1px solid ${lv.status==="Approved"?t.green+"30":lv.status==="Rejected"?t.red+"30":t.border}`}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:600,color:t.text}}>{lv.type} leave{lv.unpaid?" (Unpaid)":""}</div>
+                    <div style={{fontSize:11,color:t.textMuted,marginTop:2}}>{fd(lv.from)} → {fd(lv.to)} · {lv.days} day(s)</div>
+                    {lv.reason&&<div style={{fontSize:11,color:t.textMuted,fontStyle:"italic",marginTop:2}}>{lv.reason}</div>}
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                    <Badge label={lv.status} color={SC(lv.status)} t={t} small/>
+                    {lv.unpaid&&<Badge label="Unpaid" color="red" t={t} small/>}
+                    <div style={{fontSize:10,color:t.textMuted}}>{fd(lv.on)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Modal>
+        );
+      })()}
+
       <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Apply for Leave" t={t} w={440}>
         <Field label="Team Member *" t={t}><Sel value={form.uId} onChange={e=>setForm(p=>({...p,uId:e.target.value}))} t={t}><option value="">Select</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
         <Field label="Leave Type" t={t}><Sel value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value}))} t={t}>{["Casual","Sick","Earned"].map(l=><option key={l}>{l}</option>)}</Sel></Field>
@@ -1843,12 +1939,22 @@ function Leaves({t,data,setData,toast}){
           <Field label="From *" t={t}><Inp type="date" value={form.from} onChange={e=>setForm(p=>({...p,from:e.target.value}))} t={t}/></Field>
           <Field label="To *"   t={t}><Inp type="date" value={form.to}   onChange={e=>setForm(p=>({...p,to:e.target.value}))} t={t}/></Field>
         </div>
-        {form.from&&form.to&&<div style={{fontSize:12,color:t.lime,fontWeight:600,marginBottom:10,marginTop:-6}}>{days(form.from,form.to)} day(s) selected</div>}
+        {(()=>{
+          const selBal=form.uId?(data.leaveBalances[form.uId]||{total:12,taken:0}):{total:12,taken:0};
+          const selAvail=selBal.total-selBal.taken;
+          const selPct=Math.round((selBal.taken/Math.max(selBal.total,1))*100);
+          const d=days(form.from,form.to);
+          return(<>
+            {form.from&&form.to&&<div style={{fontSize:12,color:t.lime,fontWeight:600,marginBottom:8,marginTop:-6}}>{d} day(s) selected</div>}
+            {form.uId&&selAvail<=0&&<div style={{padding:"10px 12px",background:t.redBg,border:`1px solid ${t.red}40`,borderRadius:10,marginBottom:10,fontSize:12,color:t.red,display:"flex",gap:8,alignItems:"flex-start"}}><AlertTriangle size={14} style={{flexShrink:0,marginTop:1}}/><div><strong>⚠️ No paid leaves left!</strong> {selBal.taken} of {selBal.total} days used. Submitting will trigger an unpaid leave — you{"'"}ll be asked to confirm.</div></div>}
+            {form.uId&&selAvail>0&&selPct>=80&&<div style={{padding:"10px 12px",background:t.amberBg,border:`1px solid ${t.amber}40`,borderRadius:10,marginBottom:10,fontSize:12,color:t.amber,display:"flex",gap:8,alignItems:"flex-start"}}><AlertTriangle size={14} style={{flexShrink:0,marginTop:1}}/><div><strong>Only {selAvail} day(s) remaining</strong> ({selPct}% used). Use them wisely!</div></div>}
+          </>);
+        })()}
         <Field label="Reason" t={t}><Inp value={form.reason} onChange={e=>setForm(p=>({...p,reason:e.target.value}))} placeholder="Brief reason" t={t}/></Field>
         <div style={{padding:"10px 12px",background:t.limeBg,borderRadius:10,marginBottom:14,fontSize:12,color:t.limeDeep,display:"flex",alignItems:"center",gap:6}}><Zap size={12}/> HoD notified instantly via app + email</div>
         <div style={{display:"flex",gap:9,justifyContent:"flex-end"}}>
           <Btn v="secondary" t={t} onClick={()=>setShowAdd(false)}>Cancel</Btn>
-          <Btn v="lime" t={t} onClick={submit} icon={<Send size={13}/>}>Submit</Btn>
+          <Btn v="lime" t={t} onClick={submit} icon={<Send size={13}/>}>{(()=>{const b=data.leaveBalances[form.uId]||{total:12,taken:0};return(b.total-b.taken)<=0?"Submit (Unpaid)":"Submit";})()}</Btn>
         </div>
       </Modal>
     </div>
@@ -2728,16 +2834,9 @@ function LoginScreen({onLogin}){
         <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(circle,rgba(181,211,52,0.08) 1px,transparent 1px)",backgroundSize:"28px 28px",pointerEvents:"none"}}/>
 
         <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:420,padding:"0 20px",animation:"fadeUp .5s ease both"}}>
-          {/* Logo */}
+          {/* Logo — wordmark only, no floating PP box */}
           <div style={{textAlign:"center",marginBottom:36}}>
-            {/* Animated lime badge with PP */}
-            <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:80,height:80,borderRadius:22,background:lime,marginBottom:20,animation:"float 3s ease-in-out infinite",boxShadow:`0 0 60px ${lime}66,0 0 20px ${lime}44`}}>
-              <svg viewBox="0 0 44 44" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
-                <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" fill="#0A0A0A" fontFamily="Arial Black,Arial,sans-serif" fontWeight="900" fontSize="20">PP</text>
-              </svg>
-            </div>
-            {/* Full wordmark — white paths on dark bg */}
-            <div style={{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:8,filter:"brightness(1.2)"}}>
+            <div style={{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:10}}>
               <PPLogo collapsed={false}/>
             </div>
             <div style={{fontSize:11,color:"rgba(250,250,250,0.4)",letterSpacing:"0.14em",textTransform:"uppercase",fontFamily:"'DM Sans',sans-serif"}}>Studio OS · Sign In</div>
@@ -2796,7 +2895,8 @@ export default function Root(){
   if(authState==="loading") return(
     <>
       <style>{CSS}</style>
-      <div style={{height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:D.light.bg,gap:20}}>
+      <div style={{height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#0C0D0A",gap:20,position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 60% 40% at 50% 30%,rgba(181,211,52,0.1),transparent)",pointerEvents:"none"}}/>
         <PPLogo collapsed={false}/>
         <div style={{width:40,height:40,border:`4px solid ${D.light.lime}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
         <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
@@ -2959,10 +3059,11 @@ function App({firebaseUid}){
   if (loading) return (
     <>
       <style>{CSS}</style>
-      <div style={{height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:D.light.bg,gap:20}}>
+      <div style={{height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#0C0D0A",gap:20,position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 60% 40% at 50% 30%,rgba(181,211,52,0.1),transparent)",pointerEvents:"none"}}/>
         <PPLogo collapsed={false}/>
         <div style={{width:48,height:48,border:`4px solid ${D.light.lime}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-        <p style={{fontFamily:"'Poppins',sans-serif",fontWeight:600,fontSize:14,color:D.light.textMuted}}>Loading your workspace…</p>
+        <p style={{fontFamily:"'Poppins',sans-serif",fontWeight:600,fontSize:14,color:"rgba(255,255,255,0.4)"}}>Loading your workspace…</p>
       </div>
       <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </>
