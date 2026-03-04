@@ -727,12 +727,12 @@ Please open the app to accept or reject.
       const notifs=[...d.notifications];
       // Notify assignee
       if(assignee&&assignee.id!==currentUser?.id){
-        notifs.push({id:"n"+Date.now()+"a",type:"task_assigned",title:"New Task Assigned",body:`"${form.title}" has been assigned to you. ${form.due?`Deadline: ${fd(form.due)}`:"Deadline TBD."}`,to:assignee.id,from:currentUser?.id,ref:id,refType:"task",read:false,at:new Date().toISOString()});
+        notifs.push({id:"n"+Date.now()+"a",type:"task_assigned",title:"New Task Assigned",body:"""+form.title+"" has been assigned to you. "+(form.due?"Deadline: "+fd(form.due):"Deadline TBD."),to:assignee.id,from:currentUser?.id,ref:id,refType:"task",read:false,at:new Date().toISOString()});
         sendEmail(assignee.email,assignee.name,"New Task: "+form.title,`Hi ${assignee.name},\n\nA new task has been assigned to you.\n\nTask: ${form.title}\nClient: ${d.clients.find(c=>c.id===form.cId)?.name||"—"}\nPriority: ${form.priority}\nDeadline: ${form.due?fd(form.due):"TBD"}\n\n${form.brief?"Brief:\n"+form.brief+"\n\n":""}\nPlease open the app to start working.\n\n— ProfitPenny Studio OS`);
       }
       // Notify HoD (if different from assignee and current user)
       if(hod&&hod.id!==form.aId&&hod.id!==currentUser?.id){
-        notifs.push({id:"n"+Date.now()+"h",type:"task_assigned",title:"Task Created in Your Department",body:`"${form.title}" assigned to ${assignee?.name||"a team member"}. ${form.due?`Deadline: ${fd(form.due)}`:"Deadline TBD."}`,to:hod.id,from:currentUser?.id,ref:id,refType:"task",read:false,at:new Date().toISOString()});
+        notifs.push({id:"n"+Date.now()+"h",type:"task_assigned",title:"Task Created in Your Department",body:"""+form.title+"" assigned to "+(assignee?.name||"a team member")+". "+(form.due?"Deadline: "+fd(form.due):"Deadline TBD."),to:hod.id,from:currentUser?.id,ref:id,refType:"task",read:false,at:new Date().toISOString()});
         sendEmail(hod.email,hod.name,"Task Created: "+form.title,`Hi ${hod.name},\n\nA new task has been created in your department.\n\nTask: ${form.title}\nAssigned to: ${assignee?.name||"—"}\nPriority: ${form.priority}\nDeadline: ${form.due?fd(form.due):"TBD"}\n\n— ProfitPenny Studio OS`);
       }
       // Notify Managers (if no deadline: also notify for proposal)
@@ -1960,7 +1960,7 @@ function Team({t,data,setData,toast}){
       if(!u.dob)return;
       const md=u.dob.slice(5);
       if(md===todayStr){const exists=data.notifications.some(n=>n.type==="birthday_today"&&n.ref===u.id&&n.at.startsWith(new Date().toISOString().split("T")[0]));if(!exists){setData(d=>({...d,notifications:[...d.notifications,{id:"n"+Date.now(),type:"birthday_today",title:"🎂 Birthday Today!",body:`Today is ${u.name}'s birthday! Wish them.`,to:"all",from:"system",ref:u.id,refType:"user",read:false,at:new Date().toISOString()}]}));}}
-      if(md===weekMD){const exists=data.notifications.some(n=>n.type==="birthday_week"&&n.ref===u.id&&n.at.startsWith(new Date().toISOString().split("T")[0]));if(!exists){setData(d=>({...d,notifications:[...d.notifications,{id:"n"+Date.now(),type:"birthday_week",title:"🎂 Birthday in 1 Week",body:`${u.name}'s birthday is in 1 week (${fd(u.dob.slice(0,4)==="1970"?u.dob:`2026-${u.dob.slice(5)}`)}).`,to:"managers",from:"system",ref:u.id,refType:"user",read:false,at:new Date().toISOString()}]}));}}
+      if(md===weekMD){const exists=data.notifications.some(n=>n.type==="birthday_week"&&n.ref===u.id&&n.at.startsWith(new Date().toISOString().split("T")[0]));if(!exists){setData(d=>({...d,notifications:[...d.notifications,{id:"n"+Date.now(),type:"birthday_week",title:"🎂 Birthday in 1 Week",body:u.name+"'s birthday is in 1 week ("+fd(u.dob.slice(0,4)==="1970"?u.dob:"2026-"+u.dob.slice(5))+").",to:"managers",from:"system",ref:u.id,refType:"user",read:false,at:new Date().toISOString()}]}));}}
     });
   },[]);
 
