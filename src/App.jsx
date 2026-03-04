@@ -71,6 +71,34 @@ body{font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;}
 .timer-active{animation:timerPulse 1.5s ease-in-out infinite;}
 .card-actions{opacity:0!important;}
 .hover-lift:hover .card-actions{opacity:1!important;}
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar-desktop{display:none!important;}
+  .mobile-nav{display:flex!important;}
+  .main-pad{padding:16px 14px!important;}
+  .topbar-title{display:none!important;}
+  .modal-w{max-width:100%!important;margin:0!important;border-radius:20px 20px 0 0!important;max-height:92vh!important;overflow-y:auto!important;}
+  .modal-wrap{align-items:flex-end!important;padding:0!important;}
+  .hide-mobile{display:none!important;}
+  .grid-1-mobile{grid-template-columns:1fr!important;}
+}
+@media(max-width:480px){
+  .main-pad{padding:12px 10px!important;}
+}
+/* ── FUN MICRO-INTERACTIONS ── */
+@keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.12)}100%{transform:scale(1)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes bounceIn{0%{transform:scale(0.7);opacity:0}60%{transform:scale(1.08)}80%{transform:scale(0.97)}100%{transform:scale(1);opacity:1}}
+.btn-fun{transition:transform .15s cubic-bezier(.34,1.56,.64,1),box-shadow .15s ease,background .15s ease!important;}
+.btn-fun:hover{transform:translateY(-2px) scale(1.02)!important;}
+.btn-fun:active{transform:scale(0.95)!important;}
+.nav-item{transition:all .18s cubic-bezier(.34,1.56,.64,1)!important;}
+.nav-item:hover{transform:translateX(3px)!important;}
+.notif-badge{animation:bounceIn .4s cubic-bezier(.34,1.56,.64,1)!important;}
+.row-hover:hover{background:var(--hover-bg,rgba(181,211,52,0.06))!important;transform:translateX(2px);border-color:rgba(181,211,52,0.2)!important;}
+.card-fun{transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s ease!important;}
+.card-fun:hover{transform:translateY(-3px) scale(1.005)!important;box-shadow:0 8px 30px rgba(0,0,0,0.12)!important;}
 `;
 
 // ── TOKENS ───────────────────────────────────────────────────────────────────
@@ -165,15 +193,15 @@ function Av({init,size=36,t,online=false}){
 }
 function Badge({label,color="muted",t,small=false}){
   const C={green:{bg:t.greenBg,fg:t.green},blue:{bg:t.blueBg,fg:t.blue},amber:{bg:t.amberBg,fg:t.amber},red:{bg:t.redBg,fg:t.red},purple:{bg:t.purpleBg,fg:t.purple},lime:{bg:t.limeBg,fg:t.limeDeep},muted:{bg:t.surfaceAlt,fg:t.textMuted}}[color]||{bg:t.surfaceAlt,fg:t.textMuted};
-  return <span style={{display:"inline-flex",alignItems:"center",padding:small?"1px 7px":"3px 10px",borderRadius:99,fontSize:small?10:11,fontWeight:600,letterSpacing:"0.04em",textTransform:"uppercase",background:C.bg,color:C.fg,whiteSpace:"nowrap",flexShrink:0}}>{label}</span>;
+  return <span style={{display:"inline-flex",alignItems:"center",padding:small?"2px 8px":"4px 11px",borderRadius:99,fontSize:small?9:10,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",background:C.bg,color:C.fg,whiteSpace:"nowrap",flexShrink:0,border:`1px solid ${C.fg}22`}}>{label}</span>;
 }
 function Btn({children,onClick,v="primary",t,style={},disabled=false,size="md",icon}){
-  const base={display:"inline-flex",alignItems:"center",gap:6,borderRadius:10,fontFamily:"'DM Sans',sans-serif",fontWeight:600,cursor:disabled?"not-allowed":"pointer",border:"none",transition:"all .15s",opacity:disabled?.5:1,padding:size==="sm"?"6px 13px":size==="lg"?"12px 24px":"9px 18px",fontSize:size==="sm"?12:13};
+  const base={display:"inline-flex",alignItems:"center",gap:6,borderRadius:99,fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:disabled?"not-allowed":"pointer",border:"none",transition:"all .18s cubic-bezier(.34,1.56,.64,1)",opacity:disabled?.45:1,padding:size==="sm"?"5px 14px":size==="lg"?"13px 28px":"8px 20px",fontSize:size==="sm"?12:13,letterSpacing:"0.01em"};
   const V={primary:{background:t.text,color:t.bg},lime:{background:t.lime,color:"#0A0A0A"},secondary:{background:t.surfaceAlt,color:t.textMid,border:`1px solid ${t.border}`},ghost:{background:"transparent",color:t.textMuted},danger:{background:t.redBg,color:t.red,border:`1px solid ${t.red}30`},success:{background:t.greenBg,color:t.green,border:`1px solid ${t.green}40`},outline:{background:"transparent",color:t.lime,border:`1.5px solid ${t.lime}`}};
   return <button className="btn-press" onClick={disabled?undefined:onClick} disabled={disabled} style={{...base,...(V[v]||V.secondary),...style}}>{icon&&<span style={{display:"flex"}}>{icon}</span>}{children}</button>;
 }
 function Card({children,t,style={},lift=false,onClick,pad=20}){
-  return <div className={lift?"hover-lift":""} onClick={onClick} style={{background:t.card,border:`1px solid ${t.border}`,borderRadius:16,padding:pad,cursor:onClick?"pointer":"default",boxShadow:`0 1px 4px ${t.shadow}`,transition:"border-color .15s,box-shadow .18s",...style}}>{children}</div>;
+  return <div className={(lift?"hover-lift ":"")+(onClick?"card-fun":"")} onClick={onClick} style={{background:t.card,border:`1px solid ${t.border}`,borderRadius:18,padding:pad,cursor:onClick?"pointer":"default",boxShadow:`0 2px 8px ${t.shadow}`,transition:"border-color .15s,box-shadow .18s",...style}}>{children}</div>;
 }
 function PBar({value,max=100,color="lime",t,h=5,delay=0,showPct=true}){
   const pct=clamp(max>0?Math.round((value/max)*100):0,0,100);
@@ -229,8 +257,8 @@ function Modal({open,onClose,title,children,t,w=560,subtitle}){
   useEffect(()=>{document.body.style.overflow=open?"hidden":"";return()=>{document.body.style.overflow="";};},[open]);
   if(!open)return null;
   return(
-    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",backdropFilter:"blur(6px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .18s ease"}}>
-      <div onClick={e=>e.stopPropagation()} className="scale-in" style={{background:t.surface,borderRadius:20,border:`1px solid ${t.border}`,width:"100%",maxWidth:w,maxHeight:"92vh",overflow:"auto",boxShadow:`0 24px 80px ${t.shadowMd}`,padding:28}}>
+    <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",backdropFilter:"blur(6px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .18s ease"}}>
+      <div onClick={e=>e.stopPropagation()} className="scale-in modal-w" style={{background:t.surface,borderRadius:20,border:`1px solid ${t.border}`,width:"100%",maxWidth:w,maxHeight:"92vh",overflow:"auto",boxShadow:`0 24px 80px ${t.shadowMd}`,padding:28}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,paddingBottom:16,borderBottom:`1px solid ${t.border}`}}>
           <div><h3 style={{margin:0,fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:18,color:t.text}}>{title}</h3>{subtitle&&<p style={{margin:"4px 0 0",fontSize:13,color:t.textMuted}}>{subtitle}</p>}</div>
           <button onClick={onClose} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,width:32,height:32,cursor:"pointer",color:t.textMuted,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginLeft:12,transition:"all .14s"}} onMouseEnter={e=>{e.currentTarget.style.background=t.surfaceAlt;}} onMouseLeave={e=>{e.currentTarget.style.background="none";}}><X size={15}/></button>
@@ -2429,12 +2457,27 @@ function CalendarView({t,data,go}){
 
 // ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
 function Notifications({t,data,setData,go,currentUser}){
+  const [tab,setTab]=useState("all");
   const markRead=id=>setData(d=>({...d,notifications:d.notifications.map(n=>n.id===id?{...n,read:true}:n)}));
   const markAll=()=>setData(d=>({...d,notifications:d.notifications.map(n=>({...n,read:true}))}));
-  const typeIcon=type=>({leave_request:<Umbrella size={15}/>,deadline_missed:<AlertTriangle size={15}/>,ext_request:<AlarmClock size={15}/>,leave_approved:<CheckCircle2 size={15}/>,leave_rejected:<XCircle size={15}/>,ext_approved:<CheckCircle2 size={15}/>,birthday_today:<Cake size={15}/>,birthday_week:<Cake size={15}/>,deadline_proposal:<AlarmClock size={15}/>,deadline_request:<AlarmClock size={15}/>})[type]||<Bell size={15}/>;
-  const typeColor=type=>({leave_request:"amber",deadline_missed:"red",ext_request:"purple",leave_approved:"green",leave_rejected:"red",ext_approved:"lime",birthday_today:"amber",birthday_week:"amber",deadline_proposal:"amber",deadline_request:"amber"})[type]||"muted";
-  const navTarget=n=>({leave_request:"leaves",deadline_missed:"projects",ext_request:"leaves",leave_approved:"leaves",leave_rejected:"leaves",ext_approved:"projects",birthday_today:"team",birthday_week:"team",deadline_proposal:"projects",deadline_request:"projects"})[n.type]||"notifications";
-  // Show notifications relevant to this user
+
+  const TYPE_META={
+    leave_request:  {icon:<Umbrella size={15}/>,  color:"amber",  cat:"leaves",  nav:"leaves"},
+    leave_approved: {icon:<CheckCircle2 size={15}/>,color:"green",cat:"leaves",  nav:"leaves"},
+    leave_rejected: {icon:<XCircle size={15}/>,   color:"red",    cat:"leaves",  nav:"leaves"},
+    ext_request:    {icon:<AlarmClock size={15}/>, color:"purple", cat:"leaves",  nav:"leaves"},
+    ext_approved:   {icon:<CheckCircle2 size={15}/>,color:"lime",  cat:"leaves",  nav:"projects"},
+    task_assigned:  {icon:<Target size={15}/>,     color:"blue",   cat:"tasks",   nav:"projects"},
+    deadline_missed:{icon:<AlertTriangle size={15}/>,color:"red",  cat:"deadlines",nav:"projects"},
+    deadline_proposal:{icon:<AlarmClock size={15}/>,color:"amber", cat:"deadlines",nav:"projects"},
+    deadline_request:{icon:<AlarmClock size={15}/>,color:"amber",  cat:"deadlines",nav:"projects"},
+    deadline_counter:{icon:<AlarmClock size={15}/>,color:"blue",   cat:"deadlines",nav:"projects"},
+    birthday_today: {icon:<Cake size={15}/>,       color:"amber",  cat:"birthdays",nav:"team"},
+    birthday_week:  {icon:<Cake size={15}/>,       color:"amber",  cat:"birthdays",nav:"team"},
+    meeting_invite: {icon:<CalendarDays size={15}/>,color:"blue",  cat:"meetings", nav:"meetings"},
+  };
+  const getMeta=type=>TYPE_META[type]||{icon:<Bell size={15}/>,color:"muted",cat:"other",nav:"notifications"};
+
   const isFounder=currentUser?.role==="Founder"||currentUser?.role==="Admin";
   const isHoDLocal=currentUser?.role==="HoD"||currentUser?.role==="Head of Department"||currentUser?.role==="Manager";
   const myNotifs=data.notifications.filter(n=>{
@@ -2447,30 +2490,68 @@ function Notifications({t,data,setData,go,currentUser}){
   const sorted=[...myNotifs].sort((a,b)=>new Date(b.at)-new Date(a.at));
   const unread=sorted.filter(n=>!n.read).length;
 
-  const handleClick=n=>{markRead(n.id);const tgt=navTarget(n);go(tgt,n.refType==="task"&&tgt==="projects"?n.ref:null);};
+  const TABS=[
+    {id:"all",    label:"All",       emoji:"🔔"},
+    {id:"tasks",  label:"Tasks",     emoji:"🎯"},
+    {id:"deadlines",label:"Deadlines",emoji:"⏰"},
+    {id:"leaves", label:"Leaves",    emoji:"🌴"},
+    {id:"birthdays",label:"Birthdays",emoji:"🎂"},
+    {id:"meetings",label:"Meetings", emoji:"📅"},
+  ];
+
+  const visible=tab==="all"?sorted:sorted.filter(n=>getMeta(n.type).cat===tab);
+  const handleClick=n=>{markRead(n.id);const m=getMeta(n.type);go(m.nav,n.refType==="task"&&m.nav==="projects"?n.ref:null);};
 
   return(
     <div>
-      <SHead t={t} title="Notifications" sub={`${unread} unread · Click any notification to go to the relevant action`}
-        action={unread>0?<Btn v="secondary" t={t} size="sm" onClick={markAll}>Mark all read</Btn>:null}/>
+      <SHead t={t} title="Notifications" sub={unread>0?`✨ ${unread} new — you're on top of it!`:"All caught up! 🎉"}
+        action={unread>0?<Btn v="lime" t={t} size="sm" onClick={markAll}>✓ Mark all read</Btn>:null}/>
+
+      {/* Category tabs */}
+      <div style={{display:"flex",gap:6,marginBottom:20,overflowX:"auto",paddingBottom:4,WebkitOverflowScrolling:"touch"}}>
+        {TABS.map(tb=>{
+          const cnt=tb.id==="all"?sorted.length:sorted.filter(n=>getMeta(n.type).cat===tb.id).length;
+          const unreadCnt=tb.id==="all"?unread:sorted.filter(n=>getMeta(n.type).cat===tb.id&&!n.read).length;
+          const active=tab===tb.id;
+          return(
+            <button key={tb.id} onClick={()=>setTab(tb.id)} style={{flexShrink:0,display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:99,border:active?`1.5px solid ${t.lime}`:`1.5px solid ${t.border}`,background:active?t.lime:"transparent",color:active?"#0A0A0A":t.textMid,fontSize:12,fontWeight:700,cursor:"pointer",transition:"all .18s cubic-bezier(.34,1.56,.64,1)",fontFamily:"'DM Sans',sans-serif"}}>
+              <span>{tb.emoji}</span>
+              <span>{tb.label}</span>
+              {cnt>0&&<span style={{background:active?"rgba(0,0,0,0.18)":unreadCnt>0?t.lime:t.surfaceAlt,color:active?"#0A0A0A":unreadCnt>0?"#0A0A0A":t.textMuted,borderRadius:99,fontSize:10,fontWeight:800,padding:"1px 6px",minWidth:18,textAlign:"center"}}>{cnt}</span>}
+            </button>
+          );
+        })}
+      </div>
+
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {sorted.map((n,i)=>(
-          <div key={n.id} className="row-hover" onClick={()=>handleClick(n)}
-            style={{display:"flex",gap:14,alignItems:"flex-start",padding:"14px 16px",background:n.read?t.surface:t.limeBg,border:`1px solid ${n.read?t.border:t.lime+"40"}`,borderRadius:12,cursor:"pointer",animation:`fadeUp .3s ${i*28}ms both`,position:"relative",overflow:"hidden"}}>
-            {!n.read&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:t.lime,borderRadius:"12px 0 0 12px"}}/>}
-            <div style={{width:36,height:36,borderRadius:10,background:t[typeColor(n.type)+"Bg"]||t.surfaceAlt,color:t[typeColor(n.type)]||t.textMuted,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{typeIcon(n.type)}</div>
-            <div style={{flex:1}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                <div style={{fontSize:13,fontWeight:700,color:t.text}}>{n.title}</div>
-                <div style={{fontSize:11,color:t.textMuted,flexShrink:0,marginLeft:12}}>{new Date(n.at).toLocaleDateString("en-IN",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
+        {visible.map((n,i)=>{
+          const meta=getMeta(n.type);
+          const clr=t[meta.color]||t.textMuted;
+          const clrBg=t[meta.color+"Bg"]||t.surfaceAlt;
+          return(
+            <div key={n.id} className="row-hover" onClick={()=>handleClick(n)}
+              style={{display:"flex",gap:13,alignItems:"flex-start",padding:"13px 16px",background:n.read?t.surface:t.limeBg,border:`1px solid ${n.read?t.border:t.lime+"50"}`,borderRadius:14,cursor:"pointer",animation:`fadeUp .28s ${i*22}ms both`,position:"relative",overflow:"hidden",transition:"all .15s"}}>
+              {!n.read&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:`linear-gradient(to bottom,${t.lime},${t.limeDeep})`,borderRadius:"14px 0 0 14px"}}/>}
+              <div style={{width:38,height:38,borderRadius:12,background:clrBg,color:clr,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:`1px solid ${clr}22`,boxShadow:`0 2px 8px ${clrBg}`}}>{meta.icon}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                  <div style={{fontSize:13,fontWeight:700,color:t.text,lineHeight:1.3}}>{n.title}</div>
+                  <div style={{fontSize:10,color:t.textMuted,flexShrink:0,whiteSpace:"nowrap"}}>{new Date(n.at).toLocaleDateString("en-IN",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
+                </div>
+                <div style={{fontSize:12,color:t.textMid,marginTop:3,lineHeight:1.5}}>{n.body}</div>
+                <div style={{fontSize:11,color:clr,marginTop:5,fontWeight:700,display:"flex",alignItems:"center",gap:4,opacity:0.9}}>View details <ArrowRight size={10}/></div>
               </div>
-              <div style={{fontSize:12,color:t.textMid,marginTop:3}}>{n.body}</div>
-              <div style={{fontSize:11,color:t.lime,marginTop:4,fontWeight:600,display:"flex",alignItems:"center",gap:4}}>Tap to take action <ArrowRight size={10}/></div>
+              {!n.read&&<div style={{position:"absolute",right:14,top:14,width:8,height:8,borderRadius:"50%",background:t.lime,boxShadow:`0 0 0 0 ${t.lime}`}}><div style={{position:"absolute",inset:0,borderRadius:"50%",background:t.lime,animation:"ping 1.8s ease-out infinite",opacity:0.7}}/></div>}
             </div>
-            {!n.read&&<div style={{position:"absolute",right:16,top:16,width:8,height:8,borderRadius:"50%",background:t.lime}}><div style={{position:"absolute",inset:0,borderRadius:"50%",background:t.lime,animation:"ping 1.5s ease-out infinite"}}/></div>}
+          );
+        })}
+        {visible.length===0&&(
+          <div style={{textAlign:"center",padding:"48px 20px"}}>
+            <div style={{fontSize:40,marginBottom:12}}>{tab==="birthdays"?"🎂":tab==="leaves"?"🌴":tab==="tasks"?"🎯":tab==="deadlines"?"⏰":tab==="meetings"?"📅":"🎉"}</div>
+            <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:6}}>All clear here!</div>
+            <div style={{fontSize:13,color:t.textMuted}}>No {tab==="all"?"notifications":tab} yet.</div>
           </div>
-        ))}
-        {sorted.length===0&&<Card t={t}><p style={{color:t.textMuted,textAlign:"center",padding:"20px 0",fontSize:14}}>No notifications yet.</p></Card>}
+        )}
       </div>
     </div>
   );
@@ -2928,7 +3009,7 @@ function App({firebaseUid}){
       <div style={{display:"flex",height:"100vh",overflow:"hidden",background:t.bg}}>
 
         {/* SIDEBAR */}
-        <aside style={{width:side?224:62,flexShrink:0,background:t.sidebar,display:"flex",flexDirection:"column",transition:"width .3s cubic-bezier(.22,1,.36,1)",overflow:"hidden",boxShadow:"4px 0 24px rgba(0,0,0,0.15)"}}>
+        <aside className="sidebar-desktop" style={{width:side?224:62,flexShrink:0,background:t.sidebar,display:"flex",flexDirection:"column",transition:"width .3s cubic-bezier(.22,1,.36,1)",overflow:"hidden",boxShadow:"4px 0 24px rgba(0,0,0,0.15)"}}>
           <div style={{padding:side?"16px 14px 14px":"16px 0 14px",display:"flex",alignItems:"center",justifyContent:side?"space-between":"center",borderBottom:`1px solid ${t.sideHover}`,minHeight:64}}>
             <div style={{overflow:"hidden"}}><PPLogo collapsed={!side}/></div>
             <button onClick={()=>setSide(p=>!p)} style={{background:"none",border:"none",cursor:"pointer",padding:4,borderRadius:6,color:t.sideText,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color=t.sideText}>
@@ -2939,7 +3020,7 @@ function App({firebaseUid}){
             {NAV.filter(n=>n.roles==="all"||(n.roles==="manager"&&(isFounder||isHoD))||(n.roles==="founder"&&isFounder)).map(({id,label,Icon},i)=>{
               const active=nav===id,b=badge(id);
               return(
-                <button key={id} onClick={()=>go(id)} title={!side?label:""} style={{width:"100%",display:"flex",alignItems:"center",gap:side?11:0,justifyContent:side?"flex-start":"center",padding:side?"8px 11px":"10px 0",borderRadius:10,border:"none",background:active?t.sideActive+"1A":"transparent",color:active?t.sideActive:t.sideText,fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:active?600:400,cursor:"pointer",marginBottom:1,position:"relative",transition:"all .15s",animation:`fadeUp .28s ${i*18}ms both`,whiteSpace:"nowrap",overflow:"hidden"}}
+                <button key={id} onClick={()=>go(id)} title={!side?label:""} style={{width:"100%",display:"flex",alignItems:"center",gap:side?11:0,justifyContent:side?"flex-start":"center",padding:side?"9px 12px":"11px 0",borderRadius:12,border:"none",background:active?t.sideActive+"22":"transparent",color:active?t.sideActive:t.sideText,fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:active?700:400,cursor:"pointer",marginBottom:2,position:"relative",transition:"all .2s cubic-bezier(.34,1.56,.64,1)",animation:`fadeUp .28s ${i*18}ms both`,whiteSpace:"nowrap",overflow:"hidden"}}
                   onMouseEnter={e=>{if(!active){e.currentTarget.style.background=t.sideHover;e.currentTarget.style.color="#FAFAFA";}}}
                   onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.sideText;}}}>
                   {active&&<div style={{position:"absolute",left:0,top:"20%",bottom:"20%",width:3,borderRadius:"0 3px 3px 0",background:t.sideActive}}/>}
@@ -2969,12 +3050,28 @@ function App({firebaseUid}){
           </div>
         </aside>
 
+        {/* MOBILE BOTTOM NAV */}
+        <nav className="mobile-nav" style={{display:"none",position:"fixed",bottom:0,left:0,right:0,zIndex:1000,background:t.sidebar,borderTop:`1px solid ${t.sideHover}`,padding:"6px 0 calc(6px + env(safe-area-inset-bottom))",gap:0,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+          {NAV.filter(n=>n.roles==="all"||(n.roles==="manager"&&(isFounder||isHoD))||(n.roles==="founder"&&isFounder)).map(({id,label,Icon})=>{
+            const active=nav===id,b=badge(id);
+            return(
+              <button key={id} onClick={()=>go(id)} style={{flex:"0 0 auto",minWidth:56,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"6px 8px",background:"none",border:"none",cursor:"pointer",color:active?t.sideActive:t.sideText,position:"relative",transition:"all .18s"}}>
+                <div style={{position:"relative"}}>
+                  <Icon size={20} strokeWidth={active?2.2:1.6}/>
+                  {b>0&&<span style={{position:"absolute",top:-5,right:-6,minWidth:14,height:14,borderRadius:99,background:t.sideActive,color:"#0A0A0A",fontSize:8,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px"}}>{b}</span>}
+                </div>
+                <span style={{fontSize:9,fontWeight:active?700:500,letterSpacing:"0.02em"}}>{label}</span>
+                {active&&<div style={{position:"absolute",top:0,left:"25%",right:"25%",height:2,borderRadius:99,background:t.sideActive}}/>}
+              </button>
+            );
+          })}
+        </nav>
         {/* MAIN */}
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
           <header style={{height:56,background:t.topbar,borderBottom:`1px solid ${t.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 22px",flexShrink:0}}>
-            <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:12,color:t.textMuted,letterSpacing:"0.08em",textTransform:"uppercase"}}>{NAV.find(n=>n.id===nav)?.label}</div>
+            <div className="topbar-title" style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:12,color:t.textMuted,letterSpacing:"0.08em",textTransform:"uppercase"}}>{NAV.find(n=>n.id===nav)?.label}</div>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <button onClick={()=>go("notifications")} style={{position:"relative",background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:10,width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted,transition:"all .15s"}} onMouseEnter={e=>{e.currentTarget.style.background=t.hover;}} onMouseLeave={e=>{e.currentTarget.style.background=t.surfaceAlt;}}>
+              <button onClick={()=>go("notifications")} style={{position:"relative",background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:12,width:38,height:38,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted,transition:"all .2s cubic-bezier(.34,1.56,.64,1)"}} className="btn-fun" onMouseEnter={e=>{e.currentTarget.style.background=t.hover;}} onMouseLeave={e=>{e.currentTarget.style.background=t.surfaceAlt;}}>
                 <Bell size={15}/>
                 {unread>0&&<span style={{position:"absolute",top:-4,right:-4,minWidth:17,height:17,borderRadius:99,background:t.lime,color:"#0A0A0A",fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",animation:"notifPop .5s cubic-bezier(.22,1,.36,1)"}}>{unread}</span>}
               </button>
@@ -2984,7 +3081,7 @@ function App({firebaseUid}){
               </button>
             </div>
           </header>
-          <main key={pageKey} style={{flex:1,overflow:"auto",padding:"24px 26px",animation:"fadeUp .3s cubic-bezier(.22,1,.36,1) both"}}>
+          <main key={pageKey} className="main-pad" style={{flex:1,overflow:"auto",padding:"24px 26px",paddingBottom:"calc(24px + env(safe-area-inset-bottom))",animation:"fadeUp .3s cubic-bezier(.22,1,.36,1) both"}}>
             <PageTip nav={nav} t={t}/>
             {pages[nav]}
           </main>
