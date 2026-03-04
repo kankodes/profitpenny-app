@@ -1717,9 +1717,9 @@ function Leaves({t,data,setData,toast,currentUser}){
     const bal=data.leaveBalances[form.uId]||{total:12,taken:0};
     const avail=bal.total-bal.taken;
     // Already exhausted — force unpaid confirm
-    if(avail<=0){setUnpaidDays(d);setShowUnpaidConfirm(true);return;}
+    if(avail<=0){setUnpaidDays(d);setShowAdd(false);setShowUnpaidConfirm(true);return;}
     // Will become exhausted/overdraft with this leave
-    if(d>avail){setUnpaidDays(d-avail);setShowUnpaidConfirm(true);return;}
+    if(d>avail){setUnpaidDays(d-avail);setShowAdd(false);setShowUnpaidConfirm(true);return;}
     doSubmit(false);
   };
 
@@ -1811,7 +1811,7 @@ function Leaves({t,data,setData,toast,currentUser}){
           return(
             <Card t={t} key={u.id} lift={isManager} onClick={isManager?()=>setHistoryUser(u):undefined}
               style={{borderTop:`3px solid ${exhausted?t.red:warn20?t.amber:t.lime}`,animation:`fadeUp .36s ${i*40}ms both`,position:"relative"}}>
-              {isManager&&<div style={{position:"absolute",top:10,right:10,fontSize:9,color:t.textMuted,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>View history →</div>}
+              {isManager&&<div style={{marginTop:10,paddingTop:8,borderTop:`1px solid ${t.border}`,display:"flex",justifyContent:"flex-end"}}><span style={{fontSize:11,fontWeight:700,color:t.lime,display:"flex",alignItems:"center",gap:4,cursor:"pointer"}}><FileText size={11}/>View history</span></div>}
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
                 <Av init={u.av} size={30} t={t}/>
                 <div>
@@ -1869,7 +1869,7 @@ function Leaves({t,data,setData,toast,currentUser}){
       </Card>
 
       {/* Unpaid leave confirmation */}
-      <Modal open={showUnpaidConfirm} onClose={()=>setShowUnpaidConfirm(false)} title="⚠️ Paid Leaves Exhausted" t={t} w={420}>
+      <Modal open={showUnpaidConfirm} onClose={()=>{setShowUnpaidConfirm(false);setShowAdd(true);}} title="⚠️ Paid Leaves Exhausted" t={t} w={420}>
         <div style={{padding:"16px",background:t.redBg,borderRadius:12,marginBottom:16,border:`1px solid ${t.red}30`}}>
           <div style={{fontSize:14,fontWeight:700,color:t.red,marginBottom:8}}>Your paid leaves are fully used up.</div>
           <div style={{fontSize:13,color:t.textMid,lineHeight:1.7}}>
@@ -1878,7 +1878,7 @@ function Leaves({t,data,setData,toast,currentUser}){
           </div>
         </div>
         <div style={{display:"flex",gap:9,justifyContent:"flex-end"}}>
-          <Btn v="secondary" t={t} onClick={()=>setShowUnpaidConfirm(false)}>Cancel</Btn>
+          <Btn v="secondary" t={t} onClick={()=>{setShowUnpaidConfirm(false);setShowAdd(true);}}>← Go back</Btn>
           <Btn v="danger" t={t} onClick={()=>doSubmit(true)} icon={<Send size={13}/>}>Yes, submit as unpaid</Btn>
         </div>
       </Modal>
