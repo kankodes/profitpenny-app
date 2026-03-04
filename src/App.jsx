@@ -8,7 +8,7 @@ import {
   Mail, Phone, MapPin, Filter, Edit2, Crown, Shield, Users, Zap, Target,
   Award, Activity, TrendingDown, FileText, ArrowRight, Cake, Star, Layers,
   CalendarPlus, UserCircle, BarChart3, Hash, ChevronDown, Edit,
-  Trash2, Link2, Calendar, KanbanSquare, RefreshCw
+  Trash2, Link2, Calendar, KanbanSquare, RefreshCw, User, Eye
 } from "lucide-react";
 
 // ── EMAIL via Resend ─────────────────────────────────────────────────────────
