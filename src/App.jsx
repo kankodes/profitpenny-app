@@ -14,8 +14,8 @@ import {
 // ── EMAIL via Resend ─────────────────────────────────────────────────────────
 // Get free API key at resend.com (3000 emails/month free)
 // Add your key below and set the from address to a verified domain/email.
-const RESEND_KEY = "YOUR_RESEND_API_KEY";  // e.g. "re_AbCdEf123..."
-const RESEND_FROM = "ProfitPenny Studio OS <no-reply@yourdomain.com>"; // must be verified on Resend
+const RESEND_KEY = "re_3U7HF8hq_Kr7K2n26JYhL3dPwjvi9gCsU";  // e.g. "re_AbCdEf123..."
+const RESEND_FROM = "ProfitPenny Studio OS <no-reply@profitpenny.in>"; // must be verified on Resend
 
 async function sendEmail(to_email, to_name, subject, message){
   if(!to_email) return;
