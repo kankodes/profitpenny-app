@@ -29,10 +29,10 @@ async function sendEmail(to_email, to_name, subject, message){
 
 // ── STYLES ──────────────────────────────────────────────────────────────────
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html,body,#root{height:100%;}
-body{font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;}
+body{font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;}
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{border-radius:99px;}
@@ -74,42 +74,44 @@ body{font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;}
 @keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.12)}100%{transform:scale(1)}}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 @keyframes bounceIn{0%{transform:scale(0.7);opacity:0}60%{transform:scale(1.08)}80%{transform:scale(0.97)}100%{transform:scale(1);opacity:1}}
-.btn-fun{transition:transform .15s cubic-bezier(.34,1.56,.64,1),box-shadow .15s ease,background .15s ease!important;}
-.btn-fun:hover{transform:translateY(-2px) scale(1.02)!important;}
-.btn-fun:active{transform:scale(0.95)!important;}
-.nav-item{transition:all .18s cubic-bezier(.34,1.56,.64,1)!important;}
-.nav-item:hover{transform:translateX(3px)!important;}
-.notif-badge{animation:bounceIn .4s cubic-bezier(.34,1.56,.64,1)!important;}
-.row-hover:hover{background:var(--hover-bg,rgba(181,211,52,0.06))!important;transform:translateX(2px);border-color:rgba(181,211,52,0.2)!important;}
-.card-fun{transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s ease!important;}
-.card-fun:hover{transform:translateY(-3px) scale(1.005)!important;box-shadow:0 8px 30px rgba(0,0,0,0.12)!important;}
+.btn-fun{transition:all 0.15s ease!important;}
+.btn-fun:hover{opacity:0.88!important;transform:translateY(-1px)!important;}
+.btn-fun:active{transform:scale(0.97)!important;}
+.nav-item{transition:all 0.15s ease!important;}
+.row-hover:hover{background:rgba(0,0,0,0.02)!important;}
+.card-fun{transition:transform 0.2s ease,box-shadow 0.2s ease!important;}
+.card-fun:hover{transform:translateY(-2px)!important;box-shadow:0 1px 2px rgba(0,0,0,0.04),0 12px 32px rgba(0,0,0,0.1)!important;}
+input,select,textarea{font-family:'Inter',sans-serif!important;}
+button{font-family:'Inter',sans-serif!important;}
 `;
 
 // ── TOKENS ───────────────────────────────────────────────────────────────────
 const D = {
   light:{dark:false,
-    bg:"#F7F7F5",surface:"#FFFFFF",surfaceAlt:"#F2F2F0",hover:"#EBEBEA",
-    border:"#E4E4E1",borderMid:"#D0D0CC",
-    text:"#0A0A0A",textMid:"#4A4A48",textMuted:"#8A8A87",
-    lime:"#B5D334",limeDeep:"#8DAA1A",limeBg:"#F2F9D0",limeMid:"#D8EC7A",
-    green:"#16A34A",greenBg:"#DCFCE7",blue:"#2563EB",blueBg:"#DBEAFE",
-    amber:"#D97706",amberBg:"#FEF3C7",red:"#DC2626",redBg:"#FEE2E2",
-    purple:"#7C3AED",purpleBg:"#EDE9FE",
-    sidebar:"#0A0A0A",sideText:"#C8C8C4",sideActive:"#B5D334",sideHover:"#1A1A1A",
-    topbar:"#FFFFFF",shadow:"rgba(0,0,0,0.06)",shadowMd:"rgba(0,0,0,0.14)",
-    card:"#FFFFFF",scrollThumb:"#D0D0CC",
+    bg:"#f8f8f8",surface:"#ffffff",surfaceAlt:"#f4f4f5",hover:"#f0f0f0",
+    border:"rgba(0,0,0,0.07)",borderMid:"rgba(0,0,0,0.12)",
+    text:"#111111",textMid:"#444444",textMuted:"#6b7280",
+    lime:"#a8c400",limeDeep:"#7a9000",limeBg:"#f4f9e0",limeMid:"#d4e870",
+    green:"#16a34a",greenBg:"#f0fdf4",blue:"#2563eb",blueBg:"#eff6ff",
+    amber:"#d97706",amberBg:"#fffbeb",red:"#dc2626",redBg:"#fef2f2",
+    purple:"#7c3aed",purpleBg:"#f5f3ff",
+    sidebar:"#0b0b0b",sideText:"#a1a1aa",sideActive:"#a8c400",sideHover:"#1a1a1a",
+    topbar:"#ffffff",shadow:"rgba(0,0,0,0.04)",shadowMd:"rgba(0,0,0,0.12)",
+    card:"#ffffff",scrollThumb:"#d4d4d8",
+    cardShadow:"0 1px 2px rgba(0,0,0,0.04),0 8px 24px rgba(0,0,0,0.06)",
   },
   dark:{dark:true,
-    bg:"#0C0C0A",surface:"#141412",surfaceAlt:"#1C1C1A",hover:"#222220",
-    border:"#2A2A27",borderMid:"#383835",
-    text:"#F0F0EC",textMid:"#A8A8A4",textMuted:"#5A5A57",
-    lime:"#C8E84A",limeDeep:"#9CB82A",limeBg:"#1A200A",limeMid:"#7A9020",
-    green:"#4ADE80",greenBg:"#052E16",blue:"#60A5FA",blueBg:"#0A1628",
-    amber:"#FCD34D",amberBg:"#1A1200",red:"#F87171",redBg:"#1C0A0A",
-    purple:"#A78BFA",purpleBg:"#150B2A",
-    sidebar:"#080806",sideText:"#7A7A76",sideActive:"#C8E84A",sideHover:"#141412",
-    topbar:"#141412",shadow:"rgba(0,0,0,0.3)",shadowMd:"rgba(0,0,0,0.5)",
-    card:"#141412",scrollThumb:"#2A2A27",
+    bg:"#0a0a0a",surface:"#111111",surfaceAlt:"#1a1a1a",hover:"#222222",
+    border:"rgba(255,255,255,0.08)",borderMid:"rgba(255,255,255,0.12)",
+    text:"#fafafa",textMid:"#a1a1aa",textMuted:"#52525b",
+    lime:"#b8d400",limeDeep:"#8ca000",limeBg:"#1a1f05",limeMid:"#6a7c10",
+    green:"#4ade80",greenBg:"#052e16",blue:"#60a5fa",blueBg:"#0a1628",
+    amber:"#fcd34d",amberBg:"#1c1200",red:"#f87171",redBg:"#1c0808",
+    purple:"#a78bfa",purpleBg:"#130e24",
+    sidebar:"#080808",sideText:"#71717a",sideActive:"#b8d400",sideHover:"#161616",
+    topbar:"#111111",shadow:"rgba(0,0,0,0.3)",shadowMd:"rgba(0,0,0,0.6)",
+    card:"#111111",scrollThumb:"#27272a",
+    cardShadow:"0 1px 2px rgba(0,0,0,0.3),0 8px 24px rgba(0,0,0,0.4)",
   }
 };
 
@@ -144,7 +146,7 @@ const isOverdue = d=>d&&new Date(d)<new Date();
 const clamp=(n,lo,hi)=>Math.min(hi,Math.max(lo,n));
 const SC = s=>({Completed:"green","In Progress":"blue",Review:"amber",Delayed:"red","Not Started":"muted",Pending:"amber",Approved:"green",Rejected:"red"}[s]||"muted");
 const PC = p=>({High:"red",Medium:"amber",Low:"green"}[p]||"muted");
-const iStyle=t=>({width:"100%",padding:"9px 13px",background:t.surfaceAlt,border:`1.5px solid ${t.border}`,borderRadius:10,color:t.text,fontSize:13,fontFamily:"'DM Sans',sans-serif",outline:"none",transition:"border-color .15s"});
+const iStyle=t=>({width:"100%",padding:"9px 13px",background:t.surface,border:`1px solid ${t.border}`,borderRadius:10,color:t.text,fontSize:14,fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color 0.15s ease,box-shadow 0.15s ease"});
 
 // ── HOOKS ────────────────────────────────────────────────────────────────────
 function useToast(){
@@ -170,22 +172,31 @@ function useCountUp(target,dur=700){
 function Av({init,size=36,t,online=false}){
   return(
     <div style={{position:"relative",flexShrink:0}}>
-      <div style={{width:size,height:size,borderRadius:"50%",background:`linear-gradient(135deg,${t.lime}33,${t.lime}66)`,border:`1.5px solid ${t.lime}55`,color:t.lime,fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:size*.36,display:"flex",alignItems:"center",justifyContent:"center",letterSpacing:"-0.02em"}}>{init}</div>
+      <div style={{width:size,height:size,borderRadius:"50%",background:`linear-gradient(135deg,${t.lime}33,${t.lime}66)`,border:`1.5px solid ${t.lime}55`,color:t.lime,fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:size*.36,display:"flex",alignItems:"center",justifyContent:"center",letterSpacing:"-0.02em"}}>{init}</div>
       {online&&<div style={{position:"absolute",bottom:1,right:1,width:9,height:9,borderRadius:"50%",background:t.green,border:`2px solid ${t.surface}`}}/>}
     </div>
   );
 }
 function Badge({label,color="muted",t,small=false}){
   const C={green:{bg:t.greenBg,fg:t.green},blue:{bg:t.blueBg,fg:t.blue},amber:{bg:t.amberBg,fg:t.amber},red:{bg:t.redBg,fg:t.red},purple:{bg:t.purpleBg,fg:t.purple},lime:{bg:t.limeBg,fg:t.limeDeep},muted:{bg:t.surfaceAlt,fg:t.textMuted}}[color]||{bg:t.surfaceAlt,fg:t.textMuted};
-  return <span style={{display:"inline-flex",alignItems:"center",padding:small?"2px 8px":"4px 11px",borderRadius:99,fontSize:small?9:10,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",background:C.bg,color:C.fg,whiteSpace:"nowrap",flexShrink:0,border:`1px solid ${C.fg}22`}}>{label}</span>;
+  return <span style={{display:"inline-flex",alignItems:"center",padding:small?"2px 7px":"3px 10px",borderRadius:6,fontSize:small?10:11,fontWeight:600,letterSpacing:"0.02em",background:C.bg,color:C.fg,whiteSpace:"nowrap",flexShrink:0,fontFamily:"'Inter',sans-serif"}}>{label}</span>;
 }
 function Btn({children,onClick,v="primary",t,style={},disabled=false,size="md",icon}){
-  const base={display:"inline-flex",alignItems:"center",gap:6,borderRadius:99,fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:disabled?"not-allowed":"pointer",border:"none",transition:"all .18s cubic-bezier(.34,1.56,.64,1)",opacity:disabled?.45:1,padding:size==="sm"?"5px 14px":size==="lg"?"13px 28px":"8px 20px",fontSize:size==="sm"?12:13,letterSpacing:"0.01em"};
-  const V={primary:{background:t.text,color:t.bg},lime:{background:t.lime,color:"#0A0A0A"},secondary:{background:t.surfaceAlt,color:t.textMid,border:`1px solid ${t.border}`},ghost:{background:"transparent",color:t.textMuted},danger:{background:t.redBg,color:t.red,border:`1px solid ${t.red}30`},success:{background:t.greenBg,color:t.green,border:`1px solid ${t.green}40`},outline:{background:"transparent",color:t.lime,border:`1.5px solid ${t.lime}`}};
-  return <button className="btn-press" onClick={disabled?undefined:onClick} disabled={disabled} style={{...base,...(V[v]||V.secondary),...style}}>{icon&&<span style={{display:"flex"}}>{icon}</span>}{children}</button>;
+  const base={display:"inline-flex",alignItems:"center",gap:5,borderRadius:10,fontFamily:"'Inter',sans-serif",fontWeight:500,cursor:disabled?"not-allowed":"pointer",border:"1px solid transparent",transition:"all 0.15s ease",opacity:disabled?0.4:1,padding:size==="sm"?"5px 12px":size==="lg"?"11px 24px":"7px 16px",fontSize:size==="sm"?12:13,letterSpacing:"-0.01em",lineHeight:"1.4",flexShrink:0};
+  const V={
+    primary:{background:"#111111",color:"#ffffff",borderColor:"#111111"},
+    lime:{background:t.lime,color:"#000000",borderColor:t.lime},
+    secondary:{background:t.surfaceAlt,color:t.textMid,borderColor:t.border},
+    ghost:{background:"transparent",color:t.textMuted,borderColor:"transparent"},
+    danger:{background:t.redBg,color:t.red,borderColor:t.red+"30"},
+    success:{background:t.greenBg,color:t.green,borderColor:t.green+"40"},
+    outline:{background:"transparent",color:t.lime,borderColor:t.lime}
+  };
+  const vs=V[v]||V.secondary;
+  return <button className="btn-fun" onClick={disabled?undefined:onClick} disabled={disabled} style={{...base,background:vs.background,color:vs.color,borderColor:vs.borderColor,...style}}>{icon&&<span style={{display:"flex",alignItems:"center"}}>{icon}</span>}{children}</button>;
 }
 function Card({children,t,style={},lift=false,onClick,pad=20}){
-  return <div className={(lift?"hover-lift ":"")+(onClick?"card-fun":"")} onClick={onClick} style={{background:t.card,border:`1px solid ${t.border}`,borderRadius:18,padding:pad,cursor:onClick?"pointer":"default",boxShadow:`0 2px 8px ${t.shadow}`,transition:"border-color .15s,box-shadow .18s",...style}}>{children}</div>;
+  return <div className={(lift?"hover-lift ":"")+(onClick?"card-fun":"")} onClick={onClick} style={{background:t.card,border:`1px solid ${t.border}`,borderRadius:16,padding:pad,cursor:onClick?"pointer":"default",boxShadow:t.cardShadow||`0 1px 2px ${t.shadow}`,transition:"all 0.2s ease",...style}}>{children}</div>;
 }
 function PBar({value,max=100,color="lime",t,h=5,delay=0,showPct=true}){
   const pct=clamp(max>0?Math.round((value/max)*100):0,0,100);
@@ -196,13 +207,13 @@ function PBar({value,max=100,color="lime",t,h=5,delay=0,showPct=true}){
   return(
     <div style={{display:"flex",alignItems:"center",gap:10}}>
       <div style={{flex:1,height:h,background:t.surfaceAlt,borderRadius:h,overflow:"hidden"}}>
-        <div style={{height:"100%",width:`${w}%`,background:clr,borderRadius:h,transition:`width .7s cubic-bezier(.22,1,.36,1) ${delay}ms`}}/>
+        <div style={{height:"100%",width:`${w}%`,background:clr,borderRadius:h,transition:`width 0.5s ease ${delay}ms`}}/>
       </div>
-      {showPct&&<span style={{fontSize:11,fontWeight:700,color:clr,minWidth:30,textAlign:"right",fontFamily:"'Poppins',sans-serif"}}>{pct}%</span>}
+      {showPct&&<span style={{fontSize:11,fontWeight:700,color:clr,minWidth:30,textAlign:"right",fontFamily:"'Inter',sans-serif"}}>{pct}%</span>}
     </div>
   );
 }
-function Inp({value,onChange,placeholder,type="text",t,style={}}){return <input type={type} value={value} onChange={onChange} placeholder={placeholder} style={{...iStyle(t),...style}} onFocus={e=>e.target.style.borderColor=t.lime} onBlur={e=>e.target.style.borderColor=t.border}/>;}
+function Inp({value,onChange,placeholder,type="text",t,style={}}){return <input type={type} value={value} onChange={onChange} placeholder={placeholder} style={{...iStyle(t),...style}} onFocus={e=>{e.target.style.borderColor=t.lime;e.target.style.boxShadow=`0 0 0 3px ${t.lime}18`;}} onBlur={e=>{e.target.style.borderColor=t.border;e.target.style.boxShadow="none";}}/>;}
 function Sel({value,onChange,children,t}){return <select value={value} onChange={onChange} style={{...iStyle(t),cursor:"pointer"}}>{children}</select>;}
 // Smart department selector with inline "+Add New Department" option
 function DeptSel({value,onChange,data,setData,t,toast,placeholder="Select dept."}){
@@ -235,17 +246,17 @@ function DeptSel({value,onChange,data,setData,t,toast,placeholder="Select dept."
     </select>
   );
 }
-function Tex({value,onChange,placeholder,t,rows=3}){return <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{...iStyle(t),resize:"vertical"}} onFocus={e=>e.target.style.borderColor=t.lime} onBlur={e=>e.target.style.borderColor=t.border}/>;}
-function Field({label,children,t}){return <div style={{marginBottom:14}}><label style={{display:"block",fontSize:11,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",color:t.textMuted,marginBottom:6}}>{label}</label>{children}</div>;}
+function Tex({value,onChange,placeholder,t,rows=3}){return <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{...iStyle(t),resize:"vertical",lineHeight:1.6}} onFocus={e=>{e.target.style.borderColor=t.lime;e.target.style.boxShadow=`0 0 0 3px ${t.lime}18`;}} onBlur={e=>{e.target.style.borderColor=t.border;e.target.style.boxShadow="none";}}/>;}
+function Field({label,children,t}){return <div style={{marginBottom:14}}><label style={{display:"block",fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:t.textMuted,marginBottom:5,fontFamily:"'Inter',sans-serif"}}>{label}</label>{children}</div>;}
 function Modal({open,onClose,title,children,t,w=560,subtitle}){
   useEffect(()=>{if(open){document.body.style.overflow="hidden";document.body.style.position="fixed";document.body.style.width="100%";}else{document.body.style.overflow="";document.body.style.position="";document.body.style.width="";}return()=>{document.body.style.overflow="";document.body.style.position="";document.body.style.width="";};},[open]);
   if(!open)return null;
   return(
-    <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",backdropFilter:"blur(6px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .18s ease",overflow:"hidden"}} onWheel={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()}>
-      <div onClick={e=>e.stopPropagation()} className="scale-in modal-w" style={{background:t.surface,borderRadius:20,border:`1px solid ${t.border}`,width:"100%",maxWidth:w,maxHeight:"92vh",overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",boxShadow:`0 24px 80px ${t.shadowMd}`,padding:28}}>
+    <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.35)",backdropFilter:"blur(8px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease",overflow:"hidden"}} onWheel={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()}>
+      <div onClick={e=>e.stopPropagation()} className="scale-in modal-w" style={{background:t.surface,borderRadius:18,border:`1px solid ${t.border}`,width:"100%",maxWidth:w,maxHeight:"90vh",overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",boxShadow:"0 4px 6px rgba(0,0,0,0.05),0 24px 48px rgba(0,0,0,0.12)",padding:24}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,paddingBottom:16,borderBottom:`1px solid ${t.border}`}}>
-          <div><h3 style={{margin:0,fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:18,color:t.text}}>{title}</h3>{subtitle&&<p style={{margin:"4px 0 0",fontSize:13,color:t.textMuted}}>{subtitle}</p>}</div>
-          <button onClick={onClose} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,width:32,height:32,cursor:"pointer",color:t.textMuted,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginLeft:12,transition:"all .14s"}} onMouseEnter={e=>{e.currentTarget.style.background=t.surfaceAlt;}} onMouseLeave={e=>{e.currentTarget.style.background="none";}}><X size={15}/></button>
+          <div><h3 style={{margin:0,fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:17,color:t.text,letterSpacing:"-0.02em"}}>{title}</h3>{subtitle&&<p style={{margin:"3px 0 0",fontSize:13,color:t.textMuted,fontWeight:400}}>{subtitle}</p>}</div>
+          <button onClick={onClose} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,width:30,height:30,cursor:"pointer",color:t.textMuted,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginLeft:12,transition:"all 0.15s ease"}} onMouseEnter={e=>{e.currentTarget.style.background=t.surfaceAlt;}} onMouseLeave={e=>{e.currentTarget.style.background="none";}}><X size={14}/></button>
         </div>
         {children}
       </div>
@@ -254,10 +265,10 @@ function Modal({open,onClose,title,children,t,w=560,subtitle}){
 }
 function SHead({title,sub,action,t}){
   return(
-    <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:24,animation:"fadeUp .3s both"}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24,animation:"fadeUp .3s both"}}>
       <div>
-        <h2 style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:24,letterSpacing:"-0.02em",color:t.text,margin:0,lineHeight:1.1}}>{title}</h2>
-        {sub&&<p style={{fontSize:13,color:t.textMuted,margin:"5px 0 0"}}>{sub}</p>}
+        <h2 style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:22,letterSpacing:"-0.03em",color:t.text,margin:0,lineHeight:1.2}}>{title}</h2>
+        {sub&&<p style={{fontSize:13,color:t.textMuted,margin:"4px 0 0",fontWeight:400}}>{sub}</p>}
       </div>
       {action}
     </div>
@@ -268,14 +279,13 @@ function StatCard({label,value,sub,color="lime",icon:Icon,t,delay=0,onClick}){
   const clr=clrMap[color]||t.lime;
   const n=useCountUp(typeof value==="number"?value:0);
   return(
-    <Card t={t} onClick={onClick} style={{animation:`fadeUp .42s cubic-bezier(.22,1,.36,1) ${delay}ms both`,overflow:"hidden",position:"relative",cursor:onClick?"pointer":"default"}}>
-      <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:clr,borderRadius:"16px 16px 0 0"}}/>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-        <span style={{fontSize:11,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",color:t.textMuted}}>{label}</span>
-        {Icon&&<div style={{width:30,height:30,borderRadius:8,background:t.surfaceAlt,display:"flex",alignItems:"center",justifyContent:"center",color:clr}}><Icon size={15}/></div>}
+    <Card t={t} onClick={onClick} style={{animation:`fadeUp .4s ease ${delay}ms both`,overflow:"hidden",position:"relative",cursor:onClick?"pointer":"default"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+        <span style={{fontSize:11,fontWeight:600,letterSpacing:"0.04em",textTransform:"uppercase",color:t.textMuted,fontFamily:"'Inter',sans-serif"}}>{label}</span>
+        {Icon&&<div style={{width:32,height:32,borderRadius:8,background:clr+"14",display:"flex",alignItems:"center",justifyContent:"center",color:clr}}><Icon size={16} strokeWidth={1.5}/></div>}
       </div>
-      <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:40,color:clr,lineHeight:1,letterSpacing:"-0.02em",animation:`countUp .5s ${delay+100}ms both`}}>{typeof value==="number"?n:value}</div>
-      {sub&&<div style={{fontSize:12,color:t.textMuted,marginTop:6}}>{sub}</div>}
+      <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:36,color:t.text,lineHeight:1,letterSpacing:"-0.03em",animation:`countUp .5s ${delay+100}ms both`}}>{typeof value==="number"?n:value}</div>
+      {sub&&<div style={{fontSize:12,color:t.textMuted,marginTop:6,fontWeight:400}}>{sub}</div>}
     </Card>
   );
 }
@@ -285,7 +295,7 @@ function Toasts({list}){
   return(
     <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,display:"flex",flexDirection:"column",gap:8}}>
       {list.map(t2=>(
-        <div key={t2.id} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 18px",borderRadius:12,maxWidth:320,background:"#0A0A0A",color:"#F0F0EC",fontSize:13,fontWeight:500,boxShadow:"0 8px 32px rgba(0,0,0,.4)",animation:t2.out?"fadeIn .3s reverse forwards":"toastSlide .32s cubic-bezier(.22,1,.36,1) both",borderLeft:`3px solid ${clr[t2.type]||clr.success}`}}>
+        <div key={t2.id} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 16px",borderRadius:12,maxWidth:320,background:"#111111",color:"#fafafa",fontSize:13,fontWeight:400,boxShadow:"0 4px 6px rgba(0,0,0,0.1),0 10px 20px rgba(0,0,0,0.3)",animation:t2.out?"fadeIn .25s reverse forwards":"toastSlide .28s ease both",border:"1px solid rgba(255,255,255,0.08)",fontFamily:"'Inter',sans-serif"}}>
           <span style={{color:clr[t2.type]||clr.success}}>{ico[t2.type]||ico.success}</span>{t2.msg}
         </div>
       ))}
@@ -296,7 +306,7 @@ function LiveTimer({startedAt,t,active}){
   const [s,setS]=useState(0);
   useEffect(()=>{if(!startedAt||!active)return;const u=()=>setS(Math.floor((Date.now()-new Date(startedAt).getTime())/1000));u();const id=setInterval(u,1000);return()=>clearInterval(id);},[startedAt,active]);
   const fmt=n=>String(n).padStart(2,"0");
-  return <span className={active?"timer-active":""} style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:12,color:active?t.lime:t.textMuted,letterSpacing:"0.06em"}}>{fmt(Math.floor(s/3600))}:{fmt(Math.floor((s%3600)/60))}:{fmt(s%60)}</span>;
+  return <span className={active?"timer-active":""} style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:12,color:active?t.lime:t.textMuted,letterSpacing:"0.06em"}}>{fmt(Math.floor(s/3600))}:{fmt(Math.floor((s%3600)/60))}:{fmt(s%60)}</span>;
 }
 function PPLogo({collapsed}){
   const fg="#FFFFFF",lime="#C8E84A";
@@ -344,11 +354,11 @@ function PageTip({nav,t}){
   const tip=PAGE_TIPS[nav];
   if(!tip||!vis)return null;
   return(
-    <div style={{display:"flex",alignItems:"flex-start",gap:12,padding:"11px 15px",background:t.limeBg,border:`1px solid ${t.lime}30`,borderRadius:12,marginBottom:18,animation:"fadeUp .35s both"}}>
-      <div style={{width:30,height:30,borderRadius:9,background:t.lime+"33",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}><Info size={15} color={t.limeDeep}/></div>
+    <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 14px",background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:10,marginBottom:20,animation:"fadeUp .3s ease both"}}>
+      <div style={{flexShrink:0,marginTop:1,color:t.textMuted,display:"flex"}}><Info size={14} strokeWidth={1.5}/></div>
       <div style={{flex:1}}>
-        <div style={{fontWeight:700,fontSize:13,color:t.text,marginBottom:3}}>{tip.title}</div>
-        <div style={{fontSize:12,color:t.textMid,lineHeight:1.65}}>{tip.tip}</div>
+        <div style={{fontWeight:600,fontSize:12,color:t.text,marginBottom:2,fontFamily:"'Inter',sans-serif"}}>{tip.title}</div>
+        <div style={{fontSize:12,color:t.textMuted,lineHeight:1.6}}>{tip.tip}</div>
       </div>
       <button onClick={()=>setVis(false)} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:2,borderRadius:5,display:"flex",flexShrink:0}} title="Dismiss"><X size={13}/></button>
     </div>
@@ -373,7 +383,7 @@ function Tutorial({t,onClose}){
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",backdropFilter:"blur(6px)",zIndex:3000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{background:t.surface,borderRadius:24,width:"100%",maxWidth:480,padding:36,boxShadow:`0 32px 100px ${t.shadowMd}`,animation:"tutorialIn .4s cubic-bezier(.22,1,.36,1) both",border:`1px solid ${t.border}`,textAlign:"center"}}>
         <div style={{width:72,height:72,borderRadius:20,background:clr+"22",border:`2px solid ${clr}40`,display:"flex",alignItems:"center",justifyContent:"center",color:clr,margin:"0 auto 20px"}}>{s.icon}</div>
-        <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:20,color:t.text,marginBottom:12,lineHeight:1.2}}>{s.title}</div>
+        <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:18,color:t.text,marginBottom:10,lineHeight:1.3,letterSpacing:"-0.02em"}}>{s.title}</div>
         <div style={{fontSize:14,color:t.textMid,lineHeight:1.7,marginBottom:28}}>{s.body}</div>
         {/* progress dots */}
         <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:24}}>
@@ -433,7 +443,7 @@ function Dashboard({t,data,go}){
       <div style={{display:"grid",gridTemplateColumns:"1.4fr 1fr",gap:16,marginBottom:16}}>
         <Card t={t} style={{animation:"fadeUp .4s .1s both"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <h3 style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:t.text,margin:0}}>Active Tasks</h3>
+            <h3 style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:14,color:t.text,margin:0}}>Active Tasks</h3>
             <button onClick={()=>go("projects")} style={{fontSize:12,color:t.lime,background:"none",border:"none",cursor:"pointer",fontWeight:600,display:"flex",alignItems:"center",gap:4}}>View all <ArrowRight size={12}/></button>
           </div>
           {tasks.filter(x=>x.status!=="Completed").slice(0,5).map((task,i)=>(
@@ -451,14 +461,14 @@ function Dashboard({t,data,go}){
         </Card>
         <Card t={t} style={{animation:"fadeUp .4s .18s both"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <h3 style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:t.text,margin:0}}>Client Happiness</h3>
+            <h3 style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:14,color:t.text,margin:0}}>Client Happiness</h3>
             <button onClick={()=>go("clients")} style={{fontSize:12,color:t.lime,background:"none",border:"none",cursor:"pointer",fontWeight:600,display:"flex",alignItems:"center",gap:4}}>View all <ArrowRight size={12}/></button>
           </div>
           {data.clients.map((c,i)=>(
             <div key={c.id} onClick={()=>go("clients")} style={{marginBottom:14,cursor:"pointer",animation:`fadeUp .3s ${i*55}ms both`}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                 <span style={{fontSize:13,fontWeight:500,color:t.text}}>{c.name.split(" ").slice(0,2).join(" ")}</span>
-                <span style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:16,color:c.score>=80?t.green:c.score>=65?t.amber:t.red}}>{c.score}%</span>
+                <span style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:16,color:c.score>=80?t.green:c.score>=65?t.amber:t.red}}>{c.score}%</span>
               </div>
               <PBar value={c.score} max={100} color={c.score>=80?"green":c.score>=65?"amber":"red"} t={t} delay={i*70}/>
             </div>
@@ -468,14 +478,14 @@ function Dashboard({t,data,go}){
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         <Card t={t} style={{animation:"fadeUp .4s .24s both"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <h3 style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:t.text,margin:0}}>Upcoming Meetings</h3>
+            <h3 style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:14,color:t.text,margin:0}}>Upcoming Meetings</h3>
             <button onClick={()=>go("meetings")} style={{fontSize:12,color:t.lime,background:"none",border:"none",cursor:"pointer",fontWeight:600,display:"flex",alignItems:"center",gap:4}}>View all <ArrowRight size={12}/></button>
           </div>
           {upcoming.length===0?<p style={{color:t.textMuted,fontSize:13}}>No upcoming meetings.</p>
             :upcoming.slice(0,3).map((m,i)=>(
               <div key={m.id} onClick={()=>go("meetings")} style={{display:"flex",gap:12,alignItems:"flex-start",padding:"9px 0",borderBottom:i<upcoming.length-1?`1px solid ${t.border}`:"none",cursor:"pointer",animation:`fadeUp .3s ${i*45}ms both`}}>
                 <div style={{flexShrink:0,textAlign:"center",width:40}}>
-                  <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:22,color:t.lime,lineHeight:1}}>{new Date(m.date).getDate()}</div>
+                  <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:22,color:t.lime,lineHeight:1}}>{new Date(m.date).getDate()}</div>
                   <div style={{fontSize:10,fontWeight:600,color:t.textMuted,textTransform:"uppercase"}}>{new Date(m.date).toLocaleDateString("en-IN",{month:"short"})}</div>
                 </div>
                 <div>
@@ -487,7 +497,7 @@ function Dashboard({t,data,go}){
         </Card>
         <Card t={t} style={{animation:"fadeUp .4s .3s both"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <h3 style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:t.text,margin:0}}>Needs Approval</h3>
+            <h3 style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:14,color:t.text,margin:0}}>Needs Approval</h3>
             <button onClick={()=>go("leaves")} style={{fontSize:12,color:t.lime,background:"none",border:"none",cursor:"pointer",fontWeight:600,display:"flex",alignItems:"center",gap:4}}>Review <ArrowRight size={12}/></button>
           </div>
           {[...data.leaves.filter(l=>l.status==="Pending"),...data.tasks.filter(tk=>tk.extRequest?.status==="Pending")].length===0
@@ -879,7 +889,7 @@ Please open the app to accept or reject.
           <div style={{padding:"13px 15px",background:t.surfaceAlt,borderRadius:12,marginBottom:14}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
               <span style={{fontSize:12,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Time Budget</span>
-              <span style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:15,color:sel.logged>sel.est?t.red:t.green}}>{sel.logged}h / {sel.est}h</span>
+              <span style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:15,color:sel.logged>sel.est?t.red:t.green}}>{sel.logged}h / {sel.est}h</span>
             </div>
             <PBar value={sel.logged} max={Math.max(sel.est,sel.logged,1)} color={sel.logged>sel.est?"red":"lime"} t={t}/>
           </div>
@@ -943,7 +953,7 @@ Please open the app to accept or reject.
           </div>
           {showExt&&(
             <div style={{marginTop:14,padding:"14px 16px",background:t.surfaceAlt,borderRadius:12,border:`1px solid ${t.border}`}}>
-              <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:t.text,marginBottom:12}}>Request Deadline Extension</div>
+              <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:14,color:t.text,marginBottom:12}}>Request Deadline Extension</div>
               <Field label="Reason *" t={t}><Tex value={extForm.reason} onChange={e=>setExtForm(p=>({...p,reason:e.target.value}))} placeholder="Why is an extension needed?" t={t} rows={2}/></Field>
               <Field label="New Deadline you are requesting *" t={t}><Inp type="date" value={extForm.newDue} onChange={e=>setExtForm(p=>({...p,newDue:e.target.value}))} t={t}/></Field>
               <div style={{display:"flex",gap:8}}>
@@ -1110,7 +1120,7 @@ function TimeLogs({t,data,setData,toast}){
 
       {/* SECTION 1: Who's Logged What — member breakdown */}
       <Card t={t} style={{marginBottom:16,animation:"fadeUp .4s .05s both"}}>
-        <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:15,color:t.text,marginBottom:4}}>Hours by Member</div>
+        <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:15,color:t.text,marginBottom:4}}>Hours by Member</div>
         <div style={{fontSize:12,color:t.textMuted,marginBottom:16}}>How many hours each person has logged in total</div>
         {perMember.length===0&&<p style={{fontSize:13,color:t.textMuted}}>No members yet.</p>}
         {perMember.map((m,i)=>(
@@ -1123,7 +1133,7 @@ function TimeLogs({t,data,setData,toast}){
                   <div style={{fontSize:11,color:t.textMuted}}>{m.role} · {m.activeTasks} active task{m.activeTasks!==1?"s":""} · {m.logCount} log entr{m.logCount===1?"y":"ies"}</div>
                 </div>
               </div>
-              <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:22,color:t.lime}}>{m.hrs}<span style={{fontSize:13,fontWeight:500,color:t.textMuted}}> hrs</span></div>
+              <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:22,color:t.lime}}>{m.hrs}<span style={{fontSize:13,fontWeight:500,color:t.textMuted}}> hrs</span></div>
             </div>
             <PBar value={m.hrs} max={Math.max(...perMember.map(x=>x.hrs),1)} color="lime" t={t} h={4} delay={i*45} showPct={false}/>
           </div>
@@ -1132,7 +1142,7 @@ function TimeLogs({t,data,setData,toast}){
 
       {/* SECTION 2: Task Performance Grades */}
       <Card t={t} style={{marginBottom:16,animation:"fadeUp .4s .1s both"}}>
-        <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:15,color:t.text,marginBottom:4}}>Task Time Performance</div>
+        <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:15,color:t.text,marginBottom:4}}>Task Time Performance</div>
         <div style={{fontSize:12,color:t.textMuted,marginBottom:16}}>How much time was used vs estimated — graded after completion</div>
         {taskSummary.length===0&&<p style={{fontSize:13,color:t.textMuted}}>No tasks with time estimates yet.</p>}
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -1163,7 +1173,7 @@ function TimeLogs({t,data,setData,toast}){
       <Card t={t} style={{animation:"fadeUp .4s .15s both"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
           <div>
-            <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:15,color:t.text,marginBottom:2}}>All Log Entries</div>
+            <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:15,color:t.text,marginBottom:2}}>All Log Entries</div>
             <div style={{fontSize:12,color:t.textMuted}}>{logs.length} entr{logs.length===1?"y":"ies"} · {totalHrs}h total shown</div>
           </div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -1190,7 +1200,7 @@ function TimeLogs({t,data,setData,toast}){
                   <Av init={data.users.find(u=>u.id===log.uId)?.av||"?"} size={22} t={t}/>
                   <span style={{fontSize:12,color:t.textMid}}>{uName(log.uId).split(" ")[0]}</span>
                 </div>
-                <span style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:18,color:t.lime}}>{log.hrs}<span style={{fontSize:11,color:t.textMuted,fontWeight:400}}>h</span></span>
+                <span style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:18,color:t.lime}}>{log.hrs}<span style={{fontSize:11,color:t.textMuted,fontWeight:400}}>h</span></span>
                 <span style={{fontSize:11,color:t.textMuted}}>{log.date?fd(log.date):"—"}</span>
                 <span style={{fontSize:11,color:t.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{log.note||""}</span>
                 {log.auto
@@ -1265,7 +1275,7 @@ function Efficiency({t,data}){
         <StatCard label="Studio Score" value={`${perf}%`} icon={Award}    color={perf>=80?"lime":perf>=65?"amber":"red"} t={t} delay={150}/>
       </div>
       <Card t={t} style={{animation:"fadeUp .4s .14s both"}}>
-        <h3 style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:16,color:t.text,marginBottom:22}}>Individual Performance</h3>
+        <h3 style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:16,color:t.text,marginBottom:22}}>Individual Performance</h3>
         {pp.map((p,i)=>(
           <div key={p.id} style={{animation:`fadeUp .32s ${i*50}ms both`,marginBottom:i<pp.length-1?22:0}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
@@ -1273,7 +1283,7 @@ function Efficiency({t,data}){
                 <Av init={p.av} size={40} t={t}/>
                 <div><div style={{fontSize:14,fontWeight:700,color:t.text}}>{p.name}</div><div style={{fontSize:11,color:t.textMuted,marginTop:2}}>{p.assigned} tasks · {p.done} done · {p.late} delayed</div></div>
               </div>
-              <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:32,color:p.perf>=80?t.lime:p.perf>=60?t.amber:t.red,lineHeight:1}}>{p.perf}%</div>
+              <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:32,color:p.perf>=80?t.lime:p.perf>=60?t.amber:t.red,lineHeight:1}}>{p.perf}%</div>
             </div>
             <PBar value={p.perf} max={100} color={p.perf>=80?"lime":p.perf>=60?"amber":"red"} t={t} delay={i*70}/>
             {i<pp.length-1&&<div style={{height:1,background:t.border,marginTop:20}}/>}
@@ -1340,14 +1350,14 @@ function Clients({t,data,setData,toast,currentUser}){
             </div>}
             <div onClick={()=>{setSel(c);setPocTab(false);}} style={{cursor:"pointer"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-                <div><div style={{fontSize:15,fontWeight:700,color:t.text,fontFamily:"'Poppins',sans-serif"}}>{c.name}</div><div style={{fontSize:11,color:t.textMuted,marginTop:2}}>{c.industry}</div></div>
-                {(isFounder||isHoD)&&<div style={{textAlign:"right"}}><div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:26,lineHeight:1,color:c.score>=80?t.lime:c.score>=65?t.amber:t.red}}>{c.score}%</div><div style={{fontSize:9,color:t.textMuted,fontWeight:600,textTransform:"uppercase"}}>happiness</div></div>}
+                <div><div style={{fontSize:15,fontWeight:700,color:t.text,fontFamily:"'Inter',sans-serif"}}>{c.name}</div><div style={{fontSize:11,color:t.textMuted,marginTop:2}}>{c.industry}</div></div>
+                {(isFounder||isHoD)&&<div style={{textAlign:"right"}}><div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:26,lineHeight:1,color:c.score>=80?t.lime:c.score>=65?t.amber:t.red}}>{c.score}%</div><div style={{fontSize:9,color:t.textMuted,fontWeight:600,textTransform:"uppercase"}}>happiness</div></div>}
               </div>
               {(isFounder||isHoD)&&<PBar value={c.score} max={100} color={c.score>=80?"lime":c.score>=65?"amber":"red"} t={t} delay={i*70}/>}
               <div style={{display:"flex",justifyContent:"space-around",marginTop:12,paddingTop:10,borderTop:`1px solid ${t.border}`}}>
                 {[["On Time",c.met,"lime"],["Missed",c.missed,"red"],["POCs",(c.pocs||[]).length,"blue"]].map(([l,v,c2])=>(
                   <div key={l} style={{textAlign:"center"}}>
-                    <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:20,color:t[c2]}}>{v}</div>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:20,color:t[c2]}}>{v}</div>
                     <div style={{fontSize:9,color:t.textMuted,textTransform:"uppercase",fontWeight:600}}>{l}</div>
                   </div>
                 ))}
@@ -1547,13 +1557,13 @@ function Meetings({t,data,setData,toast,currentUser}){
             <div key={m.id} className="hover-lift" onClick={()=>{setSel(m);setMomText(m.mom||"");setEditingMom(false);}}
               style={{display:"flex",background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden",cursor:"pointer",animation:`fadeUp .32s ${i*38}ms both`,boxShadow:`0 1px 4px ${t.shadow}`}}>
               <div style={{width:72,flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"14px 8px",background:isPast?t.surfaceAlt:t.limeBg,borderRight:`1px solid ${t.border}`}}>
-                <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:26,color:isPast?t.textMuted:t.limeDeep,lineHeight:1}}>{d.getDate()}</div>
+                <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:26,color:isPast?t.textMuted:t.limeDeep,lineHeight:1}}>{d.getDate()}</div>
                 <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",color:isPast?t.textMuted:t.limeDeep,letterSpacing:"0.06em"}}>{d.toLocaleDateString("en-IN",{month:"short"})}</div>
                 <div style={{fontSize:10,color:isPast?t.textMuted:t.limeDeep,marginTop:3}}>{m.time}</div>
               </div>
               <div style={{flex:1,padding:"14px 18px",display:"flex",alignItems:"center",gap:16}}>
                 <div style={{flex:1}}>
-                  <div style={{fontSize:14,fontWeight:700,color:t.text,fontFamily:"'Poppins',sans-serif"}}>{cName(m.cId)}</div>
+                  <div style={{fontSize:14,fontWeight:700,color:t.text,fontFamily:"'Inter',sans-serif"}}>{cName(m.cId)}</div>
                   <div style={{fontSize:12,color:t.textMuted,marginTop:3,display:"flex",alignItems:"center",gap:6}}><MapPin size={11}/>{m.loc||"TBD"}</div>
                   <div style={{fontSize:12,color:t.textMid,marginTop:4,lineHeight:1.4}}>{m.agenda}</div>
                   {(m.attendees||[]).length>0&&<div style={{display:"flex",gap:4,marginTop:6,flexWrap:"wrap"}}>{(m.attendees||[]).slice(0,4).map(uid=>{const u=data.users.find(x=>x.id===uid);return u?<Av key={uid} init={u.av} size={20} t={t}/>:null;})}{(m.attendees||[]).length>4&&<span style={{fontSize:10,color:t.textMuted}}>+{(m.attendees||[]).length-4}</span>}</div>}
@@ -1805,7 +1815,7 @@ function Leaves({t,data,setData,toast,currentUser}){
               </div>
               <div style={{display:"flex",justifyContent:"space-around",textAlign:"center",marginBottom:10}}>
                 {[["Taken",bal.taken,t.textMid],["Left",Math.max(0,avail),exhausted?t.red:warn20?t.amber:t.lime],["Total",bal.total,t.textMuted]].map(([l,v,c])=>(
-                  <div key={l}><div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:18,color:c}}>{v}</div><div style={{fontSize:9,textTransform:"uppercase",color:t.textMuted,fontWeight:600}}>{l}</div></div>
+                  <div key={l}><div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:18,color:c}}>{v}</div><div style={{fontSize:9,textTransform:"uppercase",color:t.textMuted,fontWeight:600}}>{l}</div></div>
                 ))}
               </div>
               <PBar value={bal.taken} max={bal.total} color={exhausted?"red":warn20?"amber":"lime"} t={t} h={4} delay={0} showPct={false}/>
@@ -1818,7 +1828,7 @@ function Leaves({t,data,setData,toast,currentUser}){
 
       {/* Leave list */}
       <Card t={t} style={{animation:"fadeUp .4s .18s both"}}>
-        <h3 style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:t.text,marginBottom:14,textTransform:"uppercase",letterSpacing:"0.06em"}}>Leave Requests</h3>
+        <h3 style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:14,color:t.text,marginBottom:14,textTransform:"uppercase",letterSpacing:"0.06em"}}>Leave Requests</h3>
         {data.leaves.map((lv,i)=>{
           const u=data.users.find(u=>u.id===lv.uId);
           return(
@@ -1877,7 +1887,7 @@ function Leaves({t,data,setData,toast,currentUser}){
             <div style={{display:"flex",gap:12,marginBottom:16}}>
               {[["Taken",bal.taken,t.textMid],["Remaining",Math.max(0,avail),avail>0?t.lime:t.red],["Total",bal.total,t.textMuted]].map(([l,v,c])=>(
                 <div key={l} style={{flex:1,textAlign:"center",padding:"12px 8px",background:t.surfaceAlt,borderRadius:12,border:`1px solid ${t.border}`}}>
-                  <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:22,color:c}}>{v}</div>
+                  <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:22,color:c}}>{v}</div>
                   <div style={{fontSize:10,textTransform:"uppercase",color:t.textMuted,fontWeight:600,marginTop:2}}>{l}</div>
                 </div>
               ))}
@@ -1969,12 +1979,12 @@ function Departments({t,data,setData,toast}){
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:18,paddingBottom:16,borderBottom:`1px solid ${t.border}`}}>
                 <div style={{display:"flex",alignItems:"center",gap:12}}>
                   <div style={{width:44,height:44,borderRadius:12,background:dept.color+"22",display:"flex",alignItems:"center",justifyContent:"center"}}><Building2 size={20} color={dept.color}/></div>
-                  <div><div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:17,color:t.text}}>{dept.name}</div><div style={{fontSize:12,color:t.textMuted,marginTop:2}}>{members.length} members · {dTasks.length} tasks</div></div>
+                  <div><div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:17,color:t.text}}>{dept.name}</div><div style={{fontSize:12,color:t.textMuted,marginTop:2}}>{members.length} members · {dTasks.length} tasks</div></div>
                 </div>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
                   {[["Tasks",dTasks.length,"text"],["Done",dTasks.filter(tk=>tk.status==="Completed").length,"lime"],["Active",dTasks.filter(tk=>tk.status==="In Progress").length,"blue"]].map(([l,v,c])=>(
                     <div key={l} style={{textAlign:"center",padding:"8px 14px",background:t.surfaceAlt,borderRadius:10}}>
-                      <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:20,color:t[c]}}>{v}</div>
+                      <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:20,color:t[c]}}>{v}</div>
                       <div style={{fontSize:9,textTransform:"uppercase",color:t.textMuted,fontWeight:600}}>{l}</div>
                     </div>
                   ))}
@@ -2106,7 +2116,7 @@ function Team({t,data,setData,toast}){
                 <div style={{display:"flex",alignItems:"center",gap:14}}>
                   <div style={{position:"relative"}}><Av init={m.av} size={46} t={t} online={m.active}/>{isBday&&<div style={{position:"absolute",top:-4,right:-4,fontSize:14}}>🎂</div>}</div>
                   <div>
-                    <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:15,color:t.text,display:"flex",alignItems:"center",gap:8}}>{m.name}{isBday&&<Badge label="Birthday Today!" color="amber" t={t} small/>}</div>
+                    <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:15,color:t.text,display:"flex",alignItems:"center",gap:8}}>{m.name}{isBday&&<Badge label="Birthday Today!" color="amber" t={t} small/>}</div>
                     <div style={{fontSize:12,color:t.textMuted,marginTop:3,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
                       <span style={{color:deptColor(m.dept),fontWeight:600}}>{deptName(m.dept)}</span>
                       <span>{m.role}</span>
@@ -2119,7 +2129,7 @@ function Team({t,data,setData,toast}){
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
                   {[["Tasks",tasks.length,"text"],["Done",tasks.filter(tk=>tk.status==="Completed").length,"lime"],["Delayed",tasks.filter(tk=>tk.status==="Delayed").length,"red"]].map(([l,v,c])=>(
                     <div key={l} style={{textAlign:"center",padding:"7px 12px",background:t.surfaceAlt,borderRadius:10}}>
-                      <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:18,color:t[c]}}>{v}</div>
+                      <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:18,color:t[c]}}>{v}</div>
                       <div style={{fontSize:9,textTransform:"uppercase",color:t.textMuted,fontWeight:600}}>{l}</div>
                     </div>
                   ))}
@@ -2306,7 +2316,7 @@ function BoardView({t,data,setData,toast,currentUser}){
           {taskForSel.est>0&&<div style={{padding:"11px 14px",background:t.surfaceAlt,borderRadius:10,marginBottom:14}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
               <span style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Time Budget</span>
-              <span style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:taskForSel.logged>taskForSel.est?t.red:t.green}}>{taskForSel.logged}h / {taskForSel.est}h</span>
+              <span style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:14,color:taskForSel.logged>taskForSel.est?t.red:t.green}}>{taskForSel.logged}h / {taskForSel.est}h</span>
             </div>
             <PBar value={taskForSel.logged} max={Math.max(taskForSel.est,taskForSel.logged,1)} color={taskForSel.logged>taskForSel.est?"red":"lime"} t={t}/>
           </div>}
@@ -2468,7 +2478,7 @@ function CalendarView({t,data,go}){
       {/* Month nav */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <button onClick={()=>setMonth(d=>{const n=new Date(d);n.setMonth(n.getMonth()-1);return n;})} style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:9,padding:"7px 13px",cursor:"pointer",color:t.text,fontSize:13,fontWeight:600,display:"flex",alignItems:"center"}}><ChevronLeft size={14}/></button>
-        <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:17,color:t.text}}>{month.toLocaleString("en-IN",{month:"long",year:"numeric"})}</div>
+        <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:17,color:t.text}}>{month.toLocaleString("en-IN",{month:"long",year:"numeric"})}</div>
         <button onClick={()=>setMonth(d=>{const n=new Date(d);n.setMonth(n.getMonth()+1);return n;})} style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:9,padding:"7px 13px",cursor:"pointer",color:t.text,fontSize:13,fontWeight:600,display:"flex",alignItems:"center"}}><ChevronRight size={14}/></button>
       </div>
       {/* Day headers */}
@@ -2505,7 +2515,7 @@ function CalendarView({t,data,go}){
         return(
           <div style={{marginTop:16,padding:"16px 18px",background:t.surfaceAlt,borderRadius:14,border:`1px solid ${t.border}`,animation:"fadeUp .25s both"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:t.text}}>{dObj.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div>
+              <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:14,color:t.text}}>{dObj.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div>
               <button onClick={()=>setSelDay(null)} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted}}><X size={14}/></button>
             </div>
             {dayEvs.length===0&&<div style={{fontSize:13,color:t.textMuted}}>Nothing scheduled.</div>}
@@ -2592,7 +2602,7 @@ function Notifications({t,data,setData,go,currentUser}){
           const unreadCnt=tb.id==="all"?unread:sorted.filter(n=>getMeta(n.type).cat===tb.id&&!n.read).length;
           const active=tab===tb.id;
           return(
-            <button key={tb.id} onClick={()=>setTab(tb.id)} style={{flexShrink:0,display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:99,border:active?`1.5px solid ${t.lime}`:`1.5px solid ${t.border}`,background:active?t.lime:"transparent",color:active?"#0A0A0A":t.textMid,fontSize:12,fontWeight:700,cursor:"pointer",transition:"all .18s cubic-bezier(.34,1.56,.64,1)",fontFamily:"'DM Sans',sans-serif"}}>
+            <button key={tb.id} onClick={()=>setTab(tb.id)} style={{flexShrink:0,display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:99,border:active?`1.5px solid ${t.lime}`:`1.5px solid ${t.border}`,background:active?t.lime:"transparent",color:active?"#0A0A0A":t.textMid,fontSize:12,fontWeight:700,cursor:"pointer",transition:"all .18s cubic-bezier(.34,1.56,.64,1)",fontFamily:"'Inter',sans-serif"}}>
               <span>{tb.emoji}</span>
               <span>{tb.label}</span>
               {cnt>0&&<span style={{background:active?"rgba(0,0,0,0.18)":unreadCnt>0?t.lime:t.surfaceAlt,color:active?"#0A0A0A":unreadCnt>0?"#0A0A0A":t.textMuted,borderRadius:99,fontSize:10,fontWeight:800,padding:"1px 6px",minWidth:18,textAlign:"center"}}>{cnt}</span>}
@@ -2698,13 +2708,13 @@ function Onboarding({t,data,setData,toast,currentUser}){
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
                       <Av init={(ob.name||"?")[0]} size={36} t={t}/>
                       <div>
-                        <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:t.text}}>{ob.name}</div>
+                        <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:14,color:t.text}}>{ob.name}</div>
                         <div style={{fontSize:11,color:t.textMuted,marginTop:1}}>{ob.designation||""}{ob.designation&&ob.dept?" · ":""}{data.departments.find(d=>d.id===ob.dept)?.name||""}</div>
                         {ob.startDate&&<div style={{fontSize:11,color:t.textMuted,marginTop:1}}>Starts {fdt(ob.startDate)}</div>}
                       </div>
                     </div>
                     <div style={{textAlign:"right"}}>
-                      <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:26,color:pct===100?t.lime:t.text,lineHeight:1}}>{pct}%</div>
+                      <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:26,color:pct===100?t.lime:t.text,lineHeight:1}}>{pct}%</div>
                       <div style={{fontSize:9,color:t.textMuted,textTransform:"uppercase",fontWeight:600}}>{done}/{total}</div>
                     </div>
                   </div>
@@ -2791,7 +2801,7 @@ function LoginScreen({onLogin}){
     }catch(e){setErr("Couldn't send reset email. Check the address.");}
   };
 
-  const inp={width:"100%",padding:"12px 14px",background:"rgba(255,255,255,0.06)",border:"1.5px solid rgba(181,211,52,0.2)",borderRadius:10,color:"#FAFAFA",fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif",transition:"border-color .15s"};
+  const inp={width:"100%",padding:"12px 14px",background:"rgba(255,255,255,0.06)",border:"1.5px solid rgba(181,211,52,0.2)",borderRadius:10,color:"#FAFAFA",fontSize:13,outline:"none",fontFamily:"'Inter',sans-serif",transition:"border-color .15s"};
 
   return(
     <>
@@ -2811,7 +2821,7 @@ function LoginScreen({onLogin}){
             <div style={{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:10}}>
               <PPLogo collapsed={false}/>
             </div>
-            <div style={{fontSize:11,color:"rgba(250,250,250,0.4)",letterSpacing:"0.14em",textTransform:"uppercase",fontFamily:"'DM Sans',sans-serif"}}>Studio OS · Sign In</div>
+            <div style={{fontSize:11,color:"rgba(250,250,250,0.4)",letterSpacing:"0.14em",textTransform:"uppercase",fontFamily:"'Inter',sans-serif"}}>Studio OS · Sign In</div>
           </div>
 
           {/* Card */}
@@ -2830,21 +2840,21 @@ function LoginScreen({onLogin}){
             </div>}
 
             {!showReset
-              ?<button onClick={login} disabled={loading} style={{width:"100%",padding:"13px",background:lime,border:"none",borderRadius:10,fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:14,color:"#0A0A0A",cursor:"pointer",transition:"opacity .15s",opacity:loading?0.7:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+              ?<button onClick={login} disabled={loading} style={{width:"100%",padding:"13px",background:lime,border:"none",borderRadius:10,fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:14,color:"#0A0A0A",cursor:"pointer",transition:"opacity .15s",opacity:loading?0.7:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                 {loading?<><div style={{width:16,height:16,border:"2px solid #0A0A0A33",borderTopColor:"#0A0A0A",borderRadius:"50%",animation:"spin .7s linear infinite"}}/> Signing in…</>:"Sign In →"}
               </button>
-              :<button onClick={sendReset} style={{width:"100%",padding:"13px",background:"rgba(181,211,52,0.12)",border:`1.5px solid rgba(181,211,52,0.3)`,borderRadius:10,fontFamily:"'Poppins',sans-serif",fontWeight:600,fontSize:13,color:lime,cursor:"pointer"}}>
+              :<button onClick={sendReset} style={{width:"100%",padding:"13px",background:"rgba(181,211,52,0.12)",border:`1.5px solid rgba(181,211,52,0.3)`,borderRadius:10,fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,color:lime,cursor:"pointer"}}>
                 Send Reset Link →
               </button>}
 
             <div style={{textAlign:"center",marginTop:14}}>
-              <button onClick={()=>{setShowReset(s=>!s);setErr("");}} style={{background:"none",border:"none",cursor:"pointer",color:"rgba(250,250,250,0.3)",fontSize:12,textDecoration:"underline",fontFamily:"'DM Sans',sans-serif"}}>
+              <button onClick={()=>{setShowReset(s=>!s);setErr("");}} style={{background:"none",border:"none",cursor:"pointer",color:"rgba(250,250,250,0.3)",fontSize:12,textDecoration:"underline",fontFamily:"'Inter',sans-serif"}}>
                 {showReset?"← Back to sign in":"Forgot password?"}
               </button>
             </div>
           </div>
 
-          <p style={{textAlign:"center",marginTop:18,fontSize:12,color:"rgba(250,250,250,0.2)",fontFamily:"'DM Sans',sans-serif"}}>
+          <p style={{textAlign:"center",marginTop:18,fontSize:12,color:"rgba(250,250,250,0.2)",fontFamily:"'Inter',sans-serif"}}>
             New here? Ask your admin — you'll get an email invite.
           </p>
         </div>
@@ -3035,7 +3045,7 @@ function App({firebaseUid}){
         <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 60% 40% at 50% 30%,rgba(181,211,52,0.1),transparent)",pointerEvents:"none"}}/>
         <PPLogo collapsed={false}/>
         <div style={{width:48,height:48,border:`4px solid ${D.light.lime}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-        <p style={{fontFamily:"'Poppins',sans-serif",fontWeight:600,fontSize:14,color:"rgba(255,255,255,0.4)"}}>Loading your workspace…</p>
+        <p style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:14,color:"rgba(255,255,255,0.4)"}}>Loading your workspace…</p>
       </div>
       <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </>
@@ -3048,7 +3058,7 @@ function App({firebaseUid}){
       <div style={{height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:D.light.bg,gap:16,padding:24}}>
         <PPLogo collapsed={false}/>
         <div style={{marginTop:16,textAlign:"center",maxWidth:420}}>
-          <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:22,color:D.light.text,marginBottom:8}}>Welcome, Founder 👋</div>
+          <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:22,color:D.light.text,marginBottom:8}}>Welcome, Founder 👋</div>
           <div style={{fontSize:14,color:D.light.textMuted,lineHeight:1.7,marginBottom:24}}>You're logged in but no team profile exists yet. Go to the Admin panel to create your Founder profile, then refresh this page.</div>
           <a href="/admin.html" style={{display:"inline-flex",alignItems:"center",gap:8,padding:"12px 24px",background:D.light.lime,color:"#0A0A0A",borderRadius:10,fontWeight:700,fontSize:14,textDecoration:"none"}}>Open Admin Panel →</a>
           <div style={{marginTop:12}}><button onClick={()=>logoutUser()} style={{background:"none",border:"none",cursor:"pointer",color:D.light.textMuted,fontSize:12,textDecoration:"underline"}}>Sign out</button></div>
@@ -3066,7 +3076,7 @@ function App({firebaseUid}){
           <AlertTriangle size={28} color={D.light.amber}/>
         </div>
         <div style={{textAlign:"center",maxWidth:420}}>
-          <div style={{fontFamily:"'Poppins',sans-serif",fontWeight:800,fontSize:20,color:D.light.text,marginBottom:8}}>Profile Not Found</div>
+          <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:20,color:D.light.text,marginBottom:8}}>Profile Not Found</div>
           <div style={{fontSize:14,color:D.light.textMuted,lineHeight:1.7,marginBottom:8}}>You're signed in as <strong>{fbUser?.email}</strong>, but this email isn't linked to a team member profile.</div>
           <div style={{fontSize:13,color:D.light.textMuted,lineHeight:1.7,marginBottom:24}}>Ask your admin to create a profile for this email address, or check that you're using the correct email to sign in.</div>
           <button onClick={()=>logoutUser()} style={{display:"inline-flex",alignItems:"center",gap:8,padding:"11px 22px",background:D.light.text,color:D.light.bg,borderRadius:10,fontWeight:600,fontSize:14,border:"none",cursor:"pointer"}}>Sign Out & Try Again</button>
@@ -3082,7 +3092,7 @@ function App({firebaseUid}){
       <div style={{display:"flex",height:"100vh",overflow:"hidden",background:t.bg}}>
 
         {/* SIDEBAR */}
-        <aside className="sidebar-desktop" style={{width:side?224:62,flexShrink:0,background:t.sidebar,display:"flex",flexDirection:"column",transition:"width .3s cubic-bezier(.22,1,.36,1)",overflow:"hidden",boxShadow:"4px 0 24px rgba(0,0,0,0.15)"}}>
+        <aside className="sidebar-desktop" style={{width:side?224:62,flexShrink:0,background:t.sidebar,display:"flex",flexDirection:"column",transition:"width .3s cubic-bezier(.22,1,.36,1)",overflow:"hidden",borderRight:`1px solid rgba(255,255,255,0.05)`}}>
           <div style={{padding:side?"16px 14px 14px":"16px 0 14px",display:"flex",alignItems:"center",justifyContent:side?"space-between":"center",borderBottom:`1px solid ${t.sideHover}`,minHeight:64}}>
             <div style={{overflow:"hidden"}}><PPLogo collapsed={!side}/></div>
             <button onClick={()=>setSide(p=>!p)} style={{background:"none",border:"none",cursor:"pointer",padding:4,borderRadius:6,color:t.sideText,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color=t.sideText}>
@@ -3093,12 +3103,12 @@ function App({firebaseUid}){
             {NAV.filter(n=>n.roles==="all"||(n.roles==="manager"&&(isFounder||isHoD))||(n.roles==="founder"&&isFounder)).map(({id,label,Icon},i)=>{
               const active=nav===id,b=badge(id);
               return(
-                <button key={id} onClick={()=>go(id)} title={!side?label:""} style={{width:"100%",display:"flex",alignItems:"center",gap:side?11:0,justifyContent:side?"flex-start":"center",padding:side?"9px 12px":"11px 0",borderRadius:12,border:"none",background:active?t.sideActive+"22":"transparent",color:active?t.sideActive:t.sideText,fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:active?700:400,cursor:"pointer",marginBottom:2,position:"relative",transition:"all .2s cubic-bezier(.34,1.56,.64,1)",animation:`fadeUp .28s ${i*18}ms both`,whiteSpace:"nowrap",overflow:"hidden"}}
-                  onMouseEnter={e=>{if(!active){e.currentTarget.style.background=t.sideHover;e.currentTarget.style.color="#FAFAFA";}}}
+                <button key={id} onClick={()=>go(id)} title={!side?label:""} style={{width:"100%",display:"flex",alignItems:"center",gap:side?10:0,justifyContent:side?"flex-start":"center",padding:side?"7px 10px":"10px 0",borderRadius:8,border:"none",background:active?"rgba(255,255,255,0.06)":"transparent",color:active?"#ffffff":t.sideText,fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:active?500:400,cursor:"pointer",marginBottom:1,position:"relative",transition:"background 0.15s ease,color 0.15s ease",animation:`fadeUp .3s ease ${i*20}ms both`,whiteSpace:"nowrap",overflow:"hidden"}}
+                  onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.04)";e.currentTarget.style.color="#e4e4e7";}}}
                   onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.sideText;}}}>
-                  {active&&<div style={{position:"absolute",left:0,top:"20%",bottom:"20%",width:3,borderRadius:"0 3px 3px 0",background:t.sideActive}}/>}
+                  {active&&<div style={{position:"absolute",left:0,top:"20%",bottom:"20%",width:2,borderRadius:"0 2px 2px 0",background:"#a8c400"}}/>}
                   <div style={{position:"relative",flexShrink:0}}>
-                    <Icon size={17} strokeWidth={active?2.2:1.7}/>
+                    <Icon size={17} strokeWidth={1.5}/>
                     {b>0&&<span style={{position:"absolute",top:-6,right:-6,minWidth:15,height:15,borderRadius:99,background:t.sideActive,color:"#0A0A0A",fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",animation:"notifPop .5s cubic-bezier(.22,1,.36,1)"}}>{b}</span>}
                   </div>
                   {side&&<span style={{flex:1,textAlign:"left"}}>{label}</span>}
@@ -3141,8 +3151,8 @@ function App({firebaseUid}){
         </nav>
         {/* MAIN */}
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
-          <header style={{height:56,background:t.topbar,borderBottom:`1px solid ${t.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 22px",flexShrink:0}}>
-            <div className="topbar-title" style={{fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:12,color:t.textMuted,letterSpacing:"0.08em",textTransform:"uppercase"}}>{NAV.find(n=>n.id===nav)?.label}</div>
+          <header style={{height:52,background:t.topbar,borderBottom:`1px solid ${t.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 24px",flexShrink:0}}>
+            <div className="topbar-title" style={{fontFamily:"'Inter',sans-serif",fontWeight:500,fontSize:13,color:t.textMuted,letterSpacing:"0"}}>{NAV.find(n=>n.id===nav)?.label}</div>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <button onClick={()=>go("notifications")} style={{position:"relative",background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:12,width:38,height:38,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted,transition:"all .2s cubic-bezier(.34,1.56,.64,1)"}} className="btn-fun" onMouseEnter={e=>{e.currentTarget.style.background=t.hover;}} onMouseLeave={e=>{e.currentTarget.style.background=t.surfaceAlt;}}>
                 <Bell size={15}/>
@@ -3154,7 +3164,7 @@ function App({firebaseUid}){
               </button>
             </div>
           </header>
-          <main key={pageKey} className="main-pad" style={{flex:1,overflow:"auto",padding:"24px 26px",paddingBottom:"calc(24px + env(safe-area-inset-bottom))",animation:"fadeUp .3s cubic-bezier(.22,1,.36,1) both"}}>
+          <main key={pageKey} className="main-pad" style={{flex:1,overflow:"auto",padding:"28px 32px",paddingBottom:"calc(28px + env(safe-area-inset-bottom))",animation:"fadeUp .25s ease both"}}>
             <PageTip nav={nav} t={t}/>
             {pages[nav]}
           </main>
