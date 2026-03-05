@@ -14,7 +14,7 @@ import {
 // ── EMAIL via Resend ─────────────────────────────────────────────────────────
 // Get free API key at resend.com (3000 emails/month free)
 // Add your key below and set the from address to a verified domain/email.
-const // Email via /api/send-email (Vercel serverless)
+// Email via /api/send-email (Vercel serverless)
 async function sendEmail(to_email, to_name, subject, message){
   if(!to_email) return;
   try{
