@@ -340,6 +340,8 @@ const PAGE_TIPS={
   dashboard:{title:"Dashboard",tip:"This is your mission control. See all active tasks, pending leaves, upcoming deadlines, and team performance at a glance. Click any item to jump straight to it."},
   projects:{title:"Projects",tip:"All tasks live here. Create a task, assign it to a team member, set a deadline, and add asset links. Click 'Start Task' on a task to begin time tracking automatically. The Founder can skip setting a deadline and let the HoD propose one."},
   board:{title:"My Board",tip:"A Kanban view of all tasks grouped by status. Drag cards across columns to update task status instantly. Great for a quick daily standup view."},
+  clientboard:{title:"Client Board",tip:"Tasks grouped by client. Each column is a client — see all work in progress per client at a glance. Click any card for full details."},
+  allotedboard:{title:"Allotted by Me",tip:"Tasks you have personally assigned to team members, grouped by assignee. Track what each person is working on that you gave them."},
   calendar:{title:"Calendar",tip:"See all task deadlines, approved leaves, and company holidays in one place. Toggle between Tasks, Leaves, and Holidays using the filter buttons."},
   timelogs:{title:"Time Logs",tip:"Track how many hours the team spends on each task. Time is auto-logged when you start a task in Projects. You can also add manual log entries here. Each task gets a performance grade once completed."},
   efficiency:{title:"Deadline Efficiency",tip:"See how well the team meets deadlines, broken down by person. Filter by department or client to drill down into performance data."},
@@ -743,7 +745,7 @@ Please open the app to accept or reject.
     if(!form.title||!form.cId||!form.aId){toast("Fill required fields","error");return;}
     const id="t"+Date.now();
     const noDeadline=form.noDeadline||!form.due;
-    const newTask={...form,id,status:"Not Started",logged:0,startedAt:null,created:new Date().toISOString().split("T")[0],extRequest:null,est:parseInt(form.est)||0,assetLinks:form.assetLinks.filter(l=>l.trim()),awaitingDeadline:noDeadline,due:form.due||"",comments:[]};
+    const newTask={...form,id,status:"Not Started",logged:0,startedAt:null,created:new Date().toISOString().split("T")[0],extRequest:null,est:parseInt(form.est)||0,assetLinks:form.assetLinks.filter(l=>l.trim()),awaitingDeadline:noDeadline,due:form.due||"",comments:[],createdBy:currentUser?.id||""};
     setData(d=>{
       const assignee=d.users.find(u=>u.id===form.aId);
       const dept=d.departments.find(dep=>dep.id===form.deptId);
@@ -2398,6 +2400,306 @@ function BoardView({t,data,setData,toast,currentUser}){
   );
 }
 
+// ── CLIENT BOARD ─────────────────────────────────────────────────────────────
+function ClientBoard({t,data,setData,toast,currentUser}){
+  const [sel,setSel]=useState(null);
+  const [dragId,setDragId]=useState(null);
+  const [dragClient,setDragClient]=useState(null);
+  const STATUSES=["Not Started","In Progress","Review","Rework","Completed"];
+  const colColor={"Not Started":t.textMuted,"In Progress":t.blue,"Review":t.amber,"Rework":t.purple,"Completed":t.green};
+  const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
+  const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
+
+  // Group tasks by client
+  const clients=data.clients.filter(c=>data.tasks.some(tk=>tk.cId===c.id));
+  const unassigned=data.tasks.filter(tk=>!tk.cId||!data.clients.find(c=>c.id===tk.cId));
+
+  const moveTask=(taskId,newStatus)=>{
+    const task=data.tasks.find(t=>t.id===taskId);
+    if(!task)return;
+    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===taskId?{...tk,status:newStatus,startedAt:newStatus==="In Progress"&&!tk.startedAt?new Date().toISOString():tk.startedAt}:tk)}));
+    if(sel?.id===taskId) setSel(p=>({...p,status:newStatus}));
+  };
+
+  const taskForSel=sel?data.tasks.find(t=>t.id===sel.id)||sel:null;
+
+  const TaskCard=({task,statusColor})=>(
+    <div draggable
+      onDragStart={()=>{setDragId(task.id);setDragClient(task.cId||"__none__");}}
+      onClick={()=>setSel(task)}
+      style={{background:"#ffffff",border:"1px solid rgba(0,0,0,0.06)",borderRadius:10,padding:"10px 12px",cursor:"pointer",transition:"all .15s",userSelect:"none",position:"relative",marginBottom:6,...(t.dark?{background:t.card,border:`1px solid ${t.border}`}:{})}}
+      onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 2px 12px rgba(0,0,0,0.1)";e.currentTarget.style.transform="translateY(-1px)";}}
+      onMouseLeave={e=>{e.currentTarget.style.boxShadow="none";e.currentTarget.style.transform="none";}}>
+      <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,borderRadius:"10px 0 0 10px",background:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted}}/>
+      <div style={{paddingLeft:7}}>
+        <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:4,lineHeight:1.4}}>{task.title}</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
+          <div style={{display:"flex",alignItems:"center",gap:5}}>
+            <Av init={data.users.find(u=>u.id===task.aId)?.av||"?"} size={18} t={t}/>
+            <span style={{fontSize:11,color:t.textMuted}}>{uName(task.aId).split(" ")[0]}</span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:5}}>
+            {task.status==="In Progress"&&task.startedAt&&<div style={{width:5,height:5,borderRadius:"50%",background:t.lime,animation:"ping 1.5s ease-out infinite"}}/>}
+            <span style={{fontSize:10,color:isOverdue(task.due)&&task.status!=="Completed"?t.red:t.textMuted,fontWeight:500}}>{task.due?fd(task.due):"No date"}</span>
+          </div>
+        </div>
+        <div style={{marginTop:6}}><Badge label={task.status} color={{"Not Started":"muted","In Progress":"blue","Review":"amber","Rework":"purple","Completed":"green"}[task.status]||"muted"} t={t} small/></div>
+      </div>
+    </div>
+  );
+
+  const ClientSection=({client,tasks})=>{
+    const [collapsed,setCollapsed]=useState(false);
+    const byStatus=STATUSES.map(st=>({st,tasks:tasks.filter(tk=>tk.status===st)}));
+    const total=tasks.length,done=tasks.filter(tk=>tk.status==="Completed").length;
+    const pct=total>0?Math.round((done/total)*100):0;
+    return(
+      <div style={{marginBottom:28,animation:"fadeUp .28s ease both"}}>
+        {/* Client header */}
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12,cursor:"pointer"}} onClick={()=>setCollapsed(p=>!p)}>
+          <div style={{width:32,height:32,borderRadius:8,background:"rgba(132,204,22,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <Briefcase size={15} color="#84CC16" strokeWidth={1.5}/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:15,fontWeight:600,color:t.text,letterSpacing:"-0.01em"}}>{client.name}</span>
+              <span style={{fontSize:11,color:t.textMuted,background:t.surfaceAlt,borderRadius:99,padding:"1px 8px",fontWeight:500}}>{total} task{total!==1?"s":""}</span>
+              {done===total&&total>0&&<Badge label="All done" color="green" t={t} small/>}
+            </div>
+            <div style={{marginTop:5,display:"flex",alignItems:"center",gap:8}}>
+              <div style={{flex:1,height:3,background:"rgba(0,0,0,0.06)",borderRadius:99,maxWidth:160,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${pct}%`,background:"#84CC16",borderRadius:99,transition:"width .5s ease"}}/>
+              </div>
+              <span style={{fontSize:11,color:t.textMuted,fontWeight:500}}>{pct}% complete</span>
+            </div>
+          </div>
+          <div style={{color:t.textMuted,transition:"transform .2s ease",transform:collapsed?"rotate(-90deg)":"rotate(0deg)"}}>
+            <ChevronDown size={16} strokeWidth={1.5}/>
+          </div>
+        </div>
+
+        {!collapsed&&(
+          <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:8,alignItems:"flex-start"}}>
+            {byStatus.map(({st,tasks:stTasks})=>(
+              <div key={st} style={{minWidth:210,maxWidth:240,flexShrink:0,background:t.surfaceAlt,borderRadius:12,padding:"10px",borderTop:`3px solid ${colColor[st]}`,...(t.dark?{}:{background:"#f9fafb"})}}
+                onDragOver={e=>e.preventDefault()}
+                onDrop={e=>{e.preventDefault();if(dragId&&dragClient===(client.id||"__none__"))moveTask(dragId,st);setDragId(null);setDragClient(null);}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                  <span style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.06em",color:colColor[st]}}>{st}</span>
+                  <span style={{fontSize:10,fontWeight:600,color:t.textMuted,background:t.surface,borderRadius:99,padding:"1px 7px"}}>{stTasks.length}</span>
+                </div>
+                {stTasks.map(task=><TaskCard key={task.id} task={task} statusColor={colColor[st]}/>)}
+                {stTasks.length===0&&<div style={{fontSize:11,color:t.textMuted,textAlign:"center",padding:"12px 0",opacity:0.35,border:"1.5px dashed rgba(0,0,0,0.1)",borderRadius:8}}>Empty</div>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return(
+    <div>
+      <SHead t={t} title="Client Board" sub="All tasks grouped by client — drag to change status within a client"/>
+      {clients.length===0&&unassigned.length===0&&(
+        <Card t={t} style={{textAlign:"center",padding:"48px 20px"}}>
+          <Briefcase size={28} color={t.textMuted} strokeWidth={1.5} style={{margin:"0 auto 12px"}}/>
+          <div style={{fontSize:14,fontWeight:500,color:t.text,marginBottom:4}}>No tasks yet</div>
+          <div style={{fontSize:13,color:t.textMuted}}>Create tasks in Projects and assign them to clients to see them here.</div>
+        </Card>
+      )}
+      {clients.map(client=>(
+        <ClientSection key={client.id} client={client} tasks={data.tasks.filter(tk=>tk.cId===client.id)}/>
+      ))}
+      {unassigned.length>0&&(
+        <ClientSection client={{id:"__none__",name:"No Client Assigned"}} tasks={unassigned}/>
+      )}
+
+      {/* Task Detail Modal */}
+      {sel&&taskForSel&&(
+        <Modal open title={taskForSel.title} onClose={()=>setSel(null)} t={t} w={580} subtitle={`${cName(taskForSel.cId)} · ${uName(taskForSel.aId)}`}>
+          <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+            <Badge label={taskForSel.status} color={{"Not Started":"muted","In Progress":"blue","Review":"amber","Rework":"purple","Completed":"green"}[taskForSel.status]||"muted"} t={t}/>
+            <Badge label={taskForSel.priority||"Medium"} color={{"High":"red","Medium":"amber","Low":"green"}[taskForSel.priority]||"muted"} t={t}/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
+            {[["Deadline",taskForSel.due?fd(taskForSel.due):"TBD"],["Assignee",uName(taskForSel.aId)],["Client",cName(taskForSel.cId)||"—"]].map(([k,v])=>(
+              <div key={k} style={{padding:"9px 12px",background:t.surfaceAlt,borderRadius:9}}>
+                <div style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",color:t.textMuted,marginBottom:3}}>{k}</div>
+                <div style={{fontSize:13,color:t.text,fontWeight:500}}>{v}</div>
+              </div>
+            ))}
+          </div>
+          {taskForSel.brief&&<div style={{marginBottom:14,padding:"10px 14px",background:t.surfaceAlt,borderRadius:10}}>
+            <div style={{fontSize:10,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:5}}>Brief</div>
+            <p style={{fontSize:13,color:t.textMid,lineHeight:1.7,margin:0}}>{taskForSel.brief}</p>
+          </div>}
+          <div style={{borderTop:`1px solid ${t.border}`,paddingTop:12}}>
+            <div style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Move to</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {STATUSES.map(st=>{
+                const active=taskForSel.status===st;
+                return <button key={st} onClick={()=>moveTask(taskForSel.id,st)} style={{padding:"5px 12px",borderRadius:7,border:`1.5px solid ${active?colColor[st]:t.border}`,background:active?colColor[st]+"20":t.surfaceAlt,color:active?colColor[st]:t.textMuted,fontSize:12,fontWeight:active?600:400,cursor:"pointer",transition:"all .15s",display:"flex",alignItems:"center",gap:4}}>{active&&<Check size={10}/>}{st}</button>;
+              })}
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── ALLOTTED BY ME ────────────────────────────────────────────────────────────
+function AllotedBoard({t,data,setData,toast,currentUser}){
+  const [sel,setSel]=useState(null);
+  const [dragId,setDragId]=useState(null);
+  const [dragAssignee,setDragAssignee]=useState(null);
+  const STATUSES=["Not Started","In Progress","Review","Rework","Completed"];
+  const colColor={"Not Started":t.textMuted,"In Progress":t.blue,"Review":t.amber,"Rework":t.purple,"Completed":t.green};
+  const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
+  const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
+
+  // Tasks I (currentUser) created/assigned to others, grouped by assignee
+  const myTasks=data.tasks.filter(tk=>tk.createdBy===currentUser?.id&&tk.aId!==currentUser?.id);
+  // Also include tasks where createdBy is not set but I am the founder/hod (show all non-self tasks)
+  const isFounderLocal=currentUser?.role==="Founder"||currentUser?.role==="Admin";
+  const isHodLocal=currentUser?.role==="HoD"||currentUser?.role==="Head of Department"||currentUser?.role==="Manager";
+  // If no createdBy data, founders/HoDs see all tasks assigned to others in their dept
+  const visibleTasks=myTasks.length>0?myTasks:
+    (isFounderLocal||isHodLocal)?data.tasks.filter(tk=>tk.aId!==currentUser?.id):[];
+
+  const assignees=[...new Set(visibleTasks.map(tk=>tk.aId))].filter(Boolean);
+  const assigneeUsers=assignees.map(id=>data.users.find(u=>u.id===id)).filter(Boolean);
+
+  const moveTask=(taskId,newStatus)=>{
+    const task=data.tasks.find(t=>t.id===taskId);
+    if(!task)return;
+    setData(d=>({...d,tasks:d.tasks.map(tk=>tk.id===taskId?{...tk,status:newStatus,startedAt:newStatus==="In Progress"&&!tk.startedAt?new Date().toISOString():tk.startedAt}:tk)}));
+    if(sel?.id===taskId) setSel(p=>({...p,status:newStatus}));
+  };
+
+  const taskForSel=sel?data.tasks.find(t=>t.id===sel.id)||sel:null;
+
+  const TaskCard=({task})=>(
+    <div draggable
+      onDragStart={()=>{setDragId(task.id);setDragAssignee(task.aId);}}
+      onClick={()=>setSel(task)}
+      style={{background:"#ffffff",border:"1px solid rgba(0,0,0,0.06)",borderRadius:10,padding:"10px 12px",cursor:"pointer",transition:"all .15s",userSelect:"none",position:"relative",marginBottom:6,...(t.dark?{background:t.card,border:`1px solid ${t.border}`}:{})}}
+      onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 2px 12px rgba(0,0,0,0.1)";e.currentTarget.style.transform="translateY(-1px)";}}
+      onMouseLeave={e=>{e.currentTarget.style.boxShadow="none";e.currentTarget.style.transform="none";}}>
+      <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,borderRadius:"10px 0 0 10px",background:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted}}/>
+      <div style={{paddingLeft:7}}>
+        <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:3,lineHeight:1.4}}>{task.title}</div>
+        <div style={{fontSize:11,color:t.textMuted,marginBottom:5}}>{cName(task.cId)}</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <Badge label={task.status} color={{"Not Started":"muted","In Progress":"blue","Review":"amber","Rework":"purple","Completed":"green"}[task.status]||"muted"} t={t} small/>
+          <span style={{fontSize:10,color:isOverdue(task.due)&&task.status!=="Completed"?t.red:t.textMuted,fontWeight:500}}>{task.due?fd(task.due):"No date"}</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const MemberSection=({user,tasks})=>{
+    const [collapsed,setCollapsed]=useState(false);
+    const byStatus=STATUSES.map(st=>({st,tasks:tasks.filter(tk=>tk.status===st)}));
+    const done=tasks.filter(tk=>tk.status==="Completed").length;
+    const pct=tasks.length>0?Math.round((done/tasks.length)*100):0;
+    const inProg=tasks.filter(tk=>tk.status==="In Progress").length;
+    return(
+      <div style={{marginBottom:28,animation:"fadeUp .28s ease both"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12,cursor:"pointer"}} onClick={()=>setCollapsed(p=>!p)}>
+          <Av init={user.av||user.name?.charAt(0)||"?"} size={36} t={t}/>
+          <div style={{flex:1}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:15,fontWeight:600,color:t.text,letterSpacing:"-0.01em"}}>{user.name}</span>
+              <span style={{fontSize:11,color:t.textMuted,background:t.surfaceAlt,borderRadius:99,padding:"1px 8px",fontWeight:500}}>{tasks.length} task{tasks.length!==1?"s":""}</span>
+              {inProg>0&&<Badge label={`${inProg} active`} color="blue" t={t} small/>}
+              {pct===100&&tasks.length>0&&<Badge label="All done" color="green" t={t} small/>}
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}>
+              <span style={{fontSize:11,color:t.textMuted}}>{user.role}</span>
+              <span style={{fontSize:11,color:t.textMuted}}>·</span>
+              <div style={{flex:1,maxWidth:120,height:3,background:"rgba(0,0,0,0.06)",borderRadius:99,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${pct}%`,background:"#84CC16",borderRadius:99,transition:"width .5s ease"}}/>
+              </div>
+              <span style={{fontSize:11,color:t.textMuted,fontWeight:500}}>{pct}%</span>
+            </div>
+          </div>
+          <div style={{color:t.textMuted,transition:"transform .2s ease",transform:collapsed?"rotate(-90deg)":"rotate(0deg)"}}>
+            <ChevronDown size={16} strokeWidth={1.5}/>
+          </div>
+        </div>
+
+        {!collapsed&&(
+          <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:8,alignItems:"flex-start"}}>
+            {byStatus.map(({st,tasks:stTasks})=>(
+              <div key={st} style={{minWidth:210,maxWidth:240,flexShrink:0,background:t.surfaceAlt,borderRadius:12,padding:"10px",borderTop:`3px solid ${colColor[st]}`,...(t.dark?{}:{background:"#f9fafb"})}}
+                onDragOver={e=>e.preventDefault()}
+                onDrop={e=>{e.preventDefault();if(dragId&&dragAssignee===user.id)moveTask(dragId,st);setDragId(null);setDragAssignee(null);}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                  <span style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.06em",color:colColor[st]}}>{st}</span>
+                  <span style={{fontSize:10,fontWeight:600,color:t.textMuted,background:t.surface,borderRadius:99,padding:"1px 7px"}}>{stTasks.length}</span>
+                </div>
+                {stTasks.map(task=><TaskCard key={task.id} task={task}/>)}
+                {stTasks.length===0&&<div style={{fontSize:11,color:t.textMuted,textAlign:"center",padding:"12px 0",opacity:0.35,border:"1.5px dashed rgba(0,0,0,0.1)",borderRadius:8}}>Empty</div>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return(
+    <div>
+      <SHead t={t} title="Allotted by Me"
+        sub={visibleTasks.length>0?`${visibleTasks.length} task${visibleTasks.length!==1?"s":""} across ${assigneeUsers.length} team member${assigneeUsers.length!==1?"s":""}`:undefined}/>
+      {assigneeUsers.length===0&&(
+        <Card t={t} style={{textAlign:"center",padding:"48px 20px"}}>
+          <UserCircle size={28} color={t.textMuted} strokeWidth={1.5} style={{margin:"0 auto 12px"}}/>
+          <div style={{fontSize:14,fontWeight:500,color:t.text,marginBottom:4}}>Nothing allotted yet</div>
+          <div style={{fontSize:13,color:t.textMuted}}>Tasks you assign to team members will appear here, grouped by person.</div>
+        </Card>
+      )}
+      {assigneeUsers.map(user=>(
+        <MemberSection key={user.id} user={user} tasks={visibleTasks.filter(tk=>tk.aId===user.id)}/>
+      ))}
+
+      {/* Task Detail Modal */}
+      {sel&&taskForSel&&(
+        <Modal open title={taskForSel.title} onClose={()=>setSel(null)} t={t} w={580} subtitle={`${cName(taskForSel.cId)} · Assigned to ${uName(taskForSel.aId)}`}>
+          <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+            <Badge label={taskForSel.status} color={{"Not Started":"muted","In Progress":"blue","Review":"amber","Rework":"purple","Completed":"green"}[taskForSel.status]||"muted"} t={t}/>
+            <Badge label={taskForSel.priority||"Medium"} color={{"High":"red","Medium":"amber","Low":"green"}[taskForSel.priority]||"muted"} t={t}/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
+            {[["Deadline",taskForSel.due?fd(taskForSel.due):"TBD"],["Assignee",uName(taskForSel.aId)],["Client",cName(taskForSel.cId)||"—"]].map(([k,v])=>(
+              <div key={k} style={{padding:"9px 12px",background:t.surfaceAlt,borderRadius:9}}>
+                <div style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",color:t.textMuted,marginBottom:3}}>{k}</div>
+                <div style={{fontSize:13,color:t.text,fontWeight:500}}>{v}</div>
+              </div>
+            ))}
+          </div>
+          {taskForSel.brief&&<div style={{marginBottom:14,padding:"10px 14px",background:t.surfaceAlt,borderRadius:10}}>
+            <div style={{fontSize:10,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:5}}>Brief</div>
+            <p style={{fontSize:13,color:t.textMid,lineHeight:1.7,margin:0}}>{taskForSel.brief}</p>
+          </div>}
+          <div style={{borderTop:`1px solid ${t.border}`,paddingTop:12}}>
+            <div style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Move to</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {STATUSES.map(st=>{
+                const active=taskForSel.status===st;
+                return <button key={st} onClick={()=>moveTask(taskForSel.id,st)} style={{padding:"5px 12px",borderRadius:7,border:`1.5px solid ${active?colColor[st]:t.border}`,background:active?colColor[st]+"20":t.surfaceAlt,color:active?colColor[st]:t.textMuted,fontSize:12,fontWeight:active?600:400,cursor:"pointer",transition:"all .15s",display:"flex",alignItems:"center",gap:4}}>{active&&<Check size={10}/>}{st}</button>;
+              })}
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+
 // ── CALENDAR VIEW ─────────────────────────────────────────────────────────────
 function CalendarView({t,data,go}){
   const [month,setMonth]=useState(()=>new Date());
@@ -2766,6 +3068,8 @@ const NAV=[
   {id:"dashboard",    label:"Dashboard",      Icon:LayoutDashboard,  roles:"all"},
   {id:"projects",     label:"Projects",       Icon:FolderKanban,     roles:"all"},
   {id:"board",        label:"My Board",       Icon:KanbanSquare,     roles:"all"},
+  {id:"clientboard",  label:"Client Board",   Icon:Layers,           roles:"all"},
+  {id:"allotedboard", label:"Allotted by Me", Icon:UserCircle,       roles:"all"},
   {id:"calendar",     label:"Calendar",       Icon:Calendar,         roles:"all"},
   {id:"timelogs",     label:"Time Logs",      Icon:Clock3,           roles:"all"},
   {id:"efficiency",   label:"Efficiency",     Icon:TrendingUp,       roles:"manager"},
@@ -3030,6 +3334,8 @@ function App({firebaseUid}){
     dashboard:    <Dashboard    t={t} data={data} go={go} currentUser={currentUser}/>,
     projects:     <Projects     t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser} pendingTaskId={pendingTaskId} clearPendingTask={()=>setPendingTaskId(null)}/>,
     board:        <BoardView    t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
+    clientboard:  <ClientBoard  t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
+    allotedboard: <AllotedBoard t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
     calendar:     <CalendarView t={t} data={data} go={go}/>,
     timelogs:     <TimeLogs     t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
     efficiency:   <Efficiency   t={t} data={data} currentUser={currentUser}/>,
