@@ -87,17 +87,17 @@ input,select,textarea,button{font-family:'Inter',sans-serif;}
 // ── TOKENS ───────────────────────────────────────────────────────────────────
 const D = {
   light:{dark:false,
-    bg:"#F8F9FB",surface:"#ffffff",surfaceAlt:"#f5f5f5",hover:"#f0f0f0",
-    border:"rgba(0,0,0,0.06)",borderMid:"rgba(0,0,0,0.1)",
-    text:"#111111",textMid:"#374151",textMuted:"#6b7280",
+    bg:"#F0F5FF",surface:"#ffffff",surfaceAlt:"#f1f5fb",hover:"#e8eef8",
+    border:"rgba(0,0,0,0.07)",borderMid:"rgba(0,0,0,0.12)",
+    text:"#0f172a",textMid:"#334155",textMuted:"#94a3b8",
     lime:"#84CC16",limeDeep:"#65a30d",limeBg:"#f7fee7",limeMid:"#bef264",
-    green:"#16a34a",greenBg:"#f0fdf4",blue:"#2563eb",blueBg:"#eff6ff",
+    green:"#16a34a",greenBg:"#f0fdf4",blue:"#3b82f6",blueBg:"#eff6ff",
     amber:"#d97706",amberBg:"#fffbeb",red:"#dc2626",redBg:"#fef2f2",
     purple:"#7c3aed",purpleBg:"#f5f3ff",
-    sidebar:"#0B0B0B",sideText:"#71717a",sideActive:"#84CC16",sideHover:"#161616",
-    topbar:"#ffffff",shadow:"rgba(0,0,0,0.04)",shadowMd:"rgba(0,0,0,0.18)",
-    card:"#ffffff",scrollThumb:"#d4d4d8",
-    cardShadow:"0 1px 2px rgba(0,0,0,0.04),0 10px 25px rgba(0,0,0,0.06)",
+    sidebar:"#ffffff",sideText:"#64748b",sideActive:"#84CC16",sideHover:"#f1f5f9",
+    topbar:"#ffffff",shadow:"rgba(100,120,200,0.06)",shadowMd:"rgba(0,0,0,0.18)",
+    card:"#ffffff",scrollThumb:"#cbd5e1",
+    cardShadow:"0 1px 3px rgba(0,0,0,0.04),0 8px 28px rgba(100,120,200,0.10)",
   },
   dark:{dark:true,
     bg:"#0a0a0a",surface:"#111111",surfaceAlt:"#1a1a1a",hover:"#222222",
@@ -199,7 +199,7 @@ function Btn({children,onClick,v="primary",t,style={},disabled=false,size="md",i
 function Card({children,t,style={},lift=false,onClick,pad=20}){
   const cls=lift?"hover-lift":"";
   const interactive=onClick?"card-interactive":"";
-  return <div className={[cls,interactive].filter(Boolean).join(" ")} onClick={onClick} style={{background:"#ffffff",border:"1px solid rgba(0,0,0,0.05)",borderRadius:16,padding:pad,cursor:onClick?"pointer":"default",boxShadow:"0 1px 2px rgba(0,0,0,0.04),0 10px 25px rgba(0,0,0,0.06)",transition:"all 0.2s ease",...(t.dark?{background:t.card,border:`1px solid ${t.border}`,boxShadow:t.cardShadow}:{}),...style}}>{children}</div>;
+  return <div className={[cls,interactive].filter(Boolean).join(" ")} onClick={onClick} style={{background:t.card||"#ffffff",border:`1px solid ${t.border}`,borderRadius:16,padding:pad,cursor:onClick?"pointer":"default",boxShadow:t.cardShadow,transition:"all 0.2s ease",...style}}>{children}</div>;
 }
 function PBar({value,max=100,color="lime",t,h=4,delay=0,showPct=true}){
   const pct=clamp(max>0?Math.round((value/max)*100):0,0,100);
@@ -313,8 +313,8 @@ function LiveTimer({startedAt,t,active}){
   const fmt=n=>String(n).padStart(2,"0");
   return <span className={active?"timer-active":""} style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:12,color:active?t.lime:t.textMuted,letterSpacing:"0.06em"}}>{fmt(Math.floor(s/3600))}:{fmt(Math.floor((s%3600)/60))}:{fmt(s%60)}</span>;
 }
-function PPLogo({collapsed}){
-  const fg="#FFFFFF",lime="#C8E84A";
+function PPLogo({collapsed,light=false}){
+  const fg=light?"#0f172a":"#FFFFFF",lime="#C8E84A";
   if(collapsed)return <svg viewBox="0 0 40 40" style={{width:32,height:32}} xmlns="http://www.w3.org/2000/svg"><rect width="40" height="40" rx="10" fill={lime}/><text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" fill="#0A0A0A" fontFamily="Poppins,sans-serif" fontWeight="800" fontSize="16">PP</text></svg>;
   return(
     <svg viewBox="0 0 627.1 244.1" style={{height:32,width:"auto",maxWidth:200}} xmlns="http://www.w3.org/2000/svg">
@@ -3722,10 +3722,10 @@ function App({firebaseUid}){
       <div style={{display:"flex",height:"100vh",overflow:"hidden",background:t.bg}}>
 
         {/* SIDEBAR */}
-        <aside className="sidebar-desktop" style={{width:side?224:62,flexShrink:0,background:t.sidebar,display:"flex",flexDirection:"column",transition:"width .3s cubic-bezier(.22,1,.36,1)",overflow:"hidden",borderRight:`1px solid rgba(255,255,255,0.05)`}}>
-          <div style={{padding:side?"16px 14px 14px":"16px 0 14px",display:"flex",alignItems:"center",justifyContent:side?"space-between":"center",borderBottom:"1px solid rgba(255,255,255,0.06)",minHeight:64}}>
-            <div style={{overflow:"hidden"}}><PPLogo collapsed={!side}/></div>
-            <button onClick={()=>setSide(p=>!p)} style={{background:"none",border:"none",cursor:"pointer",padding:4,borderRadius:6,color:t.sideText,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color=t.sideText}>
+        <aside className="sidebar-desktop" style={{width:side?224:62,flexShrink:0,background:t.sidebar,display:"flex",flexDirection:"column",transition:"width .3s cubic-bezier(.22,1,.36,1)",overflow:"hidden",borderRight:`1px solid ${t.border}`,boxShadow:t.dark?"none":"4px 0 24px rgba(100,120,200,0.06)"}}>
+          <div style={{padding:side?"16px 14px 14px":"16px 0 14px",display:"flex",alignItems:"center",justifyContent:side?"space-between":"center",borderBottom:`1px solid ${t.border}`,minHeight:64}}>
+            <div style={{overflow:"hidden"}}><PPLogo collapsed={!side} light={!t.dark}/></div>
+            <button onClick={()=>setSide(p=>!p)} style={{background:"none",border:"none",cursor:"pointer",padding:4,borderRadius:6,color:t.sideText,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color=t.text} onMouseLeave={e=>e.currentTarget.style.color=t.sideText}>
               {side?<ChevronLeft size={16}/>:<ChevronRight size={16}/>}
             </button>
           </div>
@@ -3733,12 +3733,12 @@ function App({firebaseUid}){
             {NAV.filter(n=>n.roles==="all"||(n.roles==="manager"&&(isFounder||isHoD))||(n.roles==="founder"&&isFounder)).map(({id,label,Icon},i)=>{
               const active=nav===id,b=badge(id);
               return(
-                <button key={id} onClick={()=>go(id)} title={!side?label:""} style={{width:"100%",display:"flex",alignItems:"center",gap:side?10:0,justifyContent:side?"flex-start":"center",padding:side?"7px 10px":"10px 0",borderRadius:8,border:"none",background:active?"rgba(132,204,22,0.10)":"transparent",color:active?"#84CC16":t.sideText,letterSpacing:"-0.01em",fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:active?500:400,cursor:"pointer",marginBottom:1,position:"relative",transition:"background 0.15s ease,color 0.15s ease",animation:`fadeUp .3s ease ${i*20}ms both`,whiteSpace:"nowrap",overflow:"hidden"}}
-                  onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.04)";e.currentTarget.style.color="#e4e4e7";}}}
+                <button key={id} onClick={()=>go(id)} title={!side?label:""} style={{width:"100%",display:"flex",alignItems:"center",gap:side?10:0,justifyContent:side?"flex-start":"center",padding:side?"7px 10px":"10px 0",borderRadius:8,border:"none",background:active?"rgba(132,204,22,0.10)":"transparent",color:active?"#84CC16":t.sideText,letterSpacing:"-0.01em",fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:active?600:400,cursor:"pointer",marginBottom:1,position:"relative",transition:"background 0.15s ease,color 0.15s ease",animation:`fadeUp .3s ease ${i*20}ms both`,whiteSpace:"nowrap",overflow:"hidden"}}
+                  onMouseEnter={e=>{if(!active){e.currentTarget.style.background=t.sideHover;e.currentTarget.style.color=t.text;}}}
                   onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.sideText;}}}>
-                  {active&&<div style={{position:"absolute",left:0,top:"20%",bottom:"20%",width:2,borderRadius:"0 2px 2px 0",background:"#84CC16"}}/>}
+                  {active&&<div style={{position:"absolute",left:0,top:"18%",bottom:"18%",width:3,borderRadius:"0 3px 3px 0",background:"#84CC16"}}/>}
                   <div style={{position:"relative",flexShrink:0}}>
-                    <Icon size={17} strokeWidth={1.5}/>
+                    <Icon size={17} strokeWidth={active?2:1.5}/>
                     {b>0&&<span style={{position:"absolute",top:-6,right:-6,minWidth:15,height:15,borderRadius:99,background:"#84CC16",color:"#000000",fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",animation:"notifPop .5s cubic-bezier(.22,1,.36,1)"}}>{b}</span>}
                   </div>
                   {side&&<span style={{flex:1,textAlign:"left"}}>{label}</span>}
@@ -3746,17 +3746,17 @@ function App({firebaseUid}){
               );
             })}
           </nav>
-          <div style={{padding:side?"10px 8px":"10px 0",borderTop:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",gap:6}}>
-            {side&&<button onClick={()=>setShowTutorial(true)} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"none",border:`1px solid ${t.sideHover}`,borderRadius:8,cursor:"pointer",color:t.sideText,fontSize:11,fontWeight:600,transition:"all .15s"}} onMouseEnter={e=>{e.currentTarget.style.background=t.sideHover;e.currentTarget.style.color="#fff";}} onMouseLeave={e=>{e.currentTarget.style.background="none";e.currentTarget.style.color=t.sideText;}}>
+          <div style={{padding:side?"10px 8px":"10px 0",borderTop:`1px solid ${t.border}`,display:"flex",flexDirection:"column",gap:6}}>
+            {side&&<button onClick={()=>setShowTutorial(true)} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"none",border:`1px solid ${t.border}`,borderRadius:8,cursor:"pointer",color:t.sideText,fontSize:11,fontWeight:600,transition:"all .15s"}} onMouseEnter={e=>{e.currentTarget.style.background=t.sideHover;e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background="none";e.currentTarget.style.color=t.sideText;}}>
               <RefreshCw size={12}/> Replay Tutorial
             </button>}
             <div style={{display:"flex",alignItems:"center",gap:9,justifyContent:side?"flex-start":"center"}}>
               <Av init={currentUser?.av||"U"} size={30} t={t}/>
               {side&&<div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:12,fontWeight:600,color:"#FAFAFA",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{currentUser?.name||"User"}</div>
+                <div style={{fontSize:12,fontWeight:600,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{currentUser?.name||"User"}</div>
                 <div style={{fontSize:10,color:t.sideText}}>{currentUser?.role||"Member"}</div>
               </div>}
-              {side&&<button onClick={()=>{logoutUser();}} title="Sign out" style={{background:"none",border:"none",cursor:"pointer",color:t.sideText,display:"flex",alignItems:"center",padding:4,borderRadius:6,opacity:0.7}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.7}>
+              {side&&<button onClick={()=>{logoutUser();}} title="Sign out" style={{background:"none",border:"none",cursor:"pointer",color:t.sideText,display:"flex",alignItems:"center",padding:4,borderRadius:6,opacity:0.7,transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.7}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
               </button>}
             </div>
