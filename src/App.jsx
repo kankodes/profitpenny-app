@@ -1360,7 +1360,7 @@ function Clients({t,data,setData,toast,currentUser}){
           <Card t={t} key={c.id} lift
             style={{cursor:"pointer",animation:`fadeUp .38s ${i*55}ms both`,borderTop:`3px solid ${c.score>=80?t.lime:c.score>=65?t.amber:t.red}`,position:"relative"}}>
             {/* Edit/delete only for Founder/HoD */}
-            {(isFounder||isHoD)&&<div style={{position:"absolute",top:10,right:10,display:"flex",gap:4,opacity:0,transition:"opacity .15s"}} className="card-actions">
+            {(isFounder||isHoD)&&<div style={{position:"absolute",top:10,right:10,display:"flex",gap:4,opacity:0,transition:"opacity .15s",zIndex:10}} className="card-actions">
               <button onClick={e=>{e.stopPropagation();setEditForm({...c});setShowEdit(true);}} style={{width:26,height:26,borderRadius:6,background:t.surfaceAlt,border:`1px solid ${t.border}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted}} onMouseEnter={e=>e.currentTarget.style.color=t.blue} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Edit2 size={11}/></button>
               {isFounder&&<button onClick={e=>{e.stopPropagation();deleteClient(c.id);}} style={{width:26,height:26,borderRadius:6,background:t.redBg,border:`1px solid ${t.red}30`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.red}}><Trash2 size={11}/></button>}
             </div>}
@@ -3126,7 +3126,7 @@ function resizeImage(file,maxW=120,maxH=120){
         canvas.width=Math.round(img.width*ratio);
         canvas.height=Math.round(img.height*ratio);
         canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
-        resolve(canvas.toDataURL("image/jpeg",0.75));
+        resolve(canvas.toDataURL("image/png"));
       };
       img.src=e.target.result;
     };
