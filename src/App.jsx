@@ -39,7 +39,7 @@ body{font-family:'Inter',sans-serif;font-size:14px;-webkit-font-smoothing:antial
 ::-webkit-scrollbar-thumb{background:rgba(100,116,139,0.25);border-radius:99px;}
 ::-webkit-scrollbar-thumb:hover{background:rgba(100,116,139,0.45);}
 input,select,textarea,button{font-family:'Inter',sans-serif;}
-input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(59,130,246,0.6)!important;box-shadow:0 0 0 3px rgba(59,130,246,0.12)!important;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(132,204,22,0.7)!important;box-shadow:0 0 0 3px rgba(132,204,22,0.10)!important;}
 /* ── KEYFRAMES ── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
@@ -54,30 +54,29 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(59,130,24
 /* ── UTILITY CLASSES ── */
 .fade-up{animation:fadeUp .28s ease both;}
 .scale-in{animation:scaleIn .22s ease both;}
-.hover-lift{transition:transform 0.2s ease,box-shadow 0.2s ease;}
-.hover-lift:hover{transform:translateY(-2px);}
+.hover-lift{transition:box-shadow 0.2s ease;}
 .timer-active{animation:timerPulse 1.5s ease-in-out infinite;}
-.card-actions{opacity:0;transition:opacity 0.18s ease;}
+.card-actions{opacity:0;transition:opacity 0.15s ease;}
 .hover-lift:hover .card-actions{opacity:1;}
 /* ── INTERACTIVE STATES ── */
-.btn-base{transition:all 0.15s ease;}
-.btn-base:hover{filter:brightness(1.04);}
-.btn-base:active{transform:scale(0.96);}
+.btn-base{transition:opacity 0.12s ease,background 0.12s ease;}
+.btn-base:hover{opacity:0.88;}
+.btn-base:active{opacity:0.72;}
 .btn-press{transition:all 0.15s ease;}
-.btn-press:active{transform:scale(0.95);}
-.card-interactive{transition:transform 0.22s cubic-bezier(.34,1.56,.64,1),box-shadow 0.22s ease;}
-.card-interactive:hover{transform:translateY(-3px);box-shadow:0 4px 6px rgba(0,0,0,0.04),0 20px 48px rgba(100,120,200,0.14)!important;}
-.row-interactive{transition:background 0.12s ease;}
-.row-interactive:hover{background:rgba(59,130,246,0.04)!important;}
-.notif-row{transition:background 0.12s ease;cursor:pointer;}
-.notif-row:hover{background:rgba(59,130,246,0.05)!important;}
+.btn-press:active{transform:scale(0.97);}
+.card-interactive{transition:box-shadow 0.2s ease,border-color 0.2s ease;}
+.card-interactive:hover{box-shadow:0 2px 4px rgba(0,0,0,0.06),0 8px 24px rgba(0,0,0,0.10)!important;}
+.row-interactive{transition:background 0.1s ease;}
+.row-interactive:hover{background:rgba(0,0,0,0.03)!important;}
+.notif-row{transition:background 0.1s ease;cursor:pointer;}
+.notif-row:hover{background:rgba(0,0,0,0.03)!important;}
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
   .sidebar-desktop{display:none!important;}
   .mobile-nav{display:flex!important;}
   .main-pad{padding:16px 14px!important;}
   .topbar-title{display:none!important;}
-  .modal-w{max-width:100%!important;margin:0!important;border-radius:20px 20px 0 0!important;max-height:92vh!important;overflow-y:auto!important;}
+  .modal-w{max-width:100%!important;margin:0!important;border-radius:14px 14px 0 0!important;max-height:92vh!important;overflow-y:auto!important;}
   .modal-wrap{align-items:flex-end!important;padding:0!important;}
   .hide-mobile{display:none!important;}
   .grid-1-mobile{grid-template-columns:1fr!important;}
@@ -90,17 +89,17 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(59,130,24
 // ── TOKENS ───────────────────────────────────────────────────────────────────
 const D = {
   light:{dark:false,
-    bg:"#F0F5FF",surface:"#ffffff",surfaceAlt:"#f1f5fb",hover:"#e8eef8",
-    border:"rgba(0,0,0,0.07)",borderMid:"rgba(0,0,0,0.12)",
-    text:"#0f172a",textMid:"#334155",textMuted:"#94a3b8",
-    lime:"#84CC16",limeDeep:"#65a30d",limeBg:"#f7fee7",limeMid:"#bef264",
-    green:"#16a34a",greenBg:"#f0fdf4",blue:"#3b82f6",blueBg:"#eff6ff",
-    amber:"#d97706",amberBg:"#fffbeb",red:"#dc2626",redBg:"#fef2f2",
-    purple:"#7c3aed",purpleBg:"#f5f3ff",
-    sidebar:"#ffffff",sideText:"#64748b",sideActive:"#84CC16",sideHover:"#f1f5f9",
-    topbar:"#ffffff",shadow:"rgba(100,120,200,0.06)",shadowMd:"rgba(0,0,0,0.18)",
-    card:"#ffffff",scrollThumb:"#cbd5e1",
-    cardShadow:"0 1px 3px rgba(0,0,0,0.04),0 8px 28px rgba(100,120,200,0.10)",
+    bg:"#f5f5f5",surface:"#ffffff",surfaceAlt:"#f9fafb",hover:"#f0f0f0",
+    border:"rgba(0,0,0,0.08)",borderMid:"rgba(0,0,0,0.14)",
+    text:"#111827",textMid:"#374151",textMuted:"#9ca3af",
+    lime:"#84CC16",limeDeep:"#65a30d",limeBg:"rgba(132,204,22,0.10)",limeMid:"#bef264",
+    green:"#16a34a",greenBg:"rgba(22,163,74,0.10)",blue:"#2563eb",blueBg:"rgba(37,99,235,0.10)",
+    amber:"#d97706",amberBg:"rgba(217,119,6,0.10)",red:"#dc2626",redBg:"rgba(220,38,38,0.10)",
+    purple:"#7c3aed",purpleBg:"rgba(124,58,237,0.10)",
+    sidebar:"#ffffff",sideText:"#6b7280",sideActive:"#84CC16",sideHover:"#f3f4f6",
+    topbar:"#ffffff",shadow:"rgba(0,0,0,0.04)",shadowMd:"rgba(0,0,0,0.16)",
+    card:"#ffffff",scrollThumb:"#d1d5db",
+    cardShadow:"0 1px 2px rgba(0,0,0,0.04),0 2px 8px rgba(0,0,0,0.06)",
   },
   dark:{dark:true,
     bg:"#0a0a0a",surface:"#111111",surfaceAlt:"#1a1a1a",hover:"#222222",
@@ -149,7 +148,7 @@ const isOverdue = d=>d&&new Date(d)<new Date();
 const clamp=(n,lo,hi)=>Math.min(hi,Math.max(lo,n));
 const SC = s=>({Completed:"green","In Progress":"blue",Review:"amber",Delayed:"red","Not Started":"muted",Pending:"amber",Approved:"green",Rejected:"red"}[s]||"muted");
 const PC = p=>({High:"red",Medium:"amber",Low:"green"}[p]||"muted");
-const iStyle=t=>({width:"100%",padding:"9px 13px",background:t.dark?t.surfaceAlt:"#f8faff",border:`1.5px solid ${t.dark?t.border:"rgba(100,120,200,0.15)"}`,borderRadius:10,color:t.text,fontSize:13,fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color 0.15s,box-shadow 0.15s",});
+const iStyle=t=>({width:"100%",padding:"9px 13px",background:t.dark?t.surfaceAlt:t.surface,border:`1px solid ${t.border}`,borderRadius:8,color:t.text,fontSize:13,fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color 0.15s,box-shadow 0.15s",});
 
 // ── HOOKS ────────────────────────────────────────────────────────────────────
 function useToast(){
@@ -188,12 +187,12 @@ function Btn({children,onClick,v="primary",t,style={},disabled=false,size="md",i
   const sz={sm:{p:"5px 12px",fs:12},md:{p:"8px 16px",fs:13},lg:{p:"11px 22px",fs:14}}[size]||{p:"8px 16px",fs:13};
   const base={display:"inline-flex",alignItems:"center",gap:6,borderRadius:10,fontFamily:"'Inter',sans-serif",fontWeight:600,cursor:disabled?"not-allowed":"pointer",border:"1px solid transparent",transition:"all 0.15s ease",opacity:disabled?0.45:1,padding:sz.p,fontSize:sz.fs,letterSpacing:"-0.01em",lineHeight:"1.4",flexShrink:0,outline:"none"};
   const V={
-    primary:{background:t.text||"#0f172a",color:"#ffffff",borderColor:"transparent",boxShadow:"0 1px 3px rgba(0,0,0,0.14),0 4px 12px rgba(0,0,0,0.10)"},
-    lime:{background:"#84CC16",color:"#000000",borderColor:"transparent",boxShadow:"0 1px 3px rgba(132,204,22,0.25),0 4px 12px rgba(132,204,22,0.18)"},
-    secondary:{background:t.surface||"#ffffff",color:t.textMid||"#334155",borderColor:t.border||"rgba(0,0,0,0.08)",boxShadow:"0 1px 2px rgba(0,0,0,0.05)"},
+    primary:{background:t.text||"#111827",color:"#ffffff",borderColor:"transparent",boxShadow:"none"},
+    lime:{background:"#84CC16",color:"#1a1a1a",borderColor:"transparent",boxShadow:"none"},
+    secondary:{background:t.surface||"#ffffff",color:t.textMid||"#374151",borderColor:t.border||"rgba(0,0,0,0.1)",boxShadow:"none"},
     ghost:{background:"transparent",color:t.textMuted,borderColor:"transparent",boxShadow:"none"},
-    danger:{background:t.redBg,color:t.red,borderColor:"rgba(220,38,38,0.18)",boxShadow:"none"},
-    success:{background:t.greenBg,color:t.green,borderColor:"rgba(22,163,74,0.18)",boxShadow:"none"},
+    danger:{background:t.redBg,color:t.red,borderColor:"transparent",boxShadow:"none"},
+    success:{background:t.greenBg,color:t.green,borderColor:"transparent",boxShadow:"none"},
     outline:{background:"transparent",color:t.lime,borderColor:t.lime,boxShadow:"none"}
   };
   const vs=V[v]||V.secondary;
@@ -202,7 +201,7 @@ function Btn({children,onClick,v="primary",t,style={},disabled=false,size="md",i
 function Card({children,t,style={},lift=false,onClick,pad=20}){
   const cls=lift?"hover-lift":"";
   const interactive=onClick?"card-interactive":"";
-  return <div className={[cls,interactive].filter(Boolean).join(" ")} onClick={onClick} style={{background:t.card||"#ffffff",border:`1px solid ${t.border}`,borderRadius:18,padding:pad,cursor:onClick?"pointer":"default",boxShadow:t.cardShadow,transition:"all 0.22s ease",...style}}>{children}</div>;
+  return <div className={[cls,interactive].filter(Boolean).join(" ")} onClick={onClick} style={{background:t.card||"#ffffff",border:`1px solid ${t.border}`,borderRadius:14,padding:pad,cursor:onClick?"pointer":"default",boxShadow:t.cardShadow,transition:"box-shadow 0.2s ease",...style}}>{children}</div>;
 }
 function PBar({value,max=100,color="lime",t,h=5,delay=0,showPct=true}){
   const pct=clamp(max>0?Math.round((value/max)*100):0,0,100);
@@ -213,7 +212,7 @@ function PBar({value,max=100,color="lime",t,h=5,delay=0,showPct=true}){
   return(
     <div style={{display:"flex",alignItems:"center",gap:10}}>
       <div style={{flex:1,height:h,background:t.dark?"rgba(255,255,255,0.08)":"rgba(0,0,0,0.06)",borderRadius:99,overflow:"hidden"}}>
-        <div style={{height:"100%",width:`${w}%`,background:`linear-gradient(90deg,${clr}cc,${clr})`,borderRadius:99,transition:`width 0.7s cubic-bezier(.25,.46,.45,.94) ${delay}ms`}}/>
+        <div style={{height:"100%",width:`${w}%`,background:clr,borderRadius:99,transition:`width 0.6s cubic-bezier(.25,.46,.45,.94) ${delay}ms`}}/>
       </div>
       {showPct&&<span style={{fontSize:11,fontWeight:700,color:clr,minWidth:30,textAlign:"right",fontFamily:"'Inter',sans-serif"}}>{pct}%</span>}
     </div>
@@ -259,12 +258,12 @@ function Modal({open,onClose,title,children,t,w=560,subtitle}){
   if(!open)return null;
   return(
     <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.4)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease",overflow:"hidden"}} onWheel={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()}>
-      <div onClick={e=>e.stopPropagation()} className="scale-in modal-w" style={{background:t.dark?t.surface:"#ffffff",borderRadius:20,border:`1px solid ${t.border}`,width:"100%",maxWidth:w,maxHeight:"90vh",overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",boxShadow:t.dark?"0 24px 80px rgba(0,0,0,0.6)":"0 4px 6px rgba(0,0,0,0.03),0 24px 64px rgba(100,120,200,0.16)"}}>
-        <div style={{padding:"22px 26px 18px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",background:t.dark?t.surfaceAlt:"linear-gradient(135deg,#f8faff 0%,#ffffff 100%)",borderBottom:`1px solid ${t.border}`,borderRadius:"20px 20px 0 0"}}>
-          <div><h3 style={{margin:0,fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:17,color:t.text,letterSpacing:"-0.02em",lineHeight:1.3}}>{title}</h3>{subtitle&&<p style={{margin:"4px 0 0",fontSize:13,color:t.textMuted,fontWeight:400,lineHeight:1.5}}>{subtitle}</p>}</div>
-          <button onClick={onClose} style={{background:t.dark?"rgba(255,255,255,0.06)":"rgba(15,23,42,0.05)",border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",color:t.textMuted,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginLeft:12,transition:"all 0.15s ease"}} onMouseEnter={e=>{e.currentTarget.style.background=t.dark?"rgba(255,255,255,0.12)":"rgba(15,23,42,0.09)";e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background=t.dark?"rgba(255,255,255,0.06)":"rgba(15,23,42,0.05)";e.currentTarget.style.color=t.textMuted;}}><X size={14}/></button>
+      <div onClick={e=>e.stopPropagation()} className="scale-in modal-w" style={{background:t.dark?t.surface:"#ffffff",borderRadius:14,border:`1px solid ${t.border}`,width:"100%",maxWidth:w,maxHeight:"90vh",overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",boxShadow:t.dark?"0 20px 60px rgba(0,0,0,0.6)":"0 4px 6px rgba(0,0,0,0.04),0 16px 48px rgba(0,0,0,0.12)"}}>
+        <div style={{padding:"20px 24px 16px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",background:t.dark?t.surfaceAlt:t.surface,borderBottom:`1px solid ${t.border}`,borderRadius:"14px 14px 0 0"}}>
+          <div><h3 style={{margin:0,fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:16,color:t.text,letterSpacing:"-0.01em",lineHeight:1.3}}>{title}</h3>{subtitle&&<p style={{margin:"3px 0 0",fontSize:13,color:t.textMuted,fontWeight:400,lineHeight:1.5}}>{subtitle}</p>}</div>
+          <button onClick={onClose} style={{background:"transparent",border:`1px solid ${t.border}`,borderRadius:8,width:28,height:28,cursor:"pointer",color:t.textMuted,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginLeft:12,transition:"all 0.15s ease"}} onMouseEnter={e=>{e.currentTarget.style.background=t.hover;e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.textMuted;}}><X size={13}/></button>
         </div>
-        <div style={{padding:"22px 26px"}}>{children}</div>
+        <div style={{padding:"20px 24px"}}>{children}</div>
       </div>
     </div>
   );
@@ -281,29 +280,19 @@ function SHead({title,sub,action,t}){
   );
 }
 function StatCard({label,value,sub,color="lime",icon:Icon,t,delay=0,onClick}){
-  const clrMap={lime:"#84CC16",green:"#16a34a",blue:"#3b82f6",amber:"#d97706",red:"#dc2626",purple:"#7c3aed",text:t.text};
-  const clr=clrMap[color]||"#84CC16";
-  const gradMap={
-    lime:"linear-gradient(135deg,#84CC16,#bef264)",
-    green:"linear-gradient(135deg,#16a34a,#4ade80)",
-    blue:"linear-gradient(135deg,#3b82f6,#93c5fd)",
-    amber:"linear-gradient(135deg,#d97706,#fcd34d)",
-    red:"linear-gradient(135deg,#dc2626,#fca5a5)",
-    purple:"linear-gradient(135deg,#7c3aed,#c4b5fd)",
-    text:"linear-gradient(135deg,#334155,#94a3b8)",
-  };
-  const grad=gradMap[color]||gradMap.lime;
+  const clrMap={lime:t.lime,green:t.green,blue:t.blue,amber:t.amber,red:t.red,purple:t.purple,text:t.textMid};
+  const bgMap={lime:t.limeBg,green:t.greenBg,blue:t.blueBg,amber:t.amberBg,red:t.redBg,purple:t.purpleBg,text:t.surfaceAlt};
+  const clr=clrMap[color]||t.lime;
+  const iconBg=bgMap[color]||t.limeBg;
   const n=useCountUp(typeof value==="number"?value:0);
   return(
-    <Card t={t} onClick={onClick} style={{animation:`fadeUp .28s ease ${delay}ms both`,cursor:onClick?"pointer":"default",position:"relative",overflow:"hidden"}}>
-      {/* top accent bar */}
-      <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:grad,borderRadius:"18px 18px 0 0"}}/>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,paddingTop:8}}>
-        <span style={{fontSize:11,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",color:t.textMuted,fontFamily:"'Inter',sans-serif"}}>{label}</span>
-        {Icon&&<div style={{width:36,height:36,borderRadius:12,background:grad,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",flexShrink:0,boxShadow:`0 4px 12px ${clr}33`}}><Icon size={16} strokeWidth={2}/></div>}
+    <Card t={t} onClick={onClick} style={{animation:`fadeUp .28s ease ${delay}ms both`,cursor:onClick?"pointer":"default"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+        <span style={{fontSize:12,fontWeight:500,color:t.textMuted,fontFamily:"'Inter',sans-serif",lineHeight:1.4}}>{label}</span>
+        {Icon&&<div style={{width:34,height:34,borderRadius:10,background:iconBg,display:"flex",alignItems:"center",justifyContent:"center",color:clr,flexShrink:0}}><Icon size={16} strokeWidth={1.8}/></div>}
       </div>
-      <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:34,color:t.text,lineHeight:1,letterSpacing:"-0.04em",animation:`countUp .4s ease ${delay+80}ms both`}}>{typeof value==="number"?n:value}</div>
-      {sub&&<div style={{fontSize:12,color:t.textMuted,marginTop:6,fontWeight:400,lineHeight:1.4}}>{sub}</div>}
+      <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:30,color:t.text,lineHeight:1,letterSpacing:"-0.03em",animation:`countUp .4s ease ${delay+80}ms both`}}>{typeof value==="number"?n:value}</div>
+      {sub&&<div style={{fontSize:12,color:t.textMuted,marginTop:5,fontWeight:400,lineHeight:1.4}}>{sub}</div>}
     </Card>
   );
 }
