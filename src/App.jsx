@@ -30,44 +30,47 @@ async function sendEmail(to_email, to_name, subject, message){
 
 // ── STYLES ──────────────────────────────────────────────────────────────────
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html,body,#root{height:100%;}
 body{font-family:'Inter',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;}
-::-webkit-scrollbar{width:3px;height:3px;}
+::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.12);border-radius:99px;}
-::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,0.22);}
+::-webkit-scrollbar-thumb{background:rgba(100,116,139,0.25);border-radius:99px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(100,116,139,0.45);}
 input,select,textarea,button{font-family:'Inter',sans-serif;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(59,130,246,0.6)!important;box-shadow:0 0 0 3px rgba(59,130,246,0.12)!important;}
 /* ── KEYFRAMES ── */
-@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes scaleIn{from{opacity:0;transform:scale(0.97) translateY(4px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes scaleIn{from{opacity:0;transform:scale(0.96) translateY(6px)}to{opacity:1;transform:scale(1) translateY(0)}}
 @keyframes ping{0%{transform:scale(1);opacity:1}75%,100%{transform:scale(2.2);opacity:0}}
 @keyframes timerPulse{0%,100%{opacity:1}50%{opacity:0.5}}
-@keyframes toastSlide{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
-@keyframes countUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-@keyframes tutorialIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+@keyframes toastSlide{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes countUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes tutorialIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes notifPop{0%{transform:scale(0.5)}80%{transform:scale(1.2)}100%{transform:scale(1)}}
 /* ── UTILITY CLASSES ── */
 .fade-up{animation:fadeUp .28s ease both;}
 .scale-in{animation:scaleIn .22s ease both;}
 .hover-lift{transition:transform 0.2s ease,box-shadow 0.2s ease;}
 .hover-lift:hover{transform:translateY(-2px);}
 .timer-active{animation:timerPulse 1.5s ease-in-out infinite;}
-.card-actions{opacity:0;transition:opacity 0.15s ease;}
+.card-actions{opacity:0;transition:opacity 0.18s ease;}
 .hover-lift:hover .card-actions{opacity:1;}
 /* ── INTERACTIVE STATES ── */
 .btn-base{transition:all 0.15s ease;}
-.btn-base:hover{opacity:0.85;}
-.btn-base:active{transform:scale(0.97);opacity:0.9;}
-.card-interactive{transition:transform 0.2s ease,box-shadow 0.2s ease;}
-.card-interactive:hover{transform:translateY(-2px);box-shadow:0 1px 2px rgba(0,0,0,0.04),0 16px 40px rgba(0,0,0,0.1)!important;}
-.row-interactive{transition:background 0.1s ease;}
-.row-interactive:hover{background:rgba(0,0,0,0.02)!important;}
-.notif-row{transition:background 0.1s ease;cursor:pointer;}
-.notif-row:hover{background:#f9fafb!important;}
-.notif-row:hover{background:#f9fafb!important;}
+.btn-base:hover{filter:brightness(1.04);}
+.btn-base:active{transform:scale(0.96);}
+.btn-press{transition:all 0.15s ease;}
+.btn-press:active{transform:scale(0.95);}
+.card-interactive{transition:transform 0.22s cubic-bezier(.34,1.56,.64,1),box-shadow 0.22s ease;}
+.card-interactive:hover{transform:translateY(-3px);box-shadow:0 4px 6px rgba(0,0,0,0.04),0 20px 48px rgba(100,120,200,0.14)!important;}
+.row-interactive{transition:background 0.12s ease;}
+.row-interactive:hover{background:rgba(59,130,246,0.04)!important;}
+.notif-row{transition:background 0.12s ease;cursor:pointer;}
+.notif-row:hover{background:rgba(59,130,246,0.05)!important;}
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
   .sidebar-desktop{display:none!important;}
@@ -146,7 +149,7 @@ const isOverdue = d=>d&&new Date(d)<new Date();
 const clamp=(n,lo,hi)=>Math.min(hi,Math.max(lo,n));
 const SC = s=>({Completed:"green","In Progress":"blue",Review:"amber",Delayed:"red","Not Started":"muted",Pending:"amber",Approved:"green",Rejected:"red"}[s]||"muted");
 const PC = p=>({High:"red",Medium:"amber",Low:"green"}[p]||"muted");
-const iStyle=t=>({width:"100%",padding:"8px 12px",background:t.surface,border:"1px solid rgba(0,0,0,0.1)",borderRadius:8,color:t.text,fontSize:13,fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color 0.15s,box-shadow 0.15s",...(t.dark?{background:t.surfaceAlt,border:`1px solid ${t.border}`}:{})});
+const iStyle=t=>({width:"100%",padding:"9px 13px",background:t.dark?t.surfaceAlt:"#f8faff",border:`1.5px solid ${t.dark?t.border:"rgba(100,120,200,0.15)"}`,borderRadius:10,color:t.text,fontSize:13,fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color 0.15s,box-shadow 0.15s",});
 
 // ── HOOKS ────────────────────────────────────────────────────────────────────
 function useToast(){
@@ -179,40 +182,40 @@ function Av({init,size=36,t,online=false}){
 }
 function Badge({label,color="muted",t,small=false}){
   const C={green:{bg:t.greenBg,fg:t.green},blue:{bg:t.blueBg,fg:t.blue},amber:{bg:t.amberBg,fg:t.amber},red:{bg:t.redBg,fg:t.red},purple:{bg:t.purpleBg,fg:t.purple},lime:{bg:t.limeBg,fg:t.limeDeep},muted:{bg:t.surfaceAlt,fg:t.textMuted}}[color]||{bg:t.surfaceAlt,fg:t.textMuted};
-  return <span style={{display:"inline-flex",alignItems:"center",padding:small?"2px 7px":"3px 9px",borderRadius:5,fontSize:small?10:11,fontWeight:500,letterSpacing:"0.01em",background:C.bg,color:C.fg,whiteSpace:"nowrap",flexShrink:0,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>{label}</span>;
+  return <span style={{display:"inline-flex",alignItems:"center",padding:small?"2px 8px":"3px 10px",borderRadius:99,fontSize:small?10:11,fontWeight:600,letterSpacing:"0.01em",background:C.bg,color:C.fg,whiteSpace:"nowrap",flexShrink:0,fontFamily:"'Inter',sans-serif",lineHeight:1.6}}>{label}</span>;
 }
 function Btn({children,onClick,v="primary",t,style={},disabled=false,size="md",icon}){
-  const sz={sm:{p:"4px 11px",fs:12},md:{p:"7px 15px",fs:13},lg:{p:"10px 22px",fs:14}}[size]||{p:"7px 15px",fs:13};
-  const base={display:"inline-flex",alignItems:"center",gap:5,borderRadius:8,fontFamily:"'Inter',sans-serif",fontWeight:500,cursor:disabled?"not-allowed":"pointer",border:"1px solid transparent",transition:"all 0.15s ease",opacity:disabled?0.4:1,padding:sz.p,fontSize:sz.fs,letterSpacing:"-0.01em",lineHeight:"1.4",flexShrink:0,outline:"none"};
+  const sz={sm:{p:"5px 12px",fs:12},md:{p:"8px 16px",fs:13},lg:{p:"11px 22px",fs:14}}[size]||{p:"8px 16px",fs:13};
+  const base={display:"inline-flex",alignItems:"center",gap:6,borderRadius:10,fontFamily:"'Inter',sans-serif",fontWeight:600,cursor:disabled?"not-allowed":"pointer",border:"1px solid transparent",transition:"all 0.15s ease",opacity:disabled?0.45:1,padding:sz.p,fontSize:sz.fs,letterSpacing:"-0.01em",lineHeight:"1.4",flexShrink:0,outline:"none"};
   const V={
-    primary:{background:"#111111",color:"#ffffff",borderColor:"transparent"},
-    lime:{background:"#84CC16",color:"#000000",borderColor:"transparent"},
-    secondary:{background:"#f5f5f5",color:"#374151",borderColor:"rgba(0,0,0,0.08)"},
-    ghost:{background:"transparent",color:t.textMuted,borderColor:"transparent"},
-    danger:{background:t.redBg,color:t.red,borderColor:"rgba(220,38,38,0.2)"},
-    success:{background:t.greenBg,color:t.green,borderColor:"rgba(22,163,74,0.2)"},
-    outline:{background:"transparent",color:t.lime,borderColor:t.lime}
+    primary:{background:t.text||"#0f172a",color:"#ffffff",borderColor:"transparent",boxShadow:"0 1px 3px rgba(0,0,0,0.14),0 4px 12px rgba(0,0,0,0.10)"},
+    lime:{background:"#84CC16",color:"#000000",borderColor:"transparent",boxShadow:"0 1px 3px rgba(132,204,22,0.25),0 4px 12px rgba(132,204,22,0.18)"},
+    secondary:{background:t.surface||"#ffffff",color:t.textMid||"#334155",borderColor:t.border||"rgba(0,0,0,0.08)",boxShadow:"0 1px 2px rgba(0,0,0,0.05)"},
+    ghost:{background:"transparent",color:t.textMuted,borderColor:"transparent",boxShadow:"none"},
+    danger:{background:t.redBg,color:t.red,borderColor:"rgba(220,38,38,0.18)",boxShadow:"none"},
+    success:{background:t.greenBg,color:t.green,borderColor:"rgba(22,163,74,0.18)",boxShadow:"none"},
+    outline:{background:"transparent",color:t.lime,borderColor:t.lime,boxShadow:"none"}
   };
   const vs=V[v]||V.secondary;
-  return <button className="btn-base" onClick={disabled?undefined:onClick} disabled={disabled} style={{...base,background:vs.background,color:vs.color,borderColor:vs.borderColor,...style}}>{icon&&<span style={{display:"flex",alignItems:"center"}}>{icon}</span>}{children}</button>;
+  return <button className="btn-base" onClick={disabled?undefined:onClick} disabled={disabled} style={{...base,background:vs.background,color:vs.color,borderColor:vs.borderColor,boxShadow:vs.boxShadow,...style}}>{icon&&<span style={{display:"flex",alignItems:"center"}}>{icon}</span>}{children}</button>;
 }
 function Card({children,t,style={},lift=false,onClick,pad=20}){
   const cls=lift?"hover-lift":"";
   const interactive=onClick?"card-interactive":"";
-  return <div className={[cls,interactive].filter(Boolean).join(" ")} onClick={onClick} style={{background:t.card||"#ffffff",border:`1px solid ${t.border}`,borderRadius:16,padding:pad,cursor:onClick?"pointer":"default",boxShadow:t.cardShadow,transition:"all 0.2s ease",...style}}>{children}</div>;
+  return <div className={[cls,interactive].filter(Boolean).join(" ")} onClick={onClick} style={{background:t.card||"#ffffff",border:`1px solid ${t.border}`,borderRadius:18,padding:pad,cursor:onClick?"pointer":"default",boxShadow:t.cardShadow,transition:"all 0.22s ease",...style}}>{children}</div>;
 }
-function PBar({value,max=100,color="lime",t,h=4,delay=0,showPct=true}){
+function PBar({value,max=100,color="lime",t,h=5,delay=0,showPct=true}){
   const pct=clamp(max>0?Math.round((value/max)*100):0,0,100);
-  const clrMap={lime:"#84CC16",green:"#16a34a",blue:"#2563eb",amber:"#d97706",red:"#dc2626"};
+  const clrMap={lime:"#84CC16",green:"#16a34a",blue:"#3b82f6",amber:"#d97706",red:"#dc2626"};
   const clr=clrMap[color]||"#84CC16";
   const [w,setW]=useState(0);
   useEffect(()=>{const id=setTimeout(()=>setW(pct),delay+80);return()=>clearTimeout(id);},[pct,delay]);
   return(
-    <div style={{display:"flex",alignItems:"center",gap:8}}>
-      <div style={{flex:1,height:h,background:"rgba(0,0,0,0.06)",borderRadius:99,overflow:"hidden"}}>
-        <div style={{height:"100%",width:`${w}%`,background:clr,borderRadius:99,transition:`width 0.6s cubic-bezier(.25,.46,.45,.94) ${delay}ms`}}/>
+    <div style={{display:"flex",alignItems:"center",gap:10}}>
+      <div style={{flex:1,height:h,background:t.dark?"rgba(255,255,255,0.08)":"rgba(0,0,0,0.06)",borderRadius:99,overflow:"hidden"}}>
+        <div style={{height:"100%",width:`${w}%`,background:`linear-gradient(90deg,${clr}cc,${clr})`,borderRadius:99,transition:`width 0.7s cubic-bezier(.25,.46,.45,.94) ${delay}ms`}}/>
       </div>
-      {showPct&&<span style={{fontSize:11,fontWeight:600,color:clr,minWidth:28,textAlign:"right",fontFamily:"'Inter',sans-serif"}}>{pct}%</span>}
+      {showPct&&<span style={{fontSize:11,fontWeight:700,color:clr,minWidth:30,textAlign:"right",fontFamily:"'Inter',sans-serif"}}>{pct}%</span>}
     </div>
   );
 }
@@ -250,47 +253,57 @@ function DeptSel({value,onChange,data,setData,t,toast,placeholder="Select dept."
   );
 }
 function Tex({value,onChange,placeholder,t,rows=3}){return <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{...iStyle(t),resize:"vertical",lineHeight:1.6}} onFocus={e=>{e.target.style.borderColor="#84CC16";e.target.style.boxShadow="0 0 0 3px rgba(132,204,22,0.12)";}} onBlur={e=>{e.target.style.borderColor=t.dark?t.border:"rgba(0,0,0,0.1)";e.target.style.boxShadow="none";}}/>;}
-function Field({label,children,t}){return <div style={{marginBottom:12}}><label style={{display:"block",fontSize:11,fontWeight:500,letterSpacing:"0.04em",textTransform:"uppercase",color:"#9ca3af",marginBottom:5,fontFamily:"'Inter',sans-serif"}}>{label}</label>{children}</div>;}
+function Field({label,children,t}){return <div style={{marginBottom:14}}><label style={{display:"block",fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:t?.textMuted||"#94a3b8",marginBottom:6,fontFamily:"'Inter',sans-serif"}}>{label}</label>{children}</div>;}
 function Modal({open,onClose,title,children,t,w=560,subtitle}){
   useEffect(()=>{if(open){document.body.style.overflow="hidden";document.body.style.position="fixed";document.body.style.width="100%";}else{document.body.style.overflow="";document.body.style.position="";document.body.style.width="";}return()=>{document.body.style.overflow="";document.body.style.position="";document.body.style.width="";};},[open]);
   if(!open)return null;
   return(
-    <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.35)",backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease",overflow:"hidden"}} onWheel={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()}>
-      <div onClick={e=>e.stopPropagation()} className="scale-in modal-w" style={{background:"#ffffff",borderRadius:18,border:"1px solid rgba(0,0,0,0.06)",width:"100%",maxWidth:w,maxHeight:"90vh",overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",boxShadow:"0 2px 4px rgba(0,0,0,0.04),0 24px 60px rgba(0,0,0,0.14)",...(t.dark?{background:t.surface,border:`1px solid ${t.border}`}:{})}}>
-        <div style={{padding:"20px 24px 16px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",borderBottom:"1px solid rgba(0,0,0,0.06)",...(t.dark?{borderColor:t.border}:{})}}>
-          <div><h3 style={{margin:0,fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:16,color:t.text,letterSpacing:"-0.01em",lineHeight:1.3}}>{title}</h3>{subtitle&&<p style={{margin:"4px 0 0",fontSize:13,color:"#6b7280",fontWeight:400,lineHeight:1.5}}>{subtitle}</p>}</div>
-          <button onClick={onClose} style={{background:"none",border:"1px solid rgba(0,0,0,0.08)",borderRadius:7,width:28,height:28,cursor:"pointer",color:"#9ca3af",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginLeft:12,transition:"all 0.15s ease",...(t.dark?{border:`1px solid ${t.border}`,color:t.textMuted}:{})}} onMouseEnter={e=>{e.currentTarget.style.background="#f5f5f5";e.currentTarget.style.color="#374151";}} onMouseLeave={e=>{e.currentTarget.style.background="none";e.currentTarget.style.color=t.dark?"#71717a":"#9ca3af";}}><X size={13}/></button>
+    <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.4)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease",overflow:"hidden"}} onWheel={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()}>
+      <div onClick={e=>e.stopPropagation()} className="scale-in modal-w" style={{background:t.dark?t.surface:"#ffffff",borderRadius:20,border:`1px solid ${t.border}`,width:"100%",maxWidth:w,maxHeight:"90vh",overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",boxShadow:t.dark?"0 24px 80px rgba(0,0,0,0.6)":"0 4px 6px rgba(0,0,0,0.03),0 24px 64px rgba(100,120,200,0.16)"}}>
+        <div style={{padding:"22px 26px 18px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",background:t.dark?t.surfaceAlt:"linear-gradient(135deg,#f8faff 0%,#ffffff 100%)",borderBottom:`1px solid ${t.border}`,borderRadius:"20px 20px 0 0"}}>
+          <div><h3 style={{margin:0,fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:17,color:t.text,letterSpacing:"-0.02em",lineHeight:1.3}}>{title}</h3>{subtitle&&<p style={{margin:"4px 0 0",fontSize:13,color:t.textMuted,fontWeight:400,lineHeight:1.5}}>{subtitle}</p>}</div>
+          <button onClick={onClose} style={{background:t.dark?"rgba(255,255,255,0.06)":"rgba(15,23,42,0.05)",border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",color:t.textMuted,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginLeft:12,transition:"all 0.15s ease"}} onMouseEnter={e=>{e.currentTarget.style.background=t.dark?"rgba(255,255,255,0.12)":"rgba(15,23,42,0.09)";e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background=t.dark?"rgba(255,255,255,0.06)":"rgba(15,23,42,0.05)";e.currentTarget.style.color=t.textMuted;}}><X size={14}/></button>
         </div>
-        <div style={{padding:"20px 24px"}}>{children}</div>
+        <div style={{padding:"22px 26px"}}>{children}</div>
       </div>
     </div>
   );
 }
 function SHead({title,sub,action,t}){
   return(
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:28,animation:"fadeUp .28s ease both"}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:32,animation:"fadeUp .28s ease both"}}>
       <div>
-        <h1 style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:22,letterSpacing:"-0.025em",color:"#111111",margin:0,lineHeight:1.25,...(t.dark?{color:t.text}:{})}}>{title}</h1>
-        {sub&&<p style={{fontSize:13,color:"#6b7280",margin:"3px 0 0",fontWeight:400,lineHeight:1.5,...(t.dark?{color:t.textMuted}:{})}}>{sub}</p>}
+        <h1 style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:24,letterSpacing:"-0.035em",color:t.text,margin:0,lineHeight:1.2}}>{title}</h1>
+        {sub&&<p style={{fontSize:13,color:t.textMuted,margin:"5px 0 0",fontWeight:400,lineHeight:1.5}}>{sub}</p>}
       </div>
       {action&&<div style={{flexShrink:0}}>{action}</div>}
     </div>
   );
 }
 function StatCard({label,value,sub,color="lime",icon:Icon,t,delay=0,onClick}){
-  const clrMap={lime:"#84CC16",green:"#16a34a",blue:"#2563eb",amber:"#d97706",red:"#dc2626",text:"#111111"};
+  const clrMap={lime:"#84CC16",green:"#16a34a",blue:"#3b82f6",amber:"#d97706",red:"#dc2626",purple:"#7c3aed",text:t.text};
   const clr=clrMap[color]||"#84CC16";
-  const bgMap={lime:"rgba(132,204,22,0.08)",green:"rgba(22,163,74,0.08)",blue:"rgba(37,99,235,0.08)",amber:"rgba(217,119,6,0.08)",red:"rgba(220,38,38,0.08)",text:"rgba(0,0,0,0.04)"};
-  const bg=bgMap[color]||"rgba(132,204,22,0.08)";
+  const gradMap={
+    lime:"linear-gradient(135deg,#84CC16,#bef264)",
+    green:"linear-gradient(135deg,#16a34a,#4ade80)",
+    blue:"linear-gradient(135deg,#3b82f6,#93c5fd)",
+    amber:"linear-gradient(135deg,#d97706,#fcd34d)",
+    red:"linear-gradient(135deg,#dc2626,#fca5a5)",
+    purple:"linear-gradient(135deg,#7c3aed,#c4b5fd)",
+    text:"linear-gradient(135deg,#334155,#94a3b8)",
+  };
+  const grad=gradMap[color]||gradMap.lime;
   const n=useCountUp(typeof value==="number"?value:0);
   return(
-    <Card t={t} onClick={onClick} style={{animation:`fadeUp .28s ease ${delay}ms both`,cursor:onClick?"pointer":"default"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
-        <span style={{fontSize:11,fontWeight:500,letterSpacing:"0.04em",textTransform:"uppercase",color:"#9ca3af",fontFamily:"'Inter',sans-serif"}}>{label}</span>
-        {Icon&&<div style={{width:30,height:30,borderRadius:8,background:bg,display:"flex",alignItems:"center",justifyContent:"center",color:clr,flexShrink:0}}><Icon size={15} strokeWidth={1.5}/></div>}
+    <Card t={t} onClick={onClick} style={{animation:`fadeUp .28s ease ${delay}ms both`,cursor:onClick?"pointer":"default",position:"relative",overflow:"hidden"}}>
+      {/* top accent bar */}
+      <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:grad,borderRadius:"18px 18px 0 0"}}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,paddingTop:8}}>
+        <span style={{fontSize:11,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",color:t.textMuted,fontFamily:"'Inter',sans-serif"}}>{label}</span>
+        {Icon&&<div style={{width:36,height:36,borderRadius:12,background:grad,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",flexShrink:0,boxShadow:`0 4px 12px ${clr}33`}}><Icon size={16} strokeWidth={2}/></div>}
       </div>
-      <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:30,color:"#111111",lineHeight:1,letterSpacing:"-0.03em",animation:`countUp .4s ease ${delay+80}ms both`,...(t.dark?{color:t.text}:{})}}>{typeof value==="number"?n:value}</div>
-      {sub&&<div style={{fontSize:12,color:"#9ca3af",marginTop:5,fontWeight:400,lineHeight:1.4}}>{sub}</div>}
+      <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:34,color:t.text,lineHeight:1,letterSpacing:"-0.04em",animation:`countUp .4s ease ${delay+80}ms both`}}>{typeof value==="number"?n:value}</div>
+      {sub&&<div style={{fontSize:12,color:t.textMuted,marginTop:6,fontWeight:400,lineHeight:1.4}}>{sub}</div>}
     </Card>
   );
 }
@@ -3781,16 +3794,18 @@ function App({firebaseUid}){
         </nav>
         {/* MAIN */}
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
-          <header style={{height:52,background:t.topbar,borderBottom:"1px solid rgba(0,0,0,0.06)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 24px",flexShrink:0,...(t.dark?{borderColor:t.border}:{})}}>
-            <div className="topbar-title" style={{fontFamily:"'Inter',sans-serif",fontWeight:500,fontSize:13,color:t.textMuted,letterSpacing:"0",textTransform:"capitalize"}}>{NAV.find(n=>n.id===nav)?.label}</div>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <button onClick={()=>go("notifications")} style={{position:"relative",background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:12,width:38,height:38,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted,transition:"all .2s cubic-bezier(.34,1.56,.64,1)"}} className="btn-base" onMouseEnter={e=>{e.currentTarget.style.background=t.hover;}} onMouseLeave={e=>{e.currentTarget.style.background=t.surfaceAlt;}}>
-                <Bell size={15}/>
-                {unread>0&&<span style={{position:"absolute",top:-4,right:-4,minWidth:17,height:17,borderRadius:99,background:t.lime,color:"#0A0A0A",fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",animation:"notifPop .5s cubic-bezier(.22,1,.36,1)"}}>{unread}</span>}
+          <header style={{height:62,background:t.topbar,borderBottom:`1px solid ${t.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",flexShrink:0,boxShadow:`0 1px 0 ${t.border}`}}>
+            <div className="topbar-title" style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:15,color:t.text,letterSpacing:"-0.01em",textTransform:"capitalize"}}>{NAV.find(n=>n.id===nav)?.label??""}</div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <button onClick={()=>go("notifications")} style={{position:"relative",background:"transparent",border:`1px solid ${t.border}`,borderRadius:12,width:40,height:40,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted,transition:"all .18s ease"}} className="btn-base" onMouseEnter={e=>{e.currentTarget.style.background=t.hover;e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.textMuted;}}>
+                <Bell size={16}/>
+                {unread>0&&<span style={{position:"absolute",top:-3,right:-3,minWidth:18,height:18,borderRadius:99,background:t.lime,color:"#0A0A0A",fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",boxShadow:"0 0 0 2px "+t.topbar}}>{unread}</span>}
               </button>
-              <button className="btn-press" onClick={()=>setDark(p=>!p)} style={{display:"flex",alignItems:"center",gap:7,padding:"6px 11px",background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:99,cursor:"pointer"}}>
-                <div style={{width:32,height:18,borderRadius:99,background:dark?t.lime:t.borderMid,position:"relative",transition:"background .28s",flexShrink:0}}><div style={{position:"absolute",top:2,left:dark?15:2,width:14,height:14,borderRadius:"50%",background:"#fff",transition:"left .25s cubic-bezier(.34,1.56,.64,1)"}}/></div>
-                {dark?<Moon size={12} color={t.textMuted}/>:<Sun size={12} color={t.textMuted}/>}
+              <button className="btn-press" onClick={()=>setDark(p=>!p)} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 13px",background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:99,cursor:"pointer",transition:"all .18s ease"}} onMouseEnter={e=>{e.currentTarget.style.background=t.hover;}} onMouseLeave={e=>{e.currentTarget.style.background=t.surfaceAlt;}}>
+                <div style={{width:34,height:19,borderRadius:99,background:dark?t.lime:"rgba(100,116,139,0.25)",position:"relative",transition:"background .28s",flexShrink:0}}>
+                  <div style={{position:"absolute",top:2.5,left:dark?16:2.5,width:14,height:14,borderRadius:"50%",background:"#fff",transition:"left .25s cubic-bezier(.34,1.56,.64,1)",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
+                </div>
+                {dark?<Moon size={13} color={t.textMuted}/>:<Sun size={13} color={t.textMuted}/>}
               </button>
             </div>
           </header>
