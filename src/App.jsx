@@ -8,7 +8,8 @@ import {
   Mail, Phone, MapPin, Filter, Edit2, Crown, Shield, Users, Zap, Target,
   Award, Activity, TrendingDown, FileText, ArrowRight, Cake, Star, Layers,
   CalendarPlus, UserCircle, BarChart3, Hash, ChevronDown, Edit,
-  Trash2, Link2, Calendar, KanbanSquare, RefreshCw, User, Eye
+  Trash2, Link2, Calendar, KanbanSquare, RefreshCw, User, Eye,
+  StickyNote, KeyRound, EyeOff, Copy, ImageIcon
 } from "lucide-react";
 
 // ── EMAIL via Resend ─────────────────────────────────────────────────────────
@@ -127,6 +128,7 @@ const INIT = {
   timeLogs:[],
   notifications:[],
   onboarding:[],
+  credentials:[],
 };
 
 const OB_STEPS = [
@@ -352,6 +354,8 @@ const PAGE_TIPS={
   team:{title:"Team",tip:"Add team members and assign them to departments. Birthday reminders are sent automatically. You can edit or remove members at any time."},
   onboarding:{title:"Onboarding",tip:"Track the onboarding progress of new team members through a step-by-step checklist. Each step can be checked off as completed."},
   notifications:{title:"Notifications",tip:"All approvals, alerts, and reminders land here. Click any notification to jump directly to the action it's referring to. Unread notifications also appear as a badge on the sidebar."},
+  quicknotes:{title:"Quick Notes",tip:"Your private notepad — only you can see your notes. Jot down ideas, plan your day, or capture anything you need. Notes are grouped by date for easy reference."},
+  credentials:{title:"Credentials",tip:"Shared app logins for the team. Managers can add credentials for tools like Figma, Canva, Slack etc. All team members can view and copy login IDs and passwords."},
 };
 
 function PageTip({nav,t}){
@@ -1309,8 +1313,15 @@ function Clients({t,data,setData,toast,currentUser}){
   const [showAddPoc,setShowAddPoc]=useState(false);
   const [showEdit,setShowEdit]=useState(false);
   const [editForm,setEditForm]=useState(null);
-  const [form,setForm]=useState({name:"",industry:"",drive:"",preferredComm:"Email",assetLinks:[""],poc:{name:"",designation:"",phone:"",email:""}});
+  const [form,setForm]=useState({name:"",industry:"",drive:"",preferredComm:"Email",assetLinks:[""],logoUrl:"",poc:{name:"",designation:"",phone:"",email:""}});
   const [pocForm,setPocForm]=useState({name:"",designation:"",phone:"",email:""});
+  const handleLogoUpload=async(e,setter)=>{
+    const file=e.target.files?.[0];
+    if(!file)return;
+    if(!file.type.startsWith("image/")){toast("Please select an image file","error");return;}
+    const b64=await resizeImage(file,120,120);
+    setter(p=>({...p,logoUrl:b64}));
+  };
 
   const addClient=()=>{
     if(!form.name){toast("Name required","error");return;}
@@ -1355,8 +1366,15 @@ function Clients({t,data,setData,toast,currentUser}){
             </div>}
             <div onClick={()=>{setSel(c);setPocTab(false);}} style={{cursor:"pointer"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-                <div><div style={{fontSize:15,fontWeight:700,color:t.text,fontFamily:"'Inter',sans-serif"}}>{c.name}</div><div style={{fontSize:11,color:t.textMuted,marginTop:2}}>{c.industry}</div></div>
-                {(isFounder||isHoD)&&<div style={{textAlign:"right"}}><div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:26,lineHeight:1,color:c.score>=80?t.lime:c.score>=65?t.amber:t.red}}>{c.score}%</div><div style={{fontSize:9,color:t.textMuted,fontWeight:600,textTransform:"uppercase"}}>happiness</div></div>}
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  {c.logoUrl?(
+                    <img src={c.logoUrl} alt="" style={{width:38,height:38,borderRadius:9,objectFit:"contain",background:t.surfaceAlt,border:`1px solid ${t.border}`,flexShrink:0}}/>
+                  ):(
+                    <div style={{width:38,height:38,borderRadius:9,background:"rgba(132,204,22,0.1)",border:"1px solid rgba(132,204,22,0.2)",display:"flex",alignItems:"center",justifyContent:"center",color:t.lime,fontSize:15,fontWeight:800,flexShrink:0,fontFamily:"'Inter',sans-serif"}}>{c.name?.charAt(0)?.toUpperCase()||"?"}</div>
+                  )}
+                  <div><div style={{fontSize:15,fontWeight:700,color:t.text,fontFamily:"'Inter',sans-serif"}}>{c.name}</div><div style={{fontSize:11,color:t.textMuted,marginTop:2}}>{c.industry}</div></div>
+                </div>
+                {(isFounder||isHoD)&&<div style={{textAlign:"right",flexShrink:0}}><div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:26,lineHeight:1,color:c.score>=80?t.lime:c.score>=65?t.amber:t.red}}>{c.score}%</div><div style={{fontSize:9,color:t.textMuted,fontWeight:600,textTransform:"uppercase"}}>happiness</div></div>}
               </div>
               {(isFounder||isHoD)&&<PBar value={c.score} max={100} color={c.score>=80?"lime":c.score>=65?"amber":"red"} t={t} delay={i*70}/>}
               <div style={{display:"flex",justifyContent:"space-around",marginTop:12,paddingTop:10,borderTop:`1px solid ${t.border}`}}>
@@ -1374,6 +1392,7 @@ function Clients({t,data,setData,toast,currentUser}){
 
       {sel&&(
         <Modal open title={sel.name} onClose={()=>setSel(null)} t={t} w={600} subtitle={sel.industry}>
+          {sel.logoUrl&&<div style={{display:"flex",justifyContent:"center",marginBottom:16}}><img src={sel.logoUrl} alt={sel.name} style={{height:52,maxWidth:180,objectFit:"contain",borderRadius:10,background:t.surfaceAlt,padding:"6px 12px",border:`1px solid ${t.border}`}}/></div>}
           {/* Tabs */}
           <div style={{display:"flex",gap:4,marginBottom:18,borderBottom:`1px solid ${t.border}`,paddingBottom:0}}>
             {[["Details",false],["Contacts / POC",true]].map(([l,v])=>(
@@ -1429,6 +1448,21 @@ function Clients({t,data,setData,toast,currentUser}){
       {/* Edit Client Modal */}
       <Modal open={showEdit} onClose={()=>setShowEdit(false)} title="Edit Client" t={t} w={460}>
         {editForm&&<>
+          {/* Logo upload */}
+          <div style={{marginBottom:14,display:"flex",alignItems:"center",gap:14}}>
+            {editForm.logoUrl?(
+              <img src={editForm.logoUrl} alt="Logo" style={{width:56,height:56,borderRadius:12,objectFit:"contain",background:t.surfaceAlt,border:`1px solid ${t.border}`}}/>
+            ):(
+              <div style={{width:56,height:56,borderRadius:12,background:t.surfaceAlt,border:`2px dashed ${t.border}`,display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted}}><ImageIcon size={22} strokeWidth={1.2}/></div>
+            )}
+            <div>
+              <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"6px 12px",background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:600,color:t.textMid,fontFamily:"'Inter',sans-serif"}}>
+                <ImageIcon size={12}/> {editForm.logoUrl?"Change Logo":"Upload Logo"}
+                <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleLogoUpload(e,setEditForm)}/>
+              </label>
+              {editForm.logoUrl&&<button onClick={()=>setEditForm(p=>({...p,logoUrl:""}))} style={{display:"block",marginTop:5,background:"none",border:"none",cursor:"pointer",color:t.textMuted,fontSize:11,padding:0,textDecoration:"underline"}}>Remove</button>}
+            </div>
+          </div>
           <Field label="Client Name *" t={t}><Inp value={editForm.name} onChange={e=>setEditForm(p=>({...p,name:e.target.value}))} t={t}/></Field>
           <Field label="Industry" t={t}><Inp value={editForm.industry||""} onChange={e=>setEditForm(p=>({...p,industry:e.target.value}))} t={t}/></Field>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -1443,6 +1477,22 @@ function Clients({t,data,setData,toast,currentUser}){
       </Modal>
 
       <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="New Client" t={t} w={500}>
+        {/* Logo upload */}
+        <div style={{marginBottom:14,display:"flex",alignItems:"center",gap:14}}>
+          {form.logoUrl?(
+            <img src={form.logoUrl} alt="Logo" style={{width:56,height:56,borderRadius:12,objectFit:"contain",background:t.surfaceAlt,border:`1px solid ${t.border}`}}/>
+          ):(
+            <div style={{width:56,height:56,borderRadius:12,background:t.surfaceAlt,border:`2px dashed ${t.border}`,display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted}}><ImageIcon size={22} strokeWidth={1.2}/></div>
+          )}
+          <div>
+            <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"6px 12px",background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:600,color:t.textMid,fontFamily:"'Inter',sans-serif"}}>
+              <ImageIcon size={12}/> {form.logoUrl?"Change Logo":"Upload Logo"}
+              <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleLogoUpload(e,setForm)}/>
+            </label>
+            {form.logoUrl&&<button onClick={()=>setForm(p=>({...p,logoUrl:""}))} style={{display:"block",marginTop:5,background:"none",border:"none",cursor:"pointer",color:t.textMuted,fontSize:11,padding:0,textDecoration:"underline"}}>Remove</button>}
+            <div style={{fontSize:11,color:t.textMuted,marginTop:4}}>PNG, JPG or SVG · auto-resized</div>
+          </div>
+        </div>
         <Field label="Client Name *" t={t}><Inp value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="e.g. L&T Ltd." t={t}/></Field>
         <Field label="Industry" t={t}><Inp value={form.industry} onChange={e=>setForm(p=>({...p,industry:e.target.value}))} placeholder="e.g. Industrial Manufacturing" t={t}/></Field>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -3064,6 +3114,266 @@ function Onboarding({t,data,setData,toast,currentUser}){
 // ROOT
 // ══════════════════════════════════════════════════════════════════════════════
 // roles: "all" = everyone, "manager" = Founder+HoD, "founder" = Founder only
+// ── IMAGE RESIZE HELPER ───────────────────────────────────────────────────────
+function resizeImage(file,maxW=120,maxH=120){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const ratio=Math.min(maxW/img.width,maxH/img.height,1);
+        const canvas=document.createElement("canvas");
+        canvas.width=Math.round(img.width*ratio);
+        canvas.height=Math.round(img.height*ratio);
+        canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL("image/jpeg",0.75));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── QUICK NOTES ───────────────────────────────────────────────────────────────
+function QuickNotes({t,currentUser,toast}){
+  const [notes,setNotes]=useState([]);
+  const [loadingN,setLoadingN]=useState(true);
+  const [showAdd,setShowAdd]=useState(false);
+  const [editNote,setEditNote]=useState(null);
+  const [form,setForm]=useState({title:"",content:""});
+  const userId=currentUser?.id;
+
+  useEffect(()=>{
+    if(!userId){setLoadingN(false);return;}
+    listDocs(COLS.NOTES).then(all=>{
+      setNotes(all.filter(n=>n.userId===userId).sort((a,b)=>new Date(b.date)-new Date(a.date)));
+      setLoadingN(false);
+    }).catch(()=>setLoadingN(false));
+  },[userId]);
+
+  const saveNote=async()=>{
+    if(!form.content.trim()){toast("Content is required","error");return;}
+    const note={id:"n"+Date.now(),userId,title:form.title.trim()||"Quick Note",content:form.content.trim(),date:new Date().toISOString()};
+    await createDoc(COLS.NOTES,note.id,{userId:note.userId,title:note.title,content:note.content,date:note.date});
+    setNotes(p=>[note,...p]);
+    setShowAdd(false);setForm({title:"",content:""});
+    toast("Note saved");
+  };
+  const updateNote=async()=>{
+    if(!editNote?.content?.trim())return;
+    await updateDoc_(COLS.NOTES,editNote.id,{title:editNote.title,content:editNote.content});
+    setNotes(p=>p.map(n=>n.id===editNote.id?{...n,title:editNote.title,content:editNote.content}:n));
+    setEditNote(null);toast("Note updated");
+  };
+  const delNote=async(id)=>{
+    if(!window.confirm("Delete this note?"))return;
+    await deleteDoc_(COLS.NOTES,id);
+    setNotes(p=>p.filter(n=>n.id!==id));
+    toast("Note deleted");
+  };
+
+  // Group by date
+  const grouped=notes.reduce((acc,note)=>{
+    const key=new Date(note.date).toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+    if(!acc[key])acc[key]=[];acc[key].push(note);return acc;
+  },{});
+
+  return(
+    <div>
+      <SHead t={t} title="Quick Notes" sub="Your private notepad — only visible to you"
+        action={<Btn v="lime" t={t} onClick={()=>{setShowAdd(true);setForm({title:"",content:""}); }} icon={<Plus size={14}/>}>New Note</Btn>}/>
+      {loadingN?(
+        <p style={{color:t.textMuted,fontSize:13}}>Loading notes…</p>
+      ):notes.length===0?(
+        <div style={{textAlign:"center",padding:"60px 0",animation:"fadeUp .28s both"}}>
+          <StickyNote size={44} strokeWidth={1} color={t.textMuted}/>
+          <p style={{color:t.textMuted,fontSize:14,marginTop:14,fontWeight:500}}>No notes yet.</p>
+          <p style={{color:t.textMuted,fontSize:13,marginTop:4}}>Click "New Note" to jot something down.</p>
+        </div>
+      ):(
+        Object.entries(grouped).map(([dateLabel,dateNotes])=>(
+          <div key={dateLabel} style={{marginBottom:32}}>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
+              <div style={{height:1,flex:1,background:t.border}}/>
+              <span style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",whiteSpace:"nowrap"}}>{dateLabel}</span>
+              <div style={{height:1,flex:1,background:t.border}}/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:12}}>
+              {dateNotes.map((note,i)=>(
+                <Card t={t} key={note.id} style={{animation:`fadeUp .28s ${i*40}ms both`,position:"relative",borderLeft:`3px solid ${t.lime}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                    <div style={{fontSize:13,fontWeight:700,color:t.text,flex:1,marginRight:8,lineHeight:1.3}}>{note.title}</div>
+                    <div style={{display:"flex",gap:4,flexShrink:0}}>
+                      <button onClick={()=>setEditNote({...note})} style={{width:24,height:24,borderRadius:6,background:"none",border:"none",cursor:"pointer",color:t.textMuted,display:"flex",alignItems:"center",justifyContent:"center",transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color=t.blue} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Edit2 size={11}/></button>
+                      <button onClick={()=>delNote(note.id)} style={{width:24,height:24,borderRadius:6,background:"none",border:"none",cursor:"pointer",color:t.textMuted,display:"flex",alignItems:"center",justifyContent:"center",transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color=t.red} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Trash2 size={11}/></button>
+                    </div>
+                  </div>
+                  <p style={{fontSize:13,color:t.textMid,lineHeight:1.65,margin:0,whiteSpace:"pre-wrap"}}>{note.content}</p>
+                  <div style={{fontSize:10,color:t.textMuted,marginTop:10,fontWeight:500}}>
+                    {new Date(note.date).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="New Note" t={t} w={500}>
+        <Field label="Title (optional)" t={t}><Inp value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="e.g. Monday plan, ideas, reminders…" t={t}/></Field>
+        <Field label="Note *" t={t}><Tex value={form.content} onChange={e=>setForm(p=>({...p,content:e.target.value}))} placeholder="Write anything here…" t={t} rows={6}/></Field>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+          <Btn v="secondary" t={t} onClick={()=>setShowAdd(false)}>Cancel</Btn>
+          <Btn v="lime" t={t} onClick={saveNote} icon={<Check size={13}/>}>Save Note</Btn>
+        </div>
+      </Modal>
+
+      {editNote&&<Modal open onClose={()=>setEditNote(null)} title="Edit Note" t={t} w={500}>
+        <Field label="Title" t={t}><Inp value={editNote.title} onChange={e=>setEditNote(p=>({...p,title:e.target.value}))} t={t}/></Field>
+        <Field label="Note *" t={t}><Tex value={editNote.content} onChange={e=>setEditNote(p=>({...p,content:e.target.value}))} t={t} rows={6}/></Field>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+          <Btn v="secondary" t={t} onClick={()=>setEditNote(null)}>Cancel</Btn>
+          <Btn v="lime" t={t} onClick={updateNote} icon={<Check size={13}/>}>Update Note</Btn>
+        </div>
+      </Modal>}
+    </div>
+  );
+}
+
+// ── CREDENTIALS ───────────────────────────────────────────────────────────────
+function Credentials({t,data,setData,toast,currentUser}){
+  const isFounder=currentUser?.role==="Founder"||currentUser?.role==="Admin";
+  const isHoD=currentUser?.role==="HoD"||currentUser?.role==="Head of Department"||currentUser?.role==="Manager";
+  const canManage=isFounder||isHoD;
+  const [showAdd,setShowAdd]=useState(false);
+  const [editCred,setEditCred]=useState(null);
+  const [visPass,setVisPass]=useState({});
+  const [search,setSearch]=useState("");
+  const [form,setForm]=useState({appName:"",url:"",loginId:"",password:"",notes:""});
+
+  const toggleVis=id=>setVisPass(p=>({...p,[id]:!p[id]}));
+  const copyText=(text,label)=>{navigator.clipboard?.writeText(text).then(()=>toast(`${label} copied`,"success")).catch(()=>toast("Copy failed","error"));};
+
+  const addCred=()=>{
+    if(!form.appName.trim()||!form.loginId.trim()){toast("App name and Login ID are required","error");return;}
+    const cred={id:"cr"+Date.now(),...form,addedBy:currentUser?.id,addedAt:new Date().toISOString()};
+    setData(d=>({...d,credentials:[...(d.credentials||[]),cred]}));
+    setShowAdd(false);setForm({appName:"",url:"",loginId:"",password:"",notes:""});
+    toast("Credentials added");
+  };
+  const saveEditCred=()=>{
+    if(!editCred?.appName?.trim())return;
+    setData(d=>({...d,credentials:d.credentials.map(c=>c.id===editCred.id?editCred:c)}));
+    setEditCred(null);toast("Credentials updated");
+  };
+  const delCred=async(id)=>{
+    if(!window.confirm("Delete these credentials? This cannot be undone."))return;
+    await deleteDoc_(COLS.CREDENTIALS,id);
+    setData(d=>({...d,credentials:d.credentials.filter(c=>c.id!==id)}));
+    toast("Deleted");
+  };
+
+  const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
+  const filtered=(data.credentials||[]).filter(c=>!search||c.appName?.toLowerCase().includes(search.toLowerCase())||c.loginId?.toLowerCase().includes(search.toLowerCase()));
+
+  return(
+    <div>
+      <SHead t={t} title="Credentials" sub="Shared app logins for the team"
+        action={canManage&&<Btn v="lime" t={t} onClick={()=>{setShowAdd(true);setForm({appName:"",url:"",loginId:"",password:"",notes:""});}} icon={<Plus size={14}/>}>Add Credentials</Btn>}/>
+
+      <div style={{marginBottom:20,position:"relative",maxWidth:360}}>
+        <Search size={14} style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:t.textMuted,pointerEvents:"none"}}/>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search apps…" style={{...iStyle(t),paddingLeft:34}}
+          onFocus={e=>{e.target.style.borderColor="#84CC16";e.target.style.boxShadow="0 0 0 3px rgba(132,204,22,0.12)";}}
+          onBlur={e=>{e.target.style.borderColor=t.dark?t.border:"rgba(0,0,0,0.1)";e.target.style.boxShadow="none";}}/>
+      </div>
+
+      {filtered.length===0?(
+        <div style={{textAlign:"center",padding:"60px 0",animation:"fadeUp .28s both"}}>
+          <KeyRound size={44} strokeWidth={1} color={t.textMuted}/>
+          <p style={{color:t.textMuted,fontSize:14,marginTop:14,fontWeight:500}}>No credentials yet.</p>
+          {canManage&&<p style={{color:t.textMuted,fontSize:13,marginTop:4}}>Click "Add Credentials" to store the first one.</p>}
+        </div>
+      ):(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(310px,1fr))",gap:14}}>
+          {filtered.map((cred,i)=>(
+            <Card t={t} key={cred.id} style={{animation:`fadeUp .28s ${i*40}ms both`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+                <div>
+                  <div style={{fontSize:15,fontWeight:700,color:t.text,fontFamily:"'Inter',sans-serif"}}>{cred.appName}</div>
+                  {cred.url&&<a href={cred.url} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:t.blue,textDecoration:"none",marginTop:3,fontWeight:500}}><ExternalLink size={10}/>{cred.url.replace(/^https?:\/\//,"")}</a>}
+                </div>
+                {canManage&&(
+                  <div style={{display:"flex",gap:4,flexShrink:0}}>
+                    <button onClick={()=>setEditCred({...cred})} style={{width:26,height:26,borderRadius:6,background:t.surfaceAlt,border:`1px solid ${t.border}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted,transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color=t.blue} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Edit2 size={11}/></button>
+                    {isFounder&&<button onClick={()=>delCred(cred.id)} style={{width:26,height:26,borderRadius:6,background:t.redBg,border:`1px solid rgba(220,38,38,0.2)`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.red}}><Trash2 size={11}/></button>}
+                  </div>
+                )}
+              </div>
+
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {/* Login ID */}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",background:t.surfaceAlt,borderRadius:9,border:`1px solid ${t.border}`}}>
+                  <div>
+                    <div style={{fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Login ID</div>
+                    <div style={{fontSize:13,color:t.text,fontWeight:500,marginTop:2,wordBreak:"break-all"}}>{cred.loginId}</div>
+                  </div>
+                  <button onClick={()=>copyText(cred.loginId,"Login ID")} title="Copy" style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:4,borderRadius:5,display:"flex",alignItems:"center",flexShrink:0,transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color=t.lime} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Copy size={13}/></button>
+                </div>
+
+                {/* Password */}
+                {cred.password&&(
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",background:t.surfaceAlt,borderRadius:9,border:`1px solid ${t.border}`}}>
+                    <div>
+                      <div style={{fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Password</div>
+                      <div style={{fontSize:13,color:t.text,fontWeight:500,marginTop:2,letterSpacing:visPass[cred.id]?"normal":"0.12em"}}>{visPass[cred.id]?cred.password:"••••••••"}</div>
+                    </div>
+                    <div style={{display:"flex",gap:2,flexShrink:0}}>
+                      <button onClick={()=>toggleVis(cred.id)} title={visPass[cred.id]?"Hide":"Show"} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:4,borderRadius:5,display:"flex",alignItems:"center",transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color=t.lime} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}>{visPass[cred.id]?<EyeOff size={13}/>:<Eye size={13}/>}</button>
+                      <button onClick={()=>copyText(cred.password,"Password")} title="Copy" style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:4,borderRadius:5,display:"flex",alignItems:"center",transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color=t.lime} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Copy size={13}/></button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {cred.notes&&<p style={{fontSize:12,color:t.textMuted,marginTop:10,lineHeight:1.55,margin:"10px 0 0"}}>{cred.notes}</p>}
+              <div style={{fontSize:10,color:t.textMuted,marginTop:8,paddingTop:8,borderTop:`1px solid ${t.border}`}}>Added by {uName(cred.addedBy)} · {fdt(cred.addedAt)}</div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add Credentials" t={t} w={480}>
+        <Field label="App / Service Name *" t={t}><Inp value={form.appName} onChange={e=>setForm(p=>({...p,appName:e.target.value}))} placeholder="e.g. Canva, Figma, Slack" t={t}/></Field>
+        <Field label="URL" t={t}><Inp value={form.url} onChange={e=>setForm(p=>({...p,url:e.target.value}))} placeholder="https://canva.com" t={t}/></Field>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="Login ID / Email *" t={t}><Inp value={form.loginId} onChange={e=>setForm(p=>({...p,loginId:e.target.value}))} placeholder="team@profitpenny.in" t={t}/></Field>
+          <Field label="Password" t={t}><Inp type="password" value={form.password} onChange={e=>setForm(p=>({...p,password:e.target.value}))} placeholder="••••••••" t={t}/></Field>
+        </div>
+        <Field label="Notes (optional)" t={t}><Tex value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} placeholder="Any additional info, e.g. seat limits, plan details…" t={t} rows={2}/></Field>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+          <Btn v="secondary" t={t} onClick={()=>setShowAdd(false)}>Cancel</Btn>
+          <Btn v="lime" t={t} onClick={addCred} icon={<Plus size={13}/>}>Add</Btn>
+        </div>
+      </Modal>
+
+      {editCred&&<Modal open onClose={()=>setEditCred(null)} title="Edit Credentials" t={t} w={480}>
+        <Field label="App / Service Name *" t={t}><Inp value={editCred.appName} onChange={e=>setEditCred(p=>({...p,appName:e.target.value}))} t={t}/></Field>
+        <Field label="URL" t={t}><Inp value={editCred.url||""} onChange={e=>setEditCred(p=>({...p,url:e.target.value}))} t={t}/></Field>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="Login ID / Email *" t={t}><Inp value={editCred.loginId} onChange={e=>setEditCred(p=>({...p,loginId:e.target.value}))} t={t}/></Field>
+          <Field label="Password" t={t}><Inp value={editCred.password||""} onChange={e=>setEditCred(p=>({...p,password:e.target.value}))} t={t}/></Field>
+        </div>
+        <Field label="Notes (optional)" t={t}><Tex value={editCred.notes||""} onChange={e=>setEditCred(p=>({...p,notes:e.target.value}))} t={t} rows={2}/></Field>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+          <Btn v="secondary" t={t} onClick={()=>setEditCred(null)}>Cancel</Btn>
+          <Btn v="lime" t={t} onClick={saveEditCred} icon={<Check size={13}/>}>Save Changes</Btn>
+        </div>
+      </Modal>}
+    </div>
+  );
+}
+
 const NAV=[
   {id:"dashboard",    label:"Dashboard",      Icon:LayoutDashboard,  roles:"all"},
   {id:"projects",     label:"Projects",       Icon:FolderKanban,     roles:"all"},
@@ -3079,6 +3389,8 @@ const NAV=[
   {id:"departments",  label:"Departments",    Icon:Building2,        roles:"manager"},
   {id:"team",         label:"Team",           Icon:Users2,           roles:"manager"},
   {id:"onboarding",   label:"Onboarding",     Icon:UserCheck,        roles:"manager"},
+  {id:"credentials",  label:"Credentials",    Icon:KeyRound,         roles:"all"},
+  {id:"quicknotes",   label:"Quick Notes",    Icon:StickyNote,       roles:"all"},
   {id:"notifications",label:"Notifications",  Icon:Bell,             roles:"all"},
 ];
 
@@ -3228,10 +3540,11 @@ function App({firebaseUid}){
   useEffect(()=>{
     async function loadAll(){
       try {
-        const [users,departments,clients,tasks,leaves,meetings,timeLogs,notifications,onboarding] = await Promise.all([
+        const [users,departments,clients,tasks,leaves,meetings,timeLogs,notifications,onboarding,credentials] = await Promise.all([
           listDocs(COLS.USERS), listDocs(COLS.DEPARTMENTS), listDocs(COLS.CLIENTS),
           listDocs(COLS.TASKS), listDocs(COLS.LEAVES), listDocs(COLS.MEETINGS),
           listDocs(COLS.TIMELOGS), listDocs(COLS.NOTIFICATIONS), listDocs(COLS.ONBOARDING),
+          listDocs(COLS.CREDENTIALS),
         ]);
         const leaveBalances = {};
         users.forEach(u => { leaveBalances[u.id] = { total: u.leaveTotal||12, taken: u.leaveTaken||0 }; });
@@ -3239,7 +3552,7 @@ function App({firebaseUid}){
           ...d,
           firstLogin: users.length===0,
           users, departments, clients, tasks, leaves, meetings,
-          timeLogs, notifications, onboarding, leaveBalances,
+          timeLogs, notifications, onboarding, leaveBalances, credentials,
         }));
       } catch(e){
         console.error("Firebase load error:",e);
@@ -3313,6 +3626,11 @@ function App({firebaseUid}){
         if (!old) syncCreate(COLS.ONBOARDING, ob);
         else if (JSON.stringify(ob)!==JSON.stringify(old)) syncUpdate(COLS.ONBOARDING, ob.id, ob);
       });
+      if (next.credentials !== prev.credentials) next.credentials.forEach(c => {
+        const old = prev.credentials.find(x=>x.id===c.id);
+        if (!old) syncCreate(COLS.CREDENTIALS, c);
+        else if (JSON.stringify(c)!==JSON.stringify(old)) syncUpdate(COLS.CREDENTIALS, c.id, c);
+      });
 
       return next;
     });
@@ -3346,6 +3664,8 @@ function App({firebaseUid}){
     team:         <Team         t={t} data={data} setData={setDataAndSync} toast={toast}/>,
     onboarding:   <Onboarding   t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
     notifications:<Notifications t={t} data={data} setData={setDataAndSync} go={go} currentUser={currentUser}/>,
+    quicknotes:   <QuickNotes    t={t} currentUser={currentUser} toast={toast}/>,
+    credentials:  <Credentials   t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
   };
 
   if (loading) return (

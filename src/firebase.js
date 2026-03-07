@@ -50,6 +50,7 @@ export const COLS = {
   TASKS:"tasks", USERS:"users", CLIENTS:"clients", DEPARTMENTS:"departments",
   LEAVES:"leaves", MEETINGS:"meetings", TIMELOGS:"timelogs",
   NOTIFICATIONS:"notifications", ONBOARDING:"onboarding",
+  NOTES:"notes", CREDENTIALS:"credentials",
 };
 
 export async function listDocs(col) {
