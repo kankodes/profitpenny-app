@@ -4005,13 +4005,15 @@ function App({firebaseUid}){
   // ── Load all data from Firebase on mount ─────────────────────────────────
   useEffect(()=>{
     async function loadAll(){
+      // safeList: a missing or permission-denied collection returns [] instead of crashing everything
+      const safeList = (col) => listDocs(col).catch(e => { console.warn(`loadAll: ${col} failed`, e); return []; });
       try {
         const [users,departments,clients,tasks,leaves,meetings,timeLogs,notifications,onboarding,credentials,adProjects,adTasks,settingsDocs] = await Promise.all([
           listDocs(COLS.USERS), listDocs(COLS.DEPARTMENTS), listDocs(COLS.CLIENTS),
           listDocs(COLS.TASKS), listDocs(COLS.LEAVES), listDocs(COLS.MEETINGS),
           listDocs(COLS.TIMELOGS), listDocs(COLS.NOTIFICATIONS), listDocs(COLS.ONBOARDING),
-          listDocs(COLS.CREDENTIALS), listDocs(COLS.ADPROJECTS), listDocs(COLS.ADTASKS),
-          listDocs(COLS.SETTINGS),
+          safeList(COLS.CREDENTIALS), safeList(COLS.ADPROJECTS), safeList(COLS.ADTASKS),
+          safeList(COLS.SETTINGS),
         ]);
         const leaveBalances = {};
         users.forEach(u => { leaveBalances[u.id] = { total: u.leaveTotal||12, taken: u.leaveTaken||0 }; });
