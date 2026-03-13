@@ -9,7 +9,9 @@ import {
   Award, Activity, TrendingDown, FileText, ArrowRight, Cake, Star, Layers,
   CalendarPlus, UserCircle, BarChart3, Hash, ChevronDown, Edit,
   Trash2, Link2, Calendar, KanbanSquare, RefreshCw, User, Eye,
-  StickyNote, KeyRound, EyeOff, Copy, ImageIcon
+  StickyNote, KeyRound, EyeOff, Copy, ImageIcon,
+  Lock, Unlock, DollarSign, ClipboardList, FolderOpen, CheckSquare, Square,
+  ExternalLink as ExtLink
 } from "lucide-react";
 
 // ── EMAIL via Resend ─────────────────────────────────────────────────────────
@@ -131,6 +133,9 @@ const INIT = {
   notifications:[],
   onboarding:[],
   credentials:[],
+  adProjects:[],
+  adTasks:[],
+  settings:{ clientCredsPassword:"" },
 };
 
 const OB_STEPS = [
@@ -358,6 +363,7 @@ const PAGE_TIPS={
   notifications:{title:"Notifications",tip:"All approvals, alerts, and reminders land here. Click any notification to jump directly to the action it's referring to. Unread notifications also appear as a badge on the sidebar."},
   quicknotes:{title:"Quick Notes",tip:"Your private notepad — only you can see your notes. Jot down ideas, plan your day, or capture anything you need. Notes are grouped by date for easy reference."},
   credentials:{title:"Credentials",tip:"Shared app logins for the team. Managers can add credentials for tools like Figma, Canva, Slack etc. All team members can view and copy login IDs and passwords."},
+  adprojects:{title:"Ad-hoc Projects",tip:"Track client projects outside the retainer — briefs, costs, deadlines, delivery dates, and final file links. Each project has its own task list."},
 };
 
 function PageTip({nav,t}){
@@ -1357,7 +1363,7 @@ function Clients({t,data,setData,toast,currentUser}){
     <div>
       <SHead t={t} title="Clients" sub="Manage relationships, contacts, and happiness scores"
         action={<Btn v="lime" t={t} onClick={()=>setShowAdd(true)} icon={<Plus size={14}/>}>New Client</Btn>}/>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(270px,1fr))",gap:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}} className="grid-1-mobile">
         {data.clients.map((c,i)=>(
           <Card t={t} key={c.id} lift
             style={{cursor:"pointer",animation:`fadeUp .38s ${i*55}ms both`,borderTop:`3px solid ${c.score>=80?t.lime:c.score>=65?t.amber:t.red}`,position:"relative"}}>
@@ -3137,6 +3143,325 @@ function resizeImage(file,maxW=120,maxH=120){
 }
 
 // ── QUICK NOTES ───────────────────────────────────────────────────────────────
+// ── AD-HOC PROJECTS ───────────────────────────────────────────────────────────
+const PROJ_STATUSES=["Not Started","In Progress","Review","On Hold","Completed"];
+const TASK_STATUSES=["Not Started","In Progress","Review","Completed"];
+const PS_COLOR={
+  "Not Started":"muted","In Progress":"blue","Review":"amber","On Hold":"amber","Completed":"green"
+};
+function AdProjects({t,data,setData,toast,currentUser}){
+  const canAccess=["Founder","Admin","Manager"].includes(currentUser?.role);
+  if(!canAccess) return(
+    <div style={{textAlign:"center",padding:"80px 20px"}}>
+      <Lock size={36} color={t.textMuted} style={{margin:"0 auto 16px"}}/>
+      <p style={{color:t.textMuted,fontSize:15}}>Access restricted to Founders and Managers.</p>
+    </div>
+  );
+
+  const [tab,setTab]=useState("projects");
+  const [sel,setSel]=useState(null);// selected project for detail modal
+  const [showAddProj,setShowAddProj]=useState(false);
+  const [showEditProj,setShowEditProj]=useState(false);
+  const [editProjForm,setEditProjForm]=useState(null);
+  const [showAddTask,setShowAddTask]=useState(false);
+  const [showEditTask,setShowEditTask]=useState(false);
+  const [editTaskForm,setEditTaskForm]=useState(null);
+  const [filterProj,setFilterProj]=useState("all");// projectId filter for tasks tab
+  const [searchProj,setSearchProj]=useState("");
+  const [searchTask,setSearchTask]=useState("");
+
+  const PROJ_BLANK={name:"",clientId:"",brief:"",poc:"",cost:"",deadline:"",deliveryDate:"",filesLink:"",status:"Not Started"};
+  const TASK_BLANK={projectId:"",title:"",status:"Not Started",notes:"",filesLink:""};
+  const [projForm,setProjForm]=useState(PROJ_BLANK);
+  const [taskForm,setTaskForm]=useState(TASK_BLANK);
+
+  const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
+  const projName=id=>(data.adProjects||[]).find(p=>p.id===id)?.name||"—";
+
+  const addProj=()=>{
+    if(!projForm.name.trim()){toast("Project name required","error");return;}
+    const p={...projForm,id:"ap"+Date.now(),createdAt:new Date().toISOString()};
+    setData(d=>({...d,adProjects:[...(d.adProjects||[]),p]}));
+    setShowAddProj(false);setProjForm(PROJ_BLANK);toast("Project created");
+  };
+  const saveEditProj=()=>{
+    if(!editProjForm.name.trim()){toast("Project name required","error");return;}
+    setData(d=>({...d,adProjects:(d.adProjects||[]).map(p=>p.id===editProjForm.id?editProjForm:p)}));
+    if(sel?.id===editProjForm.id)setSel(editProjForm);
+    setShowEditProj(false);toast("Project updated");
+  };
+  const deleteProj=(id)=>{
+    if(!window.confirm("Delete this project and all its tasks?"))return;
+    setData(d=>({...d,adProjects:(d.adProjects||[]).filter(p=>p.id!==id),adTasks:(d.adTasks||[]).filter(tk=>tk.projectId!==id)}));
+    if(sel?.id===id)setSel(null);
+    toast("Project deleted");
+  };
+  const addTask=()=>{
+    if(!taskForm.title.trim()){toast("Task title required","error");return;}
+    if(!taskForm.projectId){toast("Select a project","error");return;}
+    const tk={...taskForm,id:"at"+Date.now(),createdAt:new Date().toISOString()};
+    setData(d=>({...d,adTasks:[...(d.adTasks||[]),tk]}));
+    setShowAddTask(false);setTaskForm(TASK_BLANK);toast("Task added");
+  };
+  const saveEditTask=()=>{
+    if(!editTaskForm.title.trim()){toast("Task title required","error");return;}
+    setData(d=>({...d,adTasks:(d.adTasks||[]).map(tk=>tk.id===editTaskForm.id?editTaskForm:tk)}));
+    setShowEditTask(false);toast("Task updated");
+  };
+  const deleteTask=(id)=>{
+    if(!window.confirm("Delete this task?"))return;
+    setData(d=>({...d,adTasks:(d.adTasks||[]).filter(tk=>tk.id!==id)}));
+    toast("Task deleted");
+  };
+  const toggleTaskDone=(id)=>{
+    const tk=(data.adTasks||[]).find(tk=>tk.id===id);
+    if(!tk)return;
+    const next={...tk,status:tk.status==="Completed"?"Not Started":"Completed"};
+    setData(d=>({...d,adTasks:(d.adTasks||[]).map(t=>t.id===id?next:t)}));
+  };
+
+  const projects=(data.adProjects||[]).filter(p=>!searchProj||p.name.toLowerCase().includes(searchProj.toLowerCase())||cName(p.clientId).toLowerCase().includes(searchProj.toLowerCase()));
+  const allTasks=(data.adTasks||[]).filter(tk=>{
+    const proj=filterProj==="all"||tk.projectId===filterProj;
+    const srch=!searchTask||tk.title.toLowerCase().includes(searchTask.toLowerCase());
+    return proj&&srch;
+  });
+  const projTasks=id=>(data.adTasks||[]).filter(tk=>tk.projectId===id);
+
+  const TabBtn=({id,label,Icon,count})=>(
+    <button onClick={()=>setTab(id)} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 16px",borderRadius:8,border:"none",background:tab===id?t.text:"transparent",color:tab===id?"#fff":t.textMuted,fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,cursor:"pointer",transition:"all .15s"}}>
+      <Icon size={14}/>{label}{count>0&&<span style={{background:tab===id?t.lime:t.surfaceAlt,color:tab===id?"#000":t.textMid,borderRadius:99,fontSize:10,fontWeight:700,padding:"1px 6px",marginLeft:2}}>{count}</span>}
+    </button>
+  );
+
+  return(
+    <div>
+      <SHead t={t} title="Ad-hoc Projects" sub="Client projects outside the retainer" action={
+        <div style={{display:"flex",gap:8}}>
+          {tab==="projects"&&<Btn v="lime" t={t} onClick={()=>{setProjForm(PROJ_BLANK);setShowAddProj(true);}} icon={<Plus size={14}/>}>New Project</Btn>}
+          {tab==="tasks"&&<Btn v="lime" t={t} onClick={()=>{setTaskForm({...TASK_BLANK,projectId:filterProj!=="all"?filterProj:""});setShowAddTask(true);}} icon={<Plus size={14}/>}>New Task</Btn>}
+        </div>
+      }/>
+
+      {/* Tabs */}
+      <div style={{display:"flex",gap:4,marginBottom:24,background:t.surfaceAlt,borderRadius:10,padding:4,width:"fit-content",border:`1px solid ${t.border}`}}>
+        <TabBtn id="projects" label="Projects" Icon={FolderOpen} count={projects.length}/>
+        <TabBtn id="tasks" label="Tasks" Icon={ClipboardList} count={allTasks.length}/>
+      </div>
+
+      {/* ── PROJECTS TAB ── */}
+      {tab==="projects"&&(
+        <>
+          <div style={{display:"flex",gap:10,marginBottom:20,alignItems:"center"}}>
+            <div style={{position:"relative",flex:1,maxWidth:340}}>
+              <Search size={14} style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:t.textMuted,pointerEvents:"none"}}/>
+              <input value={searchProj} onChange={e=>setSearchProj(e.target.value)} placeholder="Search projects or clients…" style={{...iStyle(t),paddingLeft:34}}/>
+            </div>
+          </div>
+          {projects.length===0?(
+            <div style={{textAlign:"center",padding:"60px 20px",color:t.textMuted}}>
+              <FolderOpen size={40} style={{margin:"0 auto 12px",opacity:.4}}/>
+              <p style={{fontSize:14,fontWeight:500}}>No projects yet. Click "New Project" to create one.</p>
+            </div>
+          ):(
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}} className="grid-1-mobile">
+              {projects.map((p,i)=>{
+                const tasks=projTasks(p.id);
+                const done=tasks.filter(tk=>tk.status==="Completed").length;
+                return(
+                  <Card t={t} key={p.id} lift style={{animation:`fadeUp .3s ease ${i*40}ms both`,cursor:"pointer",position:"relative"}} onClick={()=>setSel(p)}>
+                    <div className="card-actions" style={{position:"absolute",top:10,right:10,display:"flex",gap:4,zIndex:10}}>
+                      <button onClick={e=>{e.stopPropagation();setEditProjForm({...p});setShowEditProj(true);}} style={{width:26,height:26,borderRadius:6,background:t.surfaceAlt,border:`1px solid ${t.border}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted}} onMouseEnter={e=>e.currentTarget.style.color=t.blue} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Edit2 size={11}/></button>
+                      <button onClick={e=>{e.stopPropagation();deleteProj(p.id);}} style={{width:26,height:26,borderRadius:6,background:t.redBg,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.red}}><Trash2 size={11}/></button>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                      <div style={{width:36,height:36,borderRadius:9,background:t.limeBg,display:"flex",alignItems:"center",justifyContent:"center",color:t.lime,flexShrink:0}}><FolderOpen size={16}/></div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:700,fontSize:14,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                        <div style={{fontSize:11,color:t.textMuted,marginTop:1}}>{p.clientId?cName(p.clientId):"No client"}</div>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
+                      <Badge label={p.status} color={PS_COLOR[p.status]||"muted"} t={t}/>
+                      {p.cost&&<Badge label={`₹${p.cost}`} color="green" t={t}/>}
+                    </div>
+                    {p.brief&&<p style={{fontSize:12,color:t.textMuted,lineHeight:1.5,marginBottom:12,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{p.brief}</p>}
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,fontSize:11,color:t.textMuted,borderTop:`1px solid ${t.border}`,paddingTop:10}}>
+                      {p.deadline&&<div><span style={{fontWeight:600,color:t.textMid}}>Deadline</span><br/>{fd(p.deadline)}</div>}
+                      {p.deliveryDate&&<div><span style={{fontWeight:600,color:t.textMid}}>Delivered</span><br/>{fd(p.deliveryDate)}</div>}
+                      <div><span style={{fontWeight:600,color:t.textMid}}>Tasks</span><br/>{done}/{tasks.length} done</div>
+                      {p.poc&&<div><span style={{fontWeight:600,color:t.textMid}}>POC</span><br/>{p.poc}</div>}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── TASKS TAB ── */}
+      {tab==="tasks"&&(
+        <>
+          <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
+            <div style={{position:"relative",flex:1,maxWidth:300}}>
+              <Search size={14} style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:t.textMuted,pointerEvents:"none"}}/>
+              <input value={searchTask} onChange={e=>setSearchTask(e.target.value)} placeholder="Search tasks…" style={{...iStyle(t),paddingLeft:34}}/>
+            </div>
+            <select value={filterProj} onChange={e=>setFilterProj(e.target.value)} style={{...iStyle(t),width:"auto",minWidth:180}}>
+              <option value="all">All Projects</option>
+              {(data.adProjects||[]).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          {allTasks.length===0?(
+            <div style={{textAlign:"center",padding:"60px 20px",color:t.textMuted}}>
+              <ClipboardList size={40} style={{margin:"0 auto 12px",opacity:.4}}/>
+              <p style={{fontSize:14,fontWeight:500}}>No tasks yet. Click "New Task" to add one.</p>
+            </div>
+          ):(
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}} className="grid-1-mobile">
+              {allTasks.map((tk,i)=>(
+                <Card t={t} key={tk.id} style={{animation:`fadeUp .25s ease ${i*30}ms both`,position:"relative"}}>
+                  <div className="card-actions" style={{position:"absolute",top:10,right:10,display:"flex",gap:4,zIndex:10}}>
+                    <button onClick={()=>{setEditTaskForm({...tk});setShowEditTask(true);}} style={{width:26,height:26,borderRadius:6,background:t.surfaceAlt,border:`1px solid ${t.border}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted}} onMouseEnter={e=>e.currentTarget.style.color=t.blue} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Edit2 size={11}/></button>
+                    <button onClick={()=>deleteTask(tk.id)} style={{width:26,height:26,borderRadius:6,background:t.redBg,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.red}}><Trash2 size={11}/></button>
+                  </div>
+                  <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:8,paddingRight:60}}>
+                    <button onClick={()=>toggleTaskDone(tk.id)} style={{background:"none",border:"none",cursor:"pointer",padding:0,color:tk.status==="Completed"?t.lime:t.textMuted,flexShrink:0,marginTop:1}}>
+                      {tk.status==="Completed"?<CheckSquare size={16}/>:<Square size={16}/>}
+                    </button>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:600,fontSize:13,color:t.text,textDecoration:tk.status==="Completed"?"line-through":"none",opacity:tk.status==="Completed"?0.5:1}}>{tk.title}</div>
+                      <div style={{fontSize:11,color:t.textMuted,marginTop:2}}>{projName(tk.projectId)}</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+                    <Badge label={tk.status} color={PS_COLOR[tk.status]||"muted"} t={t}/>
+                  </div>
+                  {tk.notes&&<p style={{fontSize:12,color:t.textMuted,lineHeight:1.5,marginBottom:8}}>{tk.notes}</p>}
+                  {tk.filesLink&&<a href={tk.filesLink} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:12,color:t.blue,textDecoration:"none",fontWeight:500}}><ExtLink size={11}/>View Files</a>}
+                </Card>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── PROJECT DETAIL MODAL ── */}
+      {sel&&(
+        <Modal open onClose={()=>setSel(null)} title={sel.name} subtitle={sel.clientId?`Client: ${cName(sel.clientId)}`:"No client assigned"} t={t} w={640}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+            {[["Status",<Badge label={sel.status} color={PS_COLOR[sel.status]||"muted"} t={t}/>],["POC",sel.poc||"—"],["Cost",sel.cost?`₹${sel.cost}`:"—"],["Deadline",fd(sel.deadline)||"—"],["Delivery",fd(sel.deliveryDate)||"—"]].map(([l,v])=>(
+              <div key={l} style={{background:t.surfaceAlt,borderRadius:9,padding:"10px 14px",border:`1px solid ${t.border}`}}>
+                <div style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",color:t.textMuted,marginBottom:4}}>{l}</div>
+                <div style={{fontSize:13,color:t.text,fontWeight:500}}>{v}</div>
+              </div>
+            ))}
+          </div>
+          {sel.brief&&<div style={{background:t.surfaceAlt,borderRadius:9,padding:"12px 14px",marginBottom:16,border:`1px solid ${t.border}`}}>
+            <div style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",color:t.textMuted,marginBottom:6}}>Brief</div>
+            <p style={{fontSize:13,color:t.text,lineHeight:1.6,margin:0}}>{sel.brief}</p>
+          </div>}
+          {sel.filesLink&&<div style={{marginBottom:16}}>
+            <a href={sel.filesLink} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",background:t.blueBg,color:t.blue,borderRadius:8,fontSize:13,fontWeight:600,textDecoration:"none",border:`1px solid ${t.blue}30`}}><ExtLink size={13}/>Final Files</a>
+          </div>}
+          {/* Tasks section */}
+          <div style={{borderTop:`1px solid ${t.border}`,paddingTop:16}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+              <div style={{fontWeight:600,fontSize:14,color:t.text}}>Tasks <span style={{color:t.textMuted,fontWeight:400,fontSize:12}}>({projTasks(sel.id).length})</span></div>
+              <Btn v="secondary" t={t} size="sm" onClick={()=>{setTaskForm({...TASK_BLANK,projectId:sel.id});setSel(null);setTab("tasks");setShowAddTask(true);}} icon={<Plus size={12}/>}>Add Task</Btn>
+            </div>
+            {projTasks(sel.id).length===0?(
+              <p style={{color:t.textMuted,fontSize:13,textAlign:"center",padding:"16px 0"}}>No tasks yet for this project.</p>
+            ):(
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {projTasks(sel.id).map(tk=>(
+                  <div key={tk.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:t.surfaceAlt,borderRadius:9,border:`1px solid ${t.border}`}}>
+                    <button onClick={()=>toggleTaskDone(tk.id)} style={{background:"none",border:"none",cursor:"pointer",padding:0,color:tk.status==="Completed"?t.lime:t.textMuted,flexShrink:0}}>
+                      {tk.status==="Completed"?<CheckSquare size={15}/>:<Square size={15}/>}
+                    </button>
+                    <span style={{flex:1,fontSize:13,color:t.text,fontWeight:500,textDecoration:tk.status==="Completed"?"line-through":"none",opacity:tk.status==="Completed"?0.5:1}}>{tk.title}</span>
+                    <Badge label={tk.status} color={PS_COLOR[tk.status]||"muted"} t={t} small/>
+                    {tk.filesLink&&<a href={tk.filesLink} target="_blank" rel="noreferrer" style={{color:t.blue,display:"flex",alignItems:"center"}}><ExtLink size={12}/></a>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {/* ── ADD PROJECT MODAL ── */}
+      <Modal open={showAddProj} onClose={()=>setShowAddProj(false)} title="New Project" t={t} w={520}>
+        <Field label="Project Name*" t={t}><Inp value={projForm.name} onChange={e=>setProjForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Steel Wire Brochure" t={t}/></Field>
+        <Field label="Client" t={t}><Sel value={projForm.clientId} onChange={e=>setProjForm(p=>({...p,clientId:e.target.value}))} t={t}><option value="">Select client (optional)</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
+        <Field label="Brief" t={t}><Tex value={projForm.brief} onChange={e=>setProjForm(p=>({...p,brief:e.target.value}))} placeholder="Short description of what this project covers…" t={t} rows={3}/></Field>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="POC (Point of Contact)" t={t}><Inp value={projForm.poc} onChange={e=>setProjForm(p=>({...p,poc:e.target.value}))} placeholder="Name or contact" t={t}/></Field>
+          <Field label="Cost (₹)" t={t}><Inp value={projForm.cost} onChange={e=>setProjForm(p=>({...p,cost:e.target.value}))} placeholder="0" t={t}/></Field>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="Deadline" t={t}><Inp type="date" value={projForm.deadline} onChange={e=>setProjForm(p=>({...p,deadline:e.target.value}))} t={t}/></Field>
+          <Field label="Delivery Date" t={t}><Inp type="date" value={projForm.deliveryDate} onChange={e=>setProjForm(p=>({...p,deliveryDate:e.target.value}))} t={t}/></Field>
+        </div>
+        <Field label="Status" t={t}><Sel value={projForm.status} onChange={e=>setProjForm(p=>({...p,status:e.target.value}))} t={t}>{PROJ_STATUSES.map(s=><option key={s}>{s}</option>)}</Sel></Field>
+        <Field label="Final Files Link" t={t}><Inp value={projForm.filesLink} onChange={e=>setProjForm(p=>({...p,filesLink:e.target.value}))} placeholder="https://drive.google.com/…" t={t}/></Field>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
+          <Btn v="secondary" t={t} onClick={()=>setShowAddProj(false)}>Cancel</Btn>
+          <Btn v="lime" t={t} onClick={addProj}>Create Project</Btn>
+        </div>
+      </Modal>
+
+      {/* ── EDIT PROJECT MODAL ── */}
+      {editProjForm&&<Modal open={showEditProj} onClose={()=>setShowEditProj(false)} title="Edit Project" t={t} w={520}>
+        <Field label="Project Name*" t={t}><Inp value={editProjForm.name} onChange={e=>setEditProjForm(p=>({...p,name:e.target.value}))} t={t}/></Field>
+        <Field label="Client" t={t}><Sel value={editProjForm.clientId||""} onChange={e=>setEditProjForm(p=>({...p,clientId:e.target.value}))} t={t}><option value="">No client</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
+        <Field label="Brief" t={t}><Tex value={editProjForm.brief||""} onChange={e=>setEditProjForm(p=>({...p,brief:e.target.value}))} t={t} rows={3}/></Field>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="POC" t={t}><Inp value={editProjForm.poc||""} onChange={e=>setEditProjForm(p=>({...p,poc:e.target.value}))} t={t}/></Field>
+          <Field label="Cost (₹)" t={t}><Inp value={editProjForm.cost||""} onChange={e=>setEditProjForm(p=>({...p,cost:e.target.value}))} t={t}/></Field>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="Deadline" t={t}><Inp type="date" value={editProjForm.deadline||""} onChange={e=>setEditProjForm(p=>({...p,deadline:e.target.value}))} t={t}/></Field>
+          <Field label="Delivery Date" t={t}><Inp type="date" value={editProjForm.deliveryDate||""} onChange={e=>setEditProjForm(p=>({...p,deliveryDate:e.target.value}))} t={t}/></Field>
+        </div>
+        <Field label="Status" t={t}><Sel value={editProjForm.status||"Not Started"} onChange={e=>setEditProjForm(p=>({...p,status:e.target.value}))} t={t}>{PROJ_STATUSES.map(s=><option key={s}>{s}</option>)}</Sel></Field>
+        <Field label="Final Files Link" t={t}><Inp value={editProjForm.filesLink||""} onChange={e=>setEditProjForm(p=>({...p,filesLink:e.target.value}))} t={t}/></Field>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
+          <Btn v="secondary" t={t} onClick={()=>setShowEditProj(false)}>Cancel</Btn>
+          <Btn v="lime" t={t} onClick={saveEditProj}>Save Changes</Btn>
+        </div>
+      </Modal>}
+
+      {/* ── ADD TASK MODAL ── */}
+      <Modal open={showAddTask} onClose={()=>setShowAddTask(false)} title="New Task" t={t} w={480}>
+        <Field label="Project*" t={t}><Sel value={taskForm.projectId} onChange={e=>setTaskForm(p=>({...p,projectId:e.target.value}))} t={t}><option value="">Select project</option>{(data.adProjects||[]).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</Sel></Field>
+        <Field label="Task Title*" t={t}><Inp value={taskForm.title} onChange={e=>setTaskForm(p=>({...p,title:e.target.value}))} placeholder="e.g. Page 1 Design" t={t}/></Field>
+        <Field label="Status" t={t}><Sel value={taskForm.status} onChange={e=>setTaskForm(p=>({...p,status:e.target.value}))} t={t}>{TASK_STATUSES.map(s=><option key={s}>{s}</option>)}</Sel></Field>
+        <Field label="Notes" t={t}><Tex value={taskForm.notes} onChange={e=>setTaskForm(p=>({...p,notes:e.target.value}))} placeholder="Any relevant notes…" t={t} rows={2}/></Field>
+        <Field label="Files Link" t={t}><Inp value={taskForm.filesLink} onChange={e=>setTaskForm(p=>({...p,filesLink:e.target.value}))} placeholder="https://drive.google.com/…" t={t}/></Field>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
+          <Btn v="secondary" t={t} onClick={()=>setShowAddTask(false)}>Cancel</Btn>
+          <Btn v="lime" t={t} onClick={addTask}>Add Task</Btn>
+        </div>
+      </Modal>
+
+      {/* ── EDIT TASK MODAL ── */}
+      {editTaskForm&&<Modal open={showEditTask} onClose={()=>setShowEditTask(false)} title="Edit Task" t={t} w={480}>
+        <Field label="Project" t={t}><Sel value={editTaskForm.projectId||""} onChange={e=>setEditTaskForm(p=>({...p,projectId:e.target.value}))} t={t}><option value="">Select project</option>{(data.adProjects||[]).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</Sel></Field>
+        <Field label="Task Title*" t={t}><Inp value={editTaskForm.title} onChange={e=>setEditTaskForm(p=>({...p,title:e.target.value}))} t={t}/></Field>
+        <Field label="Status" t={t}><Sel value={editTaskForm.status} onChange={e=>setEditTaskForm(p=>({...p,status:e.target.value}))} t={t}>{TASK_STATUSES.map(s=><option key={s}>{s}</option>)}</Sel></Field>
+        <Field label="Notes" t={t}><Tex value={editTaskForm.notes||""} onChange={e=>setEditTaskForm(p=>({...p,notes:e.target.value}))} t={t} rows={2}/></Field>
+        <Field label="Files Link" t={t}><Inp value={editTaskForm.filesLink||""} onChange={e=>setEditTaskForm(p=>({...p,filesLink:e.target.value}))} t={t}/></Field>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
+          <Btn v="secondary" t={t} onClick={()=>setShowEditTask(false)}>Cancel</Btn>
+          <Btn v="lime" t={t} onClick={saveEditTask}>Save Changes</Btn>
+        </div>
+      </Modal>}
+    </div>
+  );
+}
+
 function QuickNotes({t,currentUser,toast}){
   const [notes,setNotes]=useState([]);
   const [loadingN,setLoadingN]=useState(true);
@@ -3243,135 +3568,273 @@ function QuickNotes({t,currentUser,toast}){
 }
 
 // ── CREDENTIALS ───────────────────────────────────────────────────────────────
+function CredCard({cred,canManage,isFounder,t,onEdit,onDelete,uName}){
+  const [visPass,setVisPass]=useState(false);
+  const copyText=(text,label)=>{navigator.clipboard?.writeText(text).then(()=>{}).catch(()=>{});};
+  return(
+    <Card t={t} style={{animation:"fadeUp .28s both",position:"relative"}}>
+      <div className="card-actions" style={{position:"absolute",top:10,right:10,display:"flex",gap:4,zIndex:10}}>
+        {canManage&&<button onClick={()=>onEdit(cred)} style={{width:26,height:26,borderRadius:6,background:t.surfaceAlt,border:`1px solid ${t.border}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted}} onMouseEnter={e=>e.currentTarget.style.color=t.blue} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Edit2 size={11}/></button>}
+        {isFounder&&<button onClick={()=>onDelete(cred.id)} style={{width:26,height:26,borderRadius:6,background:t.redBg,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.red}}><Trash2 size={11}/></button>}
+      </div>
+      <div style={{marginBottom:12,paddingRight:56}}>
+        <div style={{fontSize:15,fontWeight:700,color:t.text}}>{cred.appName||cred.clientName}</div>
+        {cred.url&&<a href={cred.url} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:t.blue,textDecoration:"none",marginTop:3,fontWeight:500}}><ExternalLink size={10}/>{cred.url.replace(/^https?:\/\//,"")}</a>}
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:7}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 11px",background:t.surfaceAlt,borderRadius:8,border:`1px solid ${t.border}`}}>
+          <div><div style={{fontSize:10,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Login ID</div><div style={{fontSize:13,color:t.text,fontWeight:500,marginTop:2,wordBreak:"break-all"}}>{cred.loginId}</div></div>
+          <button onClick={()=>{navigator.clipboard?.writeText(cred.loginId);}} title="Copy" style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:4,borderRadius:5,display:"flex",alignItems:"center",flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.color=t.lime} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Copy size={13}/></button>
+        </div>
+        {cred.password&&(
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 11px",background:t.surfaceAlt,borderRadius:8,border:`1px solid ${t.border}`}}>
+            <div><div style={{fontSize:10,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Password</div><div style={{fontSize:13,color:t.text,fontWeight:500,marginTop:2,letterSpacing:visPass?"normal":"0.12em"}}>{visPass?cred.password:"••••••••"}</div></div>
+            <div style={{display:"flex",gap:2,flexShrink:0}}>
+              <button onClick={()=>setVisPass(p=>!p)} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:4,borderRadius:5,display:"flex",alignItems:"center"}} onMouseEnter={e=>e.currentTarget.style.color=t.lime} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}>{visPass?<EyeOff size={13}/>:<Eye size={13}/>}</button>
+              <button onClick={()=>navigator.clipboard?.writeText(cred.password)} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:4,borderRadius:5,display:"flex",alignItems:"center"}} onMouseEnter={e=>e.currentTarget.style.color=t.lime} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Copy size={13}/></button>
+            </div>
+          </div>
+        )}
+      </div>
+      {cred.notes&&<p style={{fontSize:12,color:t.textMuted,marginTop:10,lineHeight:1.55}}>{cred.notes}</p>}
+      {uName&&<div style={{fontSize:10,color:t.textMuted,marginTop:8,paddingTop:8,borderTop:`1px solid ${t.border}`}}>Added by {uName(cred.addedBy)} · {fdt(cred.addedAt)}</div>}
+    </Card>
+  );
+}
+
 function Credentials({t,data,setData,toast,currentUser}){
   const isFounder=currentUser?.role==="Founder"||currentUser?.role==="Admin";
-  const isHoD=currentUser?.role==="HoD"||currentUser?.role==="Head of Department"||currentUser?.role==="Manager";
-  const canManage=isFounder||isHoD;
+  const isManager=isFounder||currentUser?.role==="Manager";
+  const canManage=isManager;
+
+  // ── Tab state ─────────────────────────────────
+  const [tab,setTab]=useState("app");// "app" | "client"
+
+  // ── App credentials state ─────────────────────
   const [showAdd,setShowAdd]=useState(false);
   const [editCred,setEditCred]=useState(null);
-  const [visPass,setVisPass]=useState({});
   const [search,setSearch]=useState("");
   const [form,setForm]=useState({appName:"",url:"",loginId:"",password:"",notes:""});
 
-  const toggleVis=id=>setVisPass(p=>({...p,[id]:!p[id]}));
-  const copyText=(text,label)=>{navigator.clipboard?.writeText(text).then(()=>toast(`${label} copied`,"success")).catch(()=>toast("Copy failed","error"));};
+  // ── Client credentials state ──────────────────
+  const canAccessClientCreds=isManager;
+  const masterPwd=(data.settings||{}).clientCredsPassword||"";
+  const [clientUnlocked,setClientUnlocked]=useState(false);
+  const [pwdInput,setPwdInput]=useState("");
+  const [pwdErr,setPwdErr]=useState("");
+  const [showSetPwd,setShowSetPwd]=useState(false);
+  const [newPwdForm,setNewPwdForm]=useState({pwd:"",confirm:""});
+  const [showAddClient,setShowAddClient]=useState(false);
+  const [editClientCred,setEditClientCred]=useState(null);
+  const [clientSearch,setClientSearch]=useState("");
+  const [clientForm,setClientForm]=useState({clientName:"",platform:"",url:"",loginId:"",password:"",notes:""});
 
+  const tryUnlock=()=>{
+    if(!masterPwd){setPwdErr("No password set yet. Ask your Founder to set one.");return;}
+    if(pwdInput===masterPwd){setClientUnlocked(true);setPwdErr("");}
+    else{setPwdErr("Incorrect password. Try again.");}
+  };
+  const setMasterPwd=()=>{
+    if(!newPwdForm.pwd.trim()){toast("Password cannot be empty","error");return;}
+    if(newPwdForm.pwd!==newPwdForm.confirm){toast("Passwords do not match","error");return;}
+    setData(d=>({...d,settings:{...(d.settings||{}),clientCredsPassword:newPwdForm.pwd}}));
+    setShowSetPwd(false);setNewPwdForm({pwd:"",confirm:""});toast("Master password set");
+  };
+
+  // ── App cred CRUD ─────────────────────────────
   const addCred=()=>{
     if(!form.appName.trim()||!form.loginId.trim()){toast("App name and Login ID are required","error");return;}
     const cred={id:"cr"+Date.now(),...form,addedBy:currentUser?.id,addedAt:new Date().toISOString()};
     setData(d=>({...d,credentials:[...(d.credentials||[]),cred]}));
-    setShowAdd(false);setForm({appName:"",url:"",loginId:"",password:"",notes:""});
-    toast("Credentials added");
+    setShowAdd(false);setForm({appName:"",url:"",loginId:"",password:"",notes:""});toast("Credentials added");
   };
   const saveEditCred=()=>{
     if(!editCred?.appName?.trim())return;
     setData(d=>({...d,credentials:d.credentials.map(c=>c.id===editCred.id?editCred:c)}));
-    setEditCred(null);toast("Credentials updated");
+    setEditCred(null);toast("Updated");
   };
   const delCred=async(id)=>{
-    if(!window.confirm("Delete these credentials? This cannot be undone."))return;
+    if(!window.confirm("Delete? This cannot be undone."))return;
+    await deleteDoc_(COLS.CREDENTIALS,id);
+    setData(d=>({...d,credentials:d.credentials.filter(c=>c.id!==id)}));
+    toast("Deleted");
+  };
+
+  // ── Client cred CRUD ─────────────────────────
+  const clientCreds=(data.credentials||[]).filter(c=>c.type==="client");
+  const addClientCred=()=>{
+    if(!clientForm.clientName.trim()||!clientForm.loginId.trim()){toast("Client name and Login ID required","error");return;}
+    const cred={id:"cr"+Date.now(),...clientForm,type:"client",addedBy:currentUser?.id,addedAt:new Date().toISOString()};
+    setData(d=>({...d,credentials:[...(d.credentials||[]),cred]}));
+    setShowAddClient(false);setClientForm({clientName:"",platform:"",url:"",loginId:"",password:"",notes:""});toast("Client credentials added");
+  };
+  const saveEditClientCred=()=>{
+    if(!editClientCred?.clientName?.trim())return;
+    setData(d=>({...d,credentials:d.credentials.map(c=>c.id===editClientCred.id?editClientCred:c)}));
+    setEditClientCred(null);toast("Updated");
+  };
+  const delClientCred=async(id)=>{
+    if(!window.confirm("Delete? This cannot be undone."))return;
     await deleteDoc_(COLS.CREDENTIALS,id);
     setData(d=>({...d,credentials:d.credentials.filter(c=>c.id!==id)}));
     toast("Deleted");
   };
 
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
-  const filtered=(data.credentials||[]).filter(c=>!search||c.appName?.toLowerCase().includes(search.toLowerCase())||c.loginId?.toLowerCase().includes(search.toLowerCase()));
+  const appCreds=(data.credentials||[]).filter(c=>c.type!=="client");
+  const filteredApp=appCreds.filter(c=>!search||c.appName?.toLowerCase().includes(search.toLowerCase())||c.loginId?.toLowerCase().includes(search.toLowerCase()));
+  const filteredClient=clientCreds.filter(c=>!clientSearch||c.clientName?.toLowerCase().includes(clientSearch.toLowerCase())||c.platform?.toLowerCase().includes(clientSearch.toLowerCase()));
+
+  const TabBtn=({id,label,Icon})=>(
+    <button onClick={()=>setTab(id)} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 16px",borderRadius:8,border:"none",background:tab===id?t.text:"transparent",color:tab===id?"#fff":t.textMuted,fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,cursor:"pointer",transition:"all .15s"}}>
+      <Icon size={14}/>{label}
+    </button>
+  );
 
   return(
     <div>
-      <SHead t={t} title="Credentials" sub="Shared app logins for the team"
-        action={canManage&&<Btn v="lime" t={t} onClick={()=>{setShowAdd(true);setForm({appName:"",url:"",loginId:"",password:"",notes:""});}} icon={<Plus size={14}/>}>Add Credentials</Btn>}/>
+      <SHead t={t} title="Credentials" sub="App logins and client portals"
+        action={
+          <div style={{display:"flex",gap:8}}>
+            {tab==="app"&&canManage&&<Btn v="lime" t={t} onClick={()=>{setShowAdd(true);setForm({appName:"",url:"",loginId:"",password:"",notes:""});}} icon={<Plus size={14}/>}>Add App Creds</Btn>}
+            {tab==="client"&&canAccessClientCreds&&clientUnlocked&&<Btn v="lime" t={t} onClick={()=>setShowAddClient(true)} icon={<Plus size={14}/>}>Add Client Creds</Btn>}
+            {tab==="client"&&isFounder&&<Btn v="secondary" t={t} onClick={()=>setShowSetPwd(true)} icon={<Lock size={13}/>}>{masterPwd?"Change Password":"Set Password"}</Btn>}
+          </div>
+        }/>
 
-      <div style={{marginBottom:20,position:"relative",maxWidth:360}}>
-        <Search size={14} style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:t.textMuted,pointerEvents:"none"}}/>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search apps…" style={{...iStyle(t),paddingLeft:34}}
-          onFocus={e=>{e.target.style.borderColor="#84CC16";e.target.style.boxShadow="0 0 0 3px rgba(132,204,22,0.12)";}}
-          onBlur={e=>{e.target.style.borderColor=t.dark?t.border:"rgba(0,0,0,0.1)";e.target.style.boxShadow="none";}}/>
+      {/* Tabs */}
+      <div style={{display:"flex",gap:4,marginBottom:24,background:t.surfaceAlt,borderRadius:10,padding:4,width:"fit-content",border:`1px solid ${t.border}`}}>
+        <TabBtn id="app" label="App Credentials" Icon={KeyRound}/>
+        {isManager&&<TabBtn id="client" label="Client Credentials" Icon={Lock}/>}
       </div>
 
-      {filtered.length===0?(
-        <div style={{textAlign:"center",padding:"60px 0",animation:"fadeUp .28s both"}}>
-          <KeyRound size={44} strokeWidth={1} color={t.textMuted}/>
-          <p style={{color:t.textMuted,fontSize:14,marginTop:14,fontWeight:500}}>No credentials yet.</p>
-          {canManage&&<p style={{color:t.textMuted,fontSize:13,marginTop:4}}>Click "Add Credentials" to store the first one.</p>}
-        </div>
-      ):(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(310px,1fr))",gap:14}}>
-          {filtered.map((cred,i)=>(
-            <Card t={t} key={cred.id} style={{animation:`fadeUp .28s ${i*40}ms both`}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
-                <div>
-                  <div style={{fontSize:15,fontWeight:700,color:t.text,fontFamily:"'Inter',sans-serif"}}>{cred.appName}</div>
-                  {cred.url&&<a href={cred.url} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:t.blue,textDecoration:"none",marginTop:3,fontWeight:500}}><ExternalLink size={10}/>{cred.url.replace(/^https?:\/\//,"")}</a>}
-                </div>
-                {canManage&&(
-                  <div style={{display:"flex",gap:4,flexShrink:0}}>
-                    <button onClick={()=>setEditCred({...cred})} style={{width:26,height:26,borderRadius:6,background:t.surfaceAlt,border:`1px solid ${t.border}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted,transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color=t.blue} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Edit2 size={11}/></button>
-                    {isFounder&&<button onClick={()=>delCred(cred.id)} style={{width:26,height:26,borderRadius:6,background:t.redBg,border:`1px solid rgba(220,38,38,0.2)`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.red}}><Trash2 size={11}/></button>}
-                  </div>
-                )}
-              </div>
-
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {/* Login ID */}
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",background:t.surfaceAlt,borderRadius:9,border:`1px solid ${t.border}`}}>
-                  <div>
-                    <div style={{fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Login ID</div>
-                    <div style={{fontSize:13,color:t.text,fontWeight:500,marginTop:2,wordBreak:"break-all"}}>{cred.loginId}</div>
-                  </div>
-                  <button onClick={()=>copyText(cred.loginId,"Login ID")} title="Copy" style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:4,borderRadius:5,display:"flex",alignItems:"center",flexShrink:0,transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color=t.lime} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Copy size={13}/></button>
-                </div>
-
-                {/* Password */}
-                {cred.password&&(
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",background:t.surfaceAlt,borderRadius:9,border:`1px solid ${t.border}`}}>
-                    <div>
-                      <div style={{fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Password</div>
-                      <div style={{fontSize:13,color:t.text,fontWeight:500,marginTop:2,letterSpacing:visPass[cred.id]?"normal":"0.12em"}}>{visPass[cred.id]?cred.password:"••••••••"}</div>
-                    </div>
-                    <div style={{display:"flex",gap:2,flexShrink:0}}>
-                      <button onClick={()=>toggleVis(cred.id)} title={visPass[cred.id]?"Hide":"Show"} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:4,borderRadius:5,display:"flex",alignItems:"center",transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color=t.lime} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}>{visPass[cred.id]?<EyeOff size={13}/>:<Eye size={13}/>}</button>
-                      <button onClick={()=>copyText(cred.password,"Password")} title="Copy" style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:4,borderRadius:5,display:"flex",alignItems:"center",transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color=t.lime} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Copy size={13}/></button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {cred.notes&&<p style={{fontSize:12,color:t.textMuted,marginTop:10,lineHeight:1.55,margin:"10px 0 0"}}>{cred.notes}</p>}
-              <div style={{fontSize:10,color:t.textMuted,marginTop:8,paddingTop:8,borderTop:`1px solid ${t.border}`}}>Added by {uName(cred.addedBy)} · {fdt(cred.addedAt)}</div>
-            </Card>
-          ))}
-        </div>
+      {/* ── APP CREDENTIALS TAB ── */}
+      {tab==="app"&&(
+        <>
+          <div style={{marginBottom:20,position:"relative",maxWidth:360}}>
+            <Search size={14} style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:t.textMuted,pointerEvents:"none"}}/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search apps…" style={{...iStyle(t),paddingLeft:34}}/>
+          </div>
+          {filteredApp.length===0?(
+            <div style={{textAlign:"center",padding:"60px 0"}}>
+              <KeyRound size={44} strokeWidth={1} color={t.textMuted}/>
+              <p style={{color:t.textMuted,fontSize:14,marginTop:14,fontWeight:500}}>No app credentials yet.</p>
+              {canManage&&<p style={{color:t.textMuted,fontSize:13,marginTop:4}}>Click "Add App Creds" to store the first one.</p>}
+            </div>
+          ):(
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}} className="grid-1-mobile">
+              {filteredApp.map(cred=><CredCard key={cred.id} cred={cred} canManage={canManage} isFounder={isFounder} t={t} onEdit={c=>setEditCred({...c})} onDelete={delCred} uName={uName}/>)}
+            </div>
+          )}
+          <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add App Credentials" t={t} w={480}>
+            <Field label="App / Service Name *" t={t}><Inp value={form.appName} onChange={e=>setForm(p=>({...p,appName:e.target.value}))} placeholder="e.g. Canva, Figma, Slack" t={t}/></Field>
+            <Field label="URL" t={t}><Inp value={form.url} onChange={e=>setForm(p=>({...p,url:e.target.value}))} placeholder="https://canva.com" t={t}/></Field>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <Field label="Login ID / Email *" t={t}><Inp value={form.loginId} onChange={e=>setForm(p=>({...p,loginId:e.target.value}))} placeholder="team@profitpenny.in" t={t}/></Field>
+              <Field label="Password" t={t}><Inp type="password" value={form.password} onChange={e=>setForm(p=>({...p,password:e.target.value}))} placeholder="••••••••" t={t}/></Field>
+            </div>
+            <Field label="Notes" t={t}><Tex value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} placeholder="Seat limits, plan details…" t={t} rows={2}/></Field>
+            <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+              <Btn v="secondary" t={t} onClick={()=>setShowAdd(false)}>Cancel</Btn>
+              <Btn v="lime" t={t} onClick={addCred} icon={<Plus size={13}/>}>Add</Btn>
+            </div>
+          </Modal>
+          {editCred&&<Modal open onClose={()=>setEditCred(null)} title="Edit App Credentials" t={t} w={480}>
+            <Field label="App / Service Name *" t={t}><Inp value={editCred.appName} onChange={e=>setEditCred(p=>({...p,appName:e.target.value}))} t={t}/></Field>
+            <Field label="URL" t={t}><Inp value={editCred.url||""} onChange={e=>setEditCred(p=>({...p,url:e.target.value}))} t={t}/></Field>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <Field label="Login ID / Email *" t={t}><Inp value={editCred.loginId} onChange={e=>setEditCred(p=>({...p,loginId:e.target.value}))} t={t}/></Field>
+              <Field label="Password" t={t}><Inp value={editCred.password||""} onChange={e=>setEditCred(p=>({...p,password:e.target.value}))} t={t}/></Field>
+            </div>
+            <Field label="Notes" t={t}><Tex value={editCred.notes||""} onChange={e=>setEditCred(p=>({...p,notes:e.target.value}))} t={t} rows={2}/></Field>
+            <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+              <Btn v="secondary" t={t} onClick={()=>setEditCred(null)}>Cancel</Btn>
+              <Btn v="lime" t={t} onClick={saveEditCred} icon={<Check size={13}/>}>Save</Btn>
+            </div>
+          </Modal>}
+        </>
       )}
 
-      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add Credentials" t={t} w={480}>
-        <Field label="App / Service Name *" t={t}><Inp value={form.appName} onChange={e=>setForm(p=>({...p,appName:e.target.value}))} placeholder="e.g. Canva, Figma, Slack" t={t}/></Field>
-        <Field label="URL" t={t}><Inp value={form.url} onChange={e=>setForm(p=>({...p,url:e.target.value}))} placeholder="https://canva.com" t={t}/></Field>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Field label="Login ID / Email *" t={t}><Inp value={form.loginId} onChange={e=>setForm(p=>({...p,loginId:e.target.value}))} placeholder="team@profitpenny.in" t={t}/></Field>
-          <Field label="Password" t={t}><Inp type="password" value={form.password} onChange={e=>setForm(p=>({...p,password:e.target.value}))} placeholder="••••••••" t={t}/></Field>
-        </div>
-        <Field label="Notes (optional)" t={t}><Tex value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} placeholder="Any additional info, e.g. seat limits, plan details…" t={t} rows={2}/></Field>
+      {/* ── CLIENT CREDENTIALS TAB ── */}
+      {tab==="client"&&isManager&&(
+        <>
+          {!clientUnlocked?(
+            <div style={{maxWidth:380,margin:"60px auto",textAlign:"center"}}>
+              <div style={{width:56,height:56,borderRadius:16,background:t.surfaceAlt,border:`1px solid ${t.border}`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px"}}>
+                <Lock size={24} color={t.textMuted}/>
+              </div>
+              <h3 style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:8}}>Client Credentials are protected</h3>
+              <p style={{fontSize:13,color:t.textMuted,marginBottom:20,lineHeight:1.6}}>Enter the master password to access client login credentials.</p>
+              {!masterPwd&&isFounder&&<p style={{fontSize:12,color:t.amber,marginBottom:16,padding:"8px 12px",background:t.amberBg,borderRadius:8}}>No password set yet. Click "Set Password" in the top-right to configure one.</p>}
+              <div style={{display:"flex",gap:8}}>
+                <Inp value={pwdInput} onChange={e=>{setPwdInput(e.target.value);setPwdErr("");}} type="password" placeholder="Enter master password" t={t} style={{flex:1}} onKeyDown={e=>e.key==="Enter"&&tryUnlock()}/>
+                <Btn v="lime" t={t} onClick={tryUnlock}>Unlock</Btn>
+              </div>
+              {pwdErr&&<p style={{color:t.red,fontSize:12,marginTop:8}}>{pwdErr}</p>}
+            </div>
+          ):(
+            <>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20,flexWrap:"wrap",gap:10}}>
+                <div style={{position:"relative",flex:1,maxWidth:360}}>
+                  <Search size={14} style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:t.textMuted,pointerEvents:"none"}}/>
+                  <input value={clientSearch} onChange={e=>setClientSearch(e.target.value)} placeholder="Search client credentials…" style={{...iStyle(t),paddingLeft:34}}/>
+                </div>
+                <button onClick={()=>{setClientUnlocked(false);setPwdInput("");}} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,border:`1px solid ${t.border}`,background:"transparent",color:t.textMuted,fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                  <Lock size={12}/>Lock
+                </button>
+              </div>
+              {filteredClient.length===0?(
+                <div style={{textAlign:"center",padding:"60px 0"}}>
+                  <Lock size={44} strokeWidth={1} color={t.textMuted}/>
+                  <p style={{color:t.textMuted,fontSize:14,marginTop:14,fontWeight:500}}>No client credentials yet.</p>
+                </div>
+              ):(
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}} className="grid-1-mobile">
+                  {filteredClient.map(cred=><CredCard key={cred.id} cred={{...cred,appName:cred.clientName+(cred.platform?` — ${cred.platform}`:"")}} canManage={canManage} isFounder={isFounder} t={t} onEdit={c=>setEditClientCred({...c})} onDelete={delClientCred} uName={uName}/>)}
+                </div>
+              )}
+              <Modal open={showAddClient} onClose={()=>setShowAddClient(false)} title="Add Client Credentials" t={t} w={480}>
+                <Field label="Client Name *" t={t}><Inp value={clientForm.clientName} onChange={e=>setClientForm(p=>({...p,clientName:e.target.value}))} placeholder="e.g. Usha Martin" t={t}/></Field>
+                <Field label="Platform / Service" t={t}><Inp value={clientForm.platform} onChange={e=>setClientForm(p=>({...p,platform:e.target.value}))} placeholder="e.g. WordPress, Google Ads" t={t}/></Field>
+                <Field label="URL" t={t}><Inp value={clientForm.url} onChange={e=>setClientForm(p=>({...p,url:e.target.value}))} placeholder="https://…" t={t}/></Field>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                  <Field label="Login ID / Email *" t={t}><Inp value={clientForm.loginId} onChange={e=>setClientForm(p=>({...p,loginId:e.target.value}))} t={t}/></Field>
+                  <Field label="Password" t={t}><Inp type="password" value={clientForm.password} onChange={e=>setClientForm(p=>({...p,password:e.target.value}))} placeholder="••••••••" t={t}/></Field>
+                </div>
+                <Field label="Notes" t={t}><Tex value={clientForm.notes} onChange={e=>setClientForm(p=>({...p,notes:e.target.value}))} t={t} rows={2}/></Field>
+                <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+                  <Btn v="secondary" t={t} onClick={()=>setShowAddClient(false)}>Cancel</Btn>
+                  <Btn v="lime" t={t} onClick={addClientCred} icon={<Plus size={13}/>}>Add</Btn>
+                </div>
+              </Modal>
+              {editClientCred&&<Modal open onClose={()=>setEditClientCred(null)} title="Edit Client Credentials" t={t} w={480}>
+                <Field label="Client Name *" t={t}><Inp value={editClientCred.clientName||""} onChange={e=>setEditClientCred(p=>({...p,clientName:e.target.value}))} t={t}/></Field>
+                <Field label="Platform / Service" t={t}><Inp value={editClientCred.platform||""} onChange={e=>setEditClientCred(p=>({...p,platform:e.target.value}))} t={t}/></Field>
+                <Field label="URL" t={t}><Inp value={editClientCred.url||""} onChange={e=>setEditClientCred(p=>({...p,url:e.target.value}))} t={t}/></Field>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                  <Field label="Login ID *" t={t}><Inp value={editClientCred.loginId||""} onChange={e=>setEditClientCred(p=>({...p,loginId:e.target.value}))} t={t}/></Field>
+                  <Field label="Password" t={t}><Inp value={editClientCred.password||""} onChange={e=>setEditClientCred(p=>({...p,password:e.target.value}))} t={t}/></Field>
+                </div>
+                <Field label="Notes" t={t}><Tex value={editClientCred.notes||""} onChange={e=>setEditClientCred(p=>({...p,notes:e.target.value}))} t={t} rows={2}/></Field>
+                <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+                  <Btn v="secondary" t={t} onClick={()=>setEditClientCred(null)}>Cancel</Btn>
+                  <Btn v="lime" t={t} onClick={saveEditClientCred} icon={<Check size={13}/>}>Save</Btn>
+                </div>
+              </Modal>}
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── SET MASTER PASSWORD MODAL ── */}
+      <Modal open={showSetPwd} onClose={()=>setShowSetPwd(false)} title={masterPwd?"Change Master Password":"Set Master Password"} subtitle="This password protects all client credentials." t={t} w={400}>
+        <Field label="New Password" t={t}><Inp type="password" value={newPwdForm.pwd} onChange={e=>setNewPwdForm(p=>({...p,pwd:e.target.value}))} placeholder="Set a strong password" t={t}/></Field>
+        <Field label="Confirm Password" t={t}><Inp type="password" value={newPwdForm.confirm} onChange={e=>setNewPwdForm(p=>({...p,confirm:e.target.value}))} placeholder="Repeat password" t={t} onKeyDown={e=>e.key==="Enter"&&setMasterPwd()}/></Field>
         <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
-          <Btn v="secondary" t={t} onClick={()=>setShowAdd(false)}>Cancel</Btn>
-          <Btn v="lime" t={t} onClick={addCred} icon={<Plus size={13}/>}>Add</Btn>
+          <Btn v="secondary" t={t} onClick={()=>setShowSetPwd(false)}>Cancel</Btn>
+          <Btn v="lime" t={t} onClick={setMasterPwd} icon={<Lock size={13}/>}>Save Password</Btn>
         </div>
       </Modal>
-
-      {editCred&&<Modal open onClose={()=>setEditCred(null)} title="Edit Credentials" t={t} w={480}>
-        <Field label="App / Service Name *" t={t}><Inp value={editCred.appName} onChange={e=>setEditCred(p=>({...p,appName:e.target.value}))} t={t}/></Field>
-        <Field label="URL" t={t}><Inp value={editCred.url||""} onChange={e=>setEditCred(p=>({...p,url:e.target.value}))} t={t}/></Field>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Field label="Login ID / Email *" t={t}><Inp value={editCred.loginId} onChange={e=>setEditCred(p=>({...p,loginId:e.target.value}))} t={t}/></Field>
-          <Field label="Password" t={t}><Inp value={editCred.password||""} onChange={e=>setEditCred(p=>({...p,password:e.target.value}))} t={t}/></Field>
-        </div>
-        <Field label="Notes (optional)" t={t}><Tex value={editCred.notes||""} onChange={e=>setEditCred(p=>({...p,notes:e.target.value}))} t={t} rows={2}/></Field>
-        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
-          <Btn v="secondary" t={t} onClick={()=>setEditCred(null)}>Cancel</Btn>
-          <Btn v="lime" t={t} onClick={saveEditCred} icon={<Check size={13}/>}>Save Changes</Btn>
-        </div>
-      </Modal>}
     </div>
   );
 }
@@ -3391,6 +3854,7 @@ const NAV=[
   {id:"departments",  label:"Departments",    Icon:Building2,        roles:"manager"},
   {id:"team",         label:"Team",           Icon:Users2,           roles:"manager"},
   {id:"onboarding",   label:"Onboarding",     Icon:UserCheck,        roles:"manager"},
+  {id:"adprojects",   label:"Ad-hoc Projects",Icon:FolderOpen,       roles:"manager"},
   {id:"credentials",  label:"Credentials",    Icon:KeyRound,         roles:"all"},
   {id:"quicknotes",   label:"Quick Notes",    Icon:StickyNote,       roles:"all"},
   {id:"notifications",label:"Notifications",  Icon:Bell,             roles:"all"},
@@ -3542,19 +4006,22 @@ function App({firebaseUid}){
   useEffect(()=>{
     async function loadAll(){
       try {
-        const [users,departments,clients,tasks,leaves,meetings,timeLogs,notifications,onboarding,credentials] = await Promise.all([
+        const [users,departments,clients,tasks,leaves,meetings,timeLogs,notifications,onboarding,credentials,adProjects,adTasks,settingsDocs] = await Promise.all([
           listDocs(COLS.USERS), listDocs(COLS.DEPARTMENTS), listDocs(COLS.CLIENTS),
           listDocs(COLS.TASKS), listDocs(COLS.LEAVES), listDocs(COLS.MEETINGS),
           listDocs(COLS.TIMELOGS), listDocs(COLS.NOTIFICATIONS), listDocs(COLS.ONBOARDING),
-          listDocs(COLS.CREDENTIALS),
+          listDocs(COLS.CREDENTIALS), listDocs(COLS.ADPROJECTS), listDocs(COLS.ADTASKS),
+          listDocs(COLS.SETTINGS),
         ]);
         const leaveBalances = {};
         users.forEach(u => { leaveBalances[u.id] = { total: u.leaveTotal||12, taken: u.leaveTaken||0 }; });
+        const settingsDoc = settingsDocs.find(s=>s.id==="global")||{clientCredsPassword:""};
         setData(d=>({
           ...d,
           firstLogin: users.length===0,
           users, departments, clients, tasks, leaves, meetings,
           timeLogs, notifications, onboarding, leaveBalances, credentials,
+          adProjects, adTasks, settings: settingsDoc,
         }));
       } catch(e){
         console.error("Firebase load error:",e);
@@ -3633,6 +4100,19 @@ function App({firebaseUid}){
         if (!old) syncCreate(COLS.CREDENTIALS, c);
         else if (JSON.stringify(c)!==JSON.stringify(old)) syncUpdate(COLS.CREDENTIALS, c.id, c);
       });
+      if (next.adProjects !== prev.adProjects) next.adProjects.forEach(p => {
+        const old = prev.adProjects.find(x=>x.id===p.id);
+        if (!old) syncCreate(COLS.ADPROJECTS, p);
+        else if (JSON.stringify(p)!==JSON.stringify(old)) syncUpdate(COLS.ADPROJECTS, p.id, p);
+      });
+      if (next.adTasks !== prev.adTasks) next.adTasks.forEach(tk => {
+        const old = prev.adTasks.find(x=>x.id===tk.id);
+        if (!old) syncCreate(COLS.ADTASKS, tk);
+        else if (JSON.stringify(tk)!==JSON.stringify(old)) syncUpdate(COLS.ADTASKS, tk.id, tk);
+      });
+      if (next.settings !== prev.settings) {
+        syncUpdate(COLS.SETTINGS, "global", next.settings);
+      }
 
       return next;
     });
@@ -3668,6 +4148,7 @@ function App({firebaseUid}){
     notifications:<Notifications t={t} data={data} setData={setDataAndSync} go={go} currentUser={currentUser}/>,
     quicknotes:   <QuickNotes    t={t} currentUser={currentUser} toast={toast}/>,
     credentials:  <Credentials   t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
+    adprojects:   <AdProjects    t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
   };
 
   if (loading) return (
