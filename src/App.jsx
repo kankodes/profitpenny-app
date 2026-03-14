@@ -617,9 +617,12 @@ function Projects({t,data,setData,toast,currentUser,pendingTaskId,clearPendingTa
   const [showAddProj,setShowAddProj]=useState(false);
   const [showConfirm,setShowConfirm]=useState(false);
   const [projDraft,setProjDraft]=useState(null);
-  const [projForm,setProjForm]=useState({name:"",clientId:"",projectLead:"",members:[],deadline:"",estHours:"",brief:"",briefLinks:[""],outputLink:"",references:[""],priority:"Medium",status:"Not Started"});
+  const [projForm,setProjForm]=useState({name:"",clientId:"",projectLead:"",members:[],deadline:"",estHours:"",brief:"",briefAttachment:"",outputLink:"",references:[""],priority:"Medium",status:"Not Started"});
+  const [projDueWarn,setProjDueWarn]=useState("");
   const [searchProj,setSearchProj]=useState("");
   const [filterProjStatus,setFilterProjStatus]=useState("all");
+  const [filterProjClient,setFilterProjClient]=useState("all");
+  const [filterProjDeadline,setFilterProjDeadline]=useState("all");
 
   // Existing task state
   const [filterStatus,setFilterStatus]=useState("All");
@@ -660,9 +663,18 @@ function Projects({t,data,setData,toast,currentUser,pendingTaskId,clearPendingTa
     const newProj={...projDraft,id:"p"+Date.now(),createdAt:new Date().toISOString(),createdBy:currentUser?.id};
     setData(d=>({...d,projects:[...d.projects,newProj]}));
     setShowConfirm(false);
-    setProjForm({name:"",clientId:"",projectLead:"",members:[],deadline:"",estHours:"",brief:"",briefLinks:[""],outputLink:"",references:[""],priority:"Medium",status:"Not Started"});
+    setProjForm({name:"",clientId:"",projectLead:"",members:[],deadline:"",estHours:"",brief:"",briefAttachment:"",outputLink:"",references:[""],priority:"Medium",status:"Not Started"});
+    setProjDueWarn("");
     setProjDraft(null);
     toast("Project created successfully");
+  };
+
+  const checkProjDue=(val)=>{
+    if(!val){setProjDueWarn("");return;}
+    const d=new Date(val);
+    const day=d.getDay();
+    if(day===0||day===6){setProjDueWarn("⚠ This falls on a "+(day===6?"Saturday":"Sunday")+" — consider a weekday instead");}
+    else setProjDueWarn("");
   };
 
   const deleteProject=(id)=>{
@@ -675,6 +687,15 @@ function Projects({t,data,setData,toast,currentUser,pendingTaskId,clearPendingTa
   const projects=(data.projects||[]).filter(p=>{
     if(searchProj&&!p.name.toLowerCase().includes(searchProj.toLowerCase())&&!cName(p.clientId).toLowerCase().includes(searchProj.toLowerCase()))return false;
     if(filterProjStatus!=="all"&&p.status!==filterProjStatus)return false;
+    if(filterProjClient!=="all"&&p.clientId!==filterProjClient)return false;
+    if(filterProjDeadline!=="all"){
+      const today2=new Date().toISOString().split("T")[0];
+      const weekEnd=new Date(Date.now()+7*86400000).toISOString().split("T")[0];
+      const monthEnd=new Date(Date.now()+30*86400000).toISOString().split("T")[0];
+      if(filterProjDeadline==="week"&&!(p.deadline&&p.deadline.slice(0,10)<=weekEnd&&p.deadline.slice(0,10)>=today2))return false;
+      if(filterProjDeadline==="month"&&!(p.deadline&&p.deadline.slice(0,10)<=monthEnd&&p.deadline.slice(0,10)>=today2))return false;
+      if(filterProjDeadline==="overdue"&&!(p.deadline&&p.deadline.slice(0,10)<today2&&p.status!=="Completed"))return false;
+    }
     return true;
   });
 
@@ -829,10 +850,12 @@ Please open the app to accept or reject.
   };
 
   const addTask=()=>{
-    if(!form.title||!form.cId||!form.aId){toast("Fill required fields","error");return;}
+    // If inside a project, auto-fill client from project
+    const effectiveCId=form.cId||(currentProject?.clientId||"");
+    if(!form.title||!effectiveCId||!form.aId){toast("Fill required fields","error");return;}
     const id="t"+Date.now();
     const noDeadline=form.noDeadline||!form.due;
-    const newTask={...form,id,status:"Not Started",logged:0,startedAt:null,created:new Date().toISOString().split("T")[0],extRequest:null,est:parseInt(form.est)||0,assetLinks:form.assetLinks.filter(l=>l.trim()),awaitingDeadline:noDeadline,due:form.due||"",comments:[],createdBy:currentUser?.id||""};
+    const newTask={...form,cId:effectiveCId,id,status:"Not Started",logged:0,startedAt:null,created:new Date().toISOString().split("T")[0],extRequest:null,est:parseInt(form.est)||0,assetLinks:form.assetLinks.filter(l=>l.trim()),awaitingDeadline:noDeadline,due:form.due||"",comments:[],createdBy:currentUser?.id||""};
     setData(d=>{
       const assignee=d.users.find(u=>u.id===form.aId);
       const dept=d.departments.find(dep=>dep.id===form.deptId);
@@ -885,18 +908,28 @@ Please open the app to accept or reject.
             action={canManage?<Btn t={t} v="lime" onClick={()=>setShowAddProj(true)} icon={<Plus size={14}/>}>New Project</Btn>:null}/>
 
           {/* Project search and filter */}
-          <div style={{display:"flex",gap:10,marginBottom:20,alignItems:"center"}}>
-            <div style={{position:"relative",flex:1,maxWidth:340}}>
+          <div style={{display:"flex",gap:10,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
+            <div style={{position:"relative",flex:1,minWidth:200,maxWidth:300}}>
               <Search size={14} style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:t.textMuted,pointerEvents:"none"}}/>
               <input value={searchProj} onChange={e=>setSearchProj(e.target.value)} placeholder="Search projects…" style={{...iStyle(t),paddingLeft:34}}/>
             </div>
-            <select value={filterProjStatus} onChange={e=>setFilterProjStatus(e.target.value)} style={{...iStyle(t),width:"auto",minWidth:140}}>
+            <select value={filterProjStatus} onChange={e=>setFilterProjStatus(e.target.value)} style={{...iStyle(t),width:"auto",minWidth:130}}>
               <option value="all">All Statuses</option>
               <option value="Not Started">Not Started</option>
               <option value="In Progress">In Progress</option>
               <option value="Review">Review</option>
               <option value="On Hold">On Hold</option>
               <option value="Completed">Completed</option>
+            </select>
+            <select value={filterProjClient} onChange={e=>setFilterProjClient(e.target.value)} style={{...iStyle(t),width:"auto",minWidth:130}}>
+              <option value="all">All Clients</option>
+              {data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <select value={filterProjDeadline} onChange={e=>setFilterProjDeadline(e.target.value)} style={{...iStyle(t),width:"auto",minWidth:140}}>
+              <option value="all">All Deadlines</option>
+              <option value="week">Due this week</option>
+              <option value="month">Due this month</option>
+              <option value="overdue">Overdue</option>
             </select>
           </div>
 
@@ -942,18 +975,59 @@ Please open the app to accept or reject.
           )}
 
           {/* Add Project Modal */}
-          <Modal open={showAddProj} onClose={()=>setShowAddProj(false)} title="New Project" t={t} w={540}>
-            <Field label="Project Name *" t={t}><Inp value={projForm.name} onChange={e=>setProjForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Steel Wire Brochure" t={t}/></Field>
-            <Field label="Client" t={t}><Sel value={projForm.clientId} onChange={e=>setProjForm(p=>({...p,clientId:e.target.value}))} t={t}><option value="">Select client (optional)</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
-            <Field label="Project Lead" t={t}><Sel value={projForm.projectLead} onChange={e=>setProjForm(p=>({...p,projectLead:e.target.value}))} t={t}><option value="">Select lead</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
-            <Field label="Deadline" t={t}><Inp type="date" value={projForm.deadline} onChange={e=>setProjForm(p=>({...p,deadline:e.target.value}))} t={t}/></Field>
-            <Field label="Est. Hours" t={t}><Inp type="number" value={projForm.estHours} onChange={e=>setProjForm(p=>({...p,estHours:e.target.value}))} placeholder="e.g. 40" t={t}/></Field>
-            <Field label="Brief" t={t}><Tex value={projForm.brief} onChange={e=>setProjForm(p=>({...p,brief:e.target.value}))} placeholder="Project overview…" t={t} rows={3}/></Field>
-            <Field label="Priority" t={t}><Sel value={projForm.priority} onChange={e=>setProjForm(p=>({...p,priority:e.target.value}))} t={t}><option>High</option><option>Medium</option><option>Low</option></Sel></Field>
-            <Field label="Status" t={t}><Sel value={projForm.status} onChange={e=>setProjForm(p=>({...p,status:e.target.value}))} t={t}><option>Not Started</option><option>In Progress</option><option>Review</option><option>On Hold</option><option>Completed</option></Sel></Field>
+          <Modal open={showAddProj} onClose={()=>{setShowAddProj(false);setProjDueWarn("");}} title="New Project" t={t} w={580}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <Field label="Project Name *" t={t}><Inp value={projForm.name} onChange={e=>setProjForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Steel Wire Brochure" t={t}/></Field>
+              <Field label="Client" t={t}><Sel value={projForm.clientId} onChange={e=>setProjForm(p=>({...p,clientId:e.target.value}))} t={t}><option value="">Select client (optional)</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
+              <Field label="Project Lead" t={t}><Sel value={projForm.projectLead} onChange={e=>setProjForm(p=>({...p,projectLead:e.target.value}))} t={t}><option value="">Select lead</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
+              <Field label="Est. Hours" t={t}><Inp type="number" value={projForm.estHours} onChange={e=>setProjForm(p=>({...p,estHours:e.target.value}))} placeholder="e.g. 40" t={t}/></Field>
+              <Field label="Priority" t={t}><Sel value={projForm.priority} onChange={e=>setProjForm(p=>({...p,priority:e.target.value}))} t={t}><option>High</option><option>Medium</option><option>Low</option></Sel></Field>
+              <Field label="Status" t={t}><Sel value={projForm.status} onChange={e=>setProjForm(p=>({...p,status:e.target.value}))} t={t}><option>Not Started</option><option>In Progress</option><option>Review</option><option>On Hold</option><option>Completed</option></Sel></Field>
+            </div>
+            {/* Project Members multi-select */}
+            <Field label="Project Members" t={t}>
+              <div style={{border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 10px",background:t.dark?t.surfaceAlt:t.surface,maxHeight:120,overflowY:"auto",display:"flex",flexWrap:"wrap",gap:6}}>
+                {data.users.filter(u=>u.role!=="Admin").map(u=>{
+                  const checked=projForm.members.includes(u.id);
+                  return(
+                    <label key={u.id} style={{display:"flex",alignItems:"center",gap:5,padding:"3px 8px",borderRadius:99,background:checked?t.limeBg:"transparent",border:`1px solid ${checked?t.lime:t.border}`,cursor:"pointer",fontSize:12,fontWeight:checked?600:400,color:checked?t.limeDeep:t.textMid,transition:"all .12s"}}>
+                      <input type="checkbox" checked={checked} onChange={()=>setProjForm(p=>({...p,members:checked?p.members.filter(id=>id!==u.id):[...p.members,u.id]}))} style={{display:"none"}}/>
+                      {u.name.split(" ")[0]}
+                    </label>
+                  );
+                })}
+                {data.users.filter(u=>u.role!=="Admin").length===0&&<span style={{fontSize:12,color:t.textMuted}}>No members yet</span>}
+              </div>
+              {projForm.members.length>0&&<div style={{fontSize:11,color:t.textMuted,marginTop:4}}>Auto-dept: {[...new Set(projForm.members.map(id=>data.users.find(u=>u.id===id)?.dept).filter(Boolean).map(did=>data.departments.find(d=>d.id===did)?.name||did))].join(", ")||"—"}</div>}
+            </Field>
+            {/* Deadline with time & weekend warning */}
+            <Field label="Deadline (Date + Time)" t={t}>
+              <Inp type="datetime-local" value={projForm.deadline} onChange={e=>{setProjForm(p=>({...p,deadline:e.target.value}));checkProjDue(e.target.value);}} t={t}/>
+              {projDueWarn&&<div style={{fontSize:11,color:t.amber,marginTop:4,display:"flex",alignItems:"center",gap:4}}><AlertTriangle size={11}/>{projDueWarn}</div>}
+            </Field>
+            {/* Brief + attachment */}
+            <Field label="Brief" t={t}>
+              <Tex value={projForm.brief} onChange={e=>setProjForm(p=>({...p,brief:e.target.value}))} placeholder="Project overview, deliverables, scope…" t={t} rows={3}/>
+              <div style={{marginTop:8}}>
+                <label style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.05em",display:"block",marginBottom:4}}>Attachment URL</label>
+                <Inp value={projForm.briefAttachment} onChange={e=>setProjForm(p=>({...p,briefAttachment:e.target.value}))} placeholder="https://drive.google.com/… or any link" t={t}/>
+              </div>
+            </Field>
+            <Field label="Output (Google Drive Link)" t={t}><Inp value={projForm.outputLink} onChange={e=>setProjForm(p=>({...p,outputLink:e.target.value}))} placeholder="https://drive.google.com/…" t={t}/></Field>
+            {/* References */}
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",display:"block",marginBottom:8}}>References</label>
+              {projForm.references.map((ref,i)=>(
+                <div key={i} style={{display:"flex",gap:8,marginBottom:6}}>
+                  <Inp value={ref} onChange={e=>{const a=[...projForm.references];a[i]=e.target.value;setProjForm(p=>({...p,references:a}));}} placeholder={`Reference link ${i+1}`} t={t}/>
+                  {projForm.references.length>1&&<Btn v="ghost" t={t} size="sm" onClick={()=>setProjForm(p=>({...p,references:p.references.filter((_,j)=>j!==i)}))}><X size={12}/></Btn>}
+                </div>
+              ))}
+              <Btn v="ghost" t={t} size="sm" icon={<Plus size={11}/>} onClick={()=>setProjForm(p=>({...p,references:[...p.references,""]}))}>Add more</Btn>
+            </div>
             <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
-              <Btn v="secondary" t={t} onClick={()=>setShowAddProj(false)}>Cancel</Btn>
-              <Btn v="lime" t={t} onClick={createProject}>Continue to Confirmation</Btn>
+              <Btn v="secondary" t={t} onClick={()=>{setShowAddProj(false);setProjDueWarn("");}}>Cancel</Btn>
+              <Btn v="lime" t={t} onClick={createProject}>Review & Confirm →</Btn>
             </div>
           </Modal>
 
@@ -1035,21 +1109,21 @@ Please open the app to accept or reject.
       {/* Only show filters and tasks if in tasks view or no projects exist */}
       {(view==="tasks"||!data.projects||data.projects.length===0)?(
         <>
-      {/* Filter rows */}
+      {/* Filter rows — when inside a project, only show Dept & Deadline (client is already set at project level) */}
       <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
           <span style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginRight:4}}>Status</span>
           {["All","Not Started","In Progress","Review","Completed","Delayed"].map(s=><FBtn key={s} label={s} active={filterStatus===s} onClick={()=>setFilterStatus(s)}/>)}
         </div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+        {!currentProject&&<div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
           <span style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginRight:4}}>Client</span>
           {["All",...data.clients.map(c=>c.id)].map(id=><FBtn key={id} label={id==="All"?"All":data.clients.find(c=>c.id===id)?.name.split(" ")[0]||id} active={filterClient===id} onClick={()=>setFilterClient(id)}/>)}
-        </div>
+        </div>}
         <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
           <span style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginRight:4}}>Dept</span>
           {["All",...data.departments.map(d=>d.id)].map(id=><FBtn key={id} label={id==="All"?"All":data.departments.find(d=>d.id===id)?.name||id} active={filterDept===id} onClick={()=>setFilterDept(id)}/>)}
-          <span style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginLeft:8,marginRight:4}}>Member</span>
-          {["All",...data.users.filter(u=>u.role!=="Admin").map(u=>u.id)].map(id=><FBtn key={id} label={id==="All"?"All":data.users.find(u=>u.id===id)?.name.split(" ")[0]||id} active={filterMember===id} onClick={()=>setFilterMember(id)}/>)}
+          {!currentProject&&<><span style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginLeft:8,marginRight:4}}>Member</span>
+          {["All",...data.users.filter(u=>u.role!=="Admin").map(u=>u.id)].map(id=><FBtn key={id} label={id==="All"?"All":data.users.find(u=>u.id===id)?.name.split(" ")[0]||id} active={filterMember===id} onClick={()=>setFilterMember(id)}/>)}</>}
         </div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
           <span style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginRight:4}}>Due</span>
@@ -1234,8 +1308,10 @@ Please open the app to accept or reject.
       )}
       <Modal open={showAdd} onClose={()=>{setShowAdd(false);setDueWarn("");}} title="New Task" t={t} w={520}>
         <Field label="Task Title *" t={t}><Inp value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="e.g. Annual Report Design" t={t}/></Field>
+        {/* If inside a project, show project context instead of client picker */}
+        {currentProject&&<div style={{padding:"8px 12px",background:t.limeBg,borderRadius:8,border:`1px solid ${t.lime}30`,fontSize:12,color:t.limeDeep,fontWeight:600,marginBottom:10,display:"flex",alignItems:"center",gap:6}}><FolderKanban size={13}/>Project: {currentProject.name}{currentProject.clientId&&` · Client: ${cName(currentProject.clientId)}`}</div>}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Field label="Client *" t={t}><Sel value={form.cId} onChange={e=>setForm(p=>({...p,cId:e.target.value}))} t={t}><option value="">Select</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
+          {!currentProject&&<Field label="Client *" t={t}><Sel value={form.cId} onChange={e=>setForm(p=>({...p,cId:e.target.value}))} t={t}><option value="">Select</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>}
           <Field label="Assign To *" t={t}><Sel value={form.aId} onChange={e=>handleAssign(e.target.value)} t={t}><option value="">Select</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
           <Field label="Department" t={t}><DeptSel value={form.deptId} onChange={v=>setForm(p=>({...p,deptId:v}))} data={data} setData={setData} t={t} toast={toast}/></Field>
           <Field label="Priority" t={t}><Sel value={form.priority} onChange={e=>setForm(p=>({...p,priority:e.target.value}))} t={t}>{["High","Medium","Low"].map(x=><option key={x}>{x}</option>)}</Sel></Field>
@@ -3388,7 +3464,7 @@ function AdProjects({t,data,setData,toast,currentUser}){
   const [searchProj,setSearchProj]=useState("");
   const [searchTask,setSearchTask]=useState("");
 
-  const PROJ_BLANK={name:"",clientId:"",brief:"",poc:"",cost:"",deadline:"",deliveryDate:"",filesLink:"",status:"Not Started"};
+  const PROJ_BLANK={name:"",clientId:"",brief:"",poc:"",cost:"",deadline:"",filesLink:""};
   const TASK_BLANK={projectId:"",title:"",status:"Not Started",notes:"",filesLink:""};
   const [projForm,setProjForm]=useState(PROJ_BLANK);
   const [taskForm,setTaskForm]=useState(TASK_BLANK);
@@ -3446,26 +3522,37 @@ function AdProjects({t,data,setData,toast,currentUser}){
   });
   const projTasks=id=>(data.adTasks||[]).filter(tk=>tk.projectId===id);
 
-  const canViewTasks = currentUser?.role==="Founder"||currentUser?.role==="Admin";
+  const isFounderAdmin = currentUser?.role==="Founder"||currentUser?.role==="Admin";
+  const canManageProj = isFounderAdmin||currentUser?.role==="Manager";
+  const canViewCommercials = isFounderAdmin; // 3rd tab: Founder & Admin only
   const TabBtn=({id,label,Icon,count})=>(
     <button onClick={()=>setTab(id)} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 16px",borderRadius:8,border:"none",background:tab===id?t.text:"transparent",color:tab===id?"#fff":t.textMuted,fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,cursor:"pointer",transition:"all .15s"}}>
       <Icon size={14}/>{label}{count>0&&<span style={{background:tab===id?t.lime:t.surfaceAlt,color:tab===id?"#000":t.textMid,borderRadius:99,fontSize:10,fontWeight:700,padding:"1px 6px",marginLeft:2}}>{count}</span>}
     </button>
   );
 
+  // Commercials data: group by client → list ad-hoc projects with month, status, cost
+  const commercialsRows=(data.adProjects||[]).map(p=>{
+    const client=data.clients.find(c=>c.id===p.clientId);
+    const tasks=projTasks(p.id);
+    const monthName=p.createdAt?new Date(p.createdAt).toLocaleDateString("en-IN",{month:"long",year:"numeric"}):"—";
+    return{...p,clientName:client?.name||"—",monthName,taskCount:tasks.length,doneTasks:tasks.filter(t=>t.status==="Completed").length};
+  }).sort((a,b)=>a.clientName.localeCompare(b.clientName));
+
   return(
     <div>
       <SHead t={t} title="Ad-hoc Projects" sub="Client projects outside the retainer" action={
         <div style={{display:"flex",gap:8}}>
-          {tab==="projects"&&<Btn v="lime" t={t} onClick={()=>{setProjForm(PROJ_BLANK);setShowAddProj(true);}} icon={<Plus size={14}/>}>New Project</Btn>}
-          {tab==="tasks"&&canViewTasks&&<Btn v="lime" t={t} onClick={()=>{setTaskForm({...TASK_BLANK,projectId:filterProj!=="all"?filterProj:""});setShowAddTask(true);}} icon={<Plus size={14}/>}>New Task</Btn>}
+          {tab==="projects"&&canManageProj&&<Btn v="lime" t={t} onClick={()=>{setProjForm(PROJ_BLANK);setShowAddProj(true);}} icon={<Plus size={14}/>}>New Project</Btn>}
+          {tab==="tasks"&&canManageProj&&<Btn v="lime" t={t} onClick={()=>{setTaskForm({...TASK_BLANK,projectId:filterProj!=="all"?filterProj:""});setShowAddTask(true);}} icon={<Plus size={14}/>}>New Task</Btn>}
         </div>
       }/>
 
       {/* Tabs */}
       <div style={{display:"flex",gap:4,marginBottom:24,background:t.surfaceAlt,borderRadius:10,padding:4,width:"fit-content",border:`1px solid ${t.border}`}}>
         <TabBtn id="projects" label="Projects" Icon={FolderOpen} count={projects.length}/>
-        {canViewTasks&&<TabBtn id="tasks" label="Tasks" Icon={ClipboardList} count={allTasks.length}/>}
+        <TabBtn id="tasks" label="Tasks" Icon={ClipboardList} count={allTasks.length}/>
+        {canViewCommercials&&<TabBtn id="commercials" label="Commercials" Icon={DollarSign} count={0}/>}
       </div>
 
       {/* ── PROJECTS TAB ── */}
@@ -3520,7 +3607,7 @@ function AdProjects({t,data,setData,toast,currentUser}){
       )}
 
       {/* ── TASKS TAB ── */}
-      {tab==="tasks"&&canViewTasks&&(
+      {tab==="tasks"&&(
         <>
           <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
             <div style={{position:"relative",flex:1,maxWidth:300}}>
@@ -3618,20 +3705,63 @@ function AdProjects({t,data,setData,toast,currentUser}){
         </Modal>
       )}
 
+      {/* ── COMMERCIALS TAB (Founder/Admin only) ── */}
+      {tab==="commercials"&&canViewCommercials&&(
+        <div>
+          {commercialsRows.length===0?(
+            <div style={{textAlign:"center",padding:"60px 20px",color:t.textMuted}}>
+              <DollarSign size={40} style={{margin:"0 auto 12px",opacity:.4}}/>
+              <p style={{fontSize:14,fontWeight:500}}>No ad-hoc projects yet.</p>
+            </div>
+          ):(
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                <thead>
+                  <tr style={{background:t.surfaceAlt,borderBottom:`2px solid ${t.border}`}}>
+                    {["Client","Month","Project Name","Deadline","Status","Tasks","Commercials (₹)"].map(h=>(
+                      <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,color:t.textMuted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.05em",whiteSpace:"nowrap"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {commercialsRows.map((row,i)=>(
+                    <tr key={row.id} style={{borderBottom:`1px solid ${t.border}`,background:i%2===0?t.surface:t.surfaceAlt,transition:"background .12s"}} className="row-interactive">
+                      <td style={{padding:"11px 14px",fontWeight:600,color:t.text}}>{row.clientName}</td>
+                      <td style={{padding:"11px 14px",color:t.textMid}}>{row.monthName}</td>
+                      <td style={{padding:"11px 14px",fontWeight:500,color:t.text}}>{row.name}</td>
+                      <td style={{padding:"11px 14px",color:t.textMid,whiteSpace:"nowrap"}}>{row.deadline?new Date(row.deadline).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}):"—"}</td>
+                      <td style={{padding:"11px 14px"}}><Badge label={row.status||"Not Started"} color={PS_COLOR[row.status||"Not Started"]||"muted"} t={t} small/></td>
+                      <td style={{padding:"11px 14px",color:t.textMid}}>{row.doneTasks}/{row.taskCount}</td>
+                      <td style={{padding:"11px 14px",fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:14,color:row.cost?t.green:t.textMuted}}>{row.cost?`₹${Number(row.cost).toLocaleString("en-IN")}`:"—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                {commercialsRows.length>0&&(
+                  <tfoot>
+                    <tr style={{borderTop:`2px solid ${t.border}`,background:t.surfaceAlt}}>
+                      <td colSpan={6} style={{padding:"10px 14px",fontWeight:700,color:t.text,fontSize:13}}>Total</td>
+                      <td style={{padding:"10px 14px",fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:15,color:t.green}}>
+                        ₹{commercialsRows.reduce((s,r)=>s+(parseFloat(r.cost)||0),0).toLocaleString("en-IN")}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── ADD PROJECT MODAL ── */}
-      <Modal open={showAddProj} onClose={()=>setShowAddProj(false)} title="New Project" t={t} w={520}>
-        <Field label="Project Name*" t={t}><Inp value={projForm.name} onChange={e=>setProjForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Steel Wire Brochure" t={t}/></Field>
+      <Modal open={showAddProj} onClose={()=>setShowAddProj(false)} title="New Ad-Hoc Project" t={t} w={520}>
+        <Field label="Project Name *" t={t}><Inp value={projForm.name} onChange={e=>setProjForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Steel Wire Brochure" t={t}/></Field>
         <Field label="Client" t={t}><Sel value={projForm.clientId} onChange={e=>setProjForm(p=>({...p,clientId:e.target.value}))} t={t}><option value="">Select client (optional)</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
         <Field label="Brief" t={t}><Tex value={projForm.brief} onChange={e=>setProjForm(p=>({...p,brief:e.target.value}))} placeholder="Short description of what this project covers…" t={t} rows={3}/></Field>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <Field label="POC (Point of Contact)" t={t}><Inp value={projForm.poc} onChange={e=>setProjForm(p=>({...p,poc:e.target.value}))} placeholder="Name or contact" t={t}/></Field>
-          <Field label="Cost (₹)" t={t}><Inp value={projForm.cost} onChange={e=>setProjForm(p=>({...p,cost:e.target.value}))} placeholder="0" t={t}/></Field>
+          <Field label="Cost / Commercials (₹)" t={t}><Inp value={projForm.cost} onChange={e=>setProjForm(p=>({...p,cost:e.target.value}))} placeholder="0" t={t}/></Field>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Field label="Deadline" t={t}><Inp type="date" value={projForm.deadline} onChange={e=>setProjForm(p=>({...p,deadline:e.target.value}))} t={t}/></Field>
-          <Field label="Delivery Date" t={t}><Inp type="date" value={projForm.deliveryDate} onChange={e=>setProjForm(p=>({...p,deliveryDate:e.target.value}))} t={t}/></Field>
-        </div>
-        <Field label="Status" t={t}><Sel value={projForm.status} onChange={e=>setProjForm(p=>({...p,status:e.target.value}))} t={t}>{PROJ_STATUSES.map(s=><option key={s}>{s}</option>)}</Sel></Field>
+        <Field label="Deadline (Date + Time)" t={t}><Inp type="datetime-local" value={projForm.deadline} onChange={e=>setProjForm(p=>({...p,deadline:e.target.value}))} t={t}/></Field>
         <Field label="Final Files Link" t={t}><Inp value={projForm.filesLink} onChange={e=>setProjForm(p=>({...p,filesLink:e.target.value}))} placeholder="https://drive.google.com/…" t={t}/></Field>
         <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
           <Btn v="secondary" t={t} onClick={()=>setShowAddProj(false)}>Cancel</Btn>
@@ -3641,18 +3771,14 @@ function AdProjects({t,data,setData,toast,currentUser}){
 
       {/* ── EDIT PROJECT MODAL ── */}
       {editProjForm&&<Modal open={showEditProj} onClose={()=>setShowEditProj(false)} title="Edit Project" t={t} w={520}>
-        <Field label="Project Name*" t={t}><Inp value={editProjForm.name} onChange={e=>setEditProjForm(p=>({...p,name:e.target.value}))} t={t}/></Field>
+        <Field label="Project Name *" t={t}><Inp value={editProjForm.name} onChange={e=>setEditProjForm(p=>({...p,name:e.target.value}))} t={t}/></Field>
         <Field label="Client" t={t}><Sel value={editProjForm.clientId||""} onChange={e=>setEditProjForm(p=>({...p,clientId:e.target.value}))} t={t}><option value="">No client</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
         <Field label="Brief" t={t}><Tex value={editProjForm.brief||""} onChange={e=>setEditProjForm(p=>({...p,brief:e.target.value}))} t={t} rows={3}/></Field>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <Field label="POC" t={t}><Inp value={editProjForm.poc||""} onChange={e=>setEditProjForm(p=>({...p,poc:e.target.value}))} t={t}/></Field>
-          <Field label="Cost (₹)" t={t}><Inp value={editProjForm.cost||""} onChange={e=>setEditProjForm(p=>({...p,cost:e.target.value}))} t={t}/></Field>
+          <Field label="Cost / Commercials (₹)" t={t}><Inp value={editProjForm.cost||""} onChange={e=>setEditProjForm(p=>({...p,cost:e.target.value}))} t={t}/></Field>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Field label="Deadline" t={t}><Inp type="date" value={editProjForm.deadline||""} onChange={e=>setEditProjForm(p=>({...p,deadline:e.target.value}))} t={t}/></Field>
-          <Field label="Delivery Date" t={t}><Inp type="date" value={editProjForm.deliveryDate||""} onChange={e=>setEditProjForm(p=>({...p,deliveryDate:e.target.value}))} t={t}/></Field>
-        </div>
-        <Field label="Status" t={t}><Sel value={editProjForm.status||"Not Started"} onChange={e=>setEditProjForm(p=>({...p,status:e.target.value}))} t={t}>{PROJ_STATUSES.map(s=><option key={s}>{s}</option>)}</Sel></Field>
+        <Field label="Deadline (Date + Time)" t={t}><Inp type="datetime-local" value={editProjForm.deadline||""} onChange={e=>setEditProjForm(p=>({...p,deadline:e.target.value}))} t={t}/></Field>
         <Field label="Final Files Link" t={t}><Inp value={editProjForm.filesLink||""} onChange={e=>setEditProjForm(p=>({...p,filesLink:e.target.value}))} t={t}/></Field>
         <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
           <Btn v="secondary" t={t} onClick={()=>setShowEditProj(false)}>Cancel</Btn>
