@@ -53,6 +53,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(132,204,2
 @keyframes tutorialIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes notifPop{0%{transform:scale(0.5)}80%{transform:scale(1.2)}100%{transform:scale(1)}}
+@keyframes pageEnter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.page-enter{animation:pageEnter 0.22s ease both;}
 /* ── UTILITY CLASSES ── */
 .fade-up{animation:fadeUp .28s ease both;}
 .scale-in{animation:scaleIn .22s ease both;}
@@ -91,14 +93,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(132,204,2
 // ── TOKENS ───────────────────────────────────────────────────────────────────
 const D = {
   light:{dark:false,
-    bg:"#f5f5f5",surface:"#ffffff",surfaceAlt:"#f9fafb",hover:"#f0f0f0",
+    bg:"#f8f7ff",surface:"#ffffff",surfaceAlt:"#f0f0f8",hover:"#f0f0f0",
     border:"rgba(0,0,0,0.08)",borderMid:"rgba(0,0,0,0.14)",
     text:"#111827",textMid:"#374151",textMuted:"#9ca3af",
     lime:"#84CC16",limeDeep:"#65a30d",limeBg:"rgba(132,204,22,0.10)",limeMid:"#bef264",
     green:"#16a34a",greenBg:"rgba(22,163,74,0.10)",blue:"#2563eb",blueBg:"rgba(37,99,235,0.10)",
     amber:"#d97706",amberBg:"rgba(217,119,6,0.10)",red:"#dc2626",redBg:"rgba(220,38,38,0.10)",
     purple:"#7c3aed",purpleBg:"rgba(124,58,237,0.10)",
-    sidebar:"#ffffff",sideText:"#6b7280",sideActive:"#84CC16",sideHover:"#f3f4f6",
+    sidebar:"#ffffff",sideText:"#6b7280",sideActive:"#7C3AED",sideHover:"#f3f4f6",
     topbar:"#ffffff",shadow:"rgba(0,0,0,0.04)",shadowMd:"rgba(0,0,0,0.16)",
     card:"#ffffff",scrollThumb:"#d1d5db",
     cardShadow:"0 1px 2px rgba(0,0,0,0.04),0 2px 8px rgba(0,0,0,0.06)",
@@ -111,7 +113,7 @@ const D = {
     green:"#4ade80",greenBg:"#052e16",blue:"#60a5fa",blueBg:"#0a1628",
     amber:"#fcd34d",amberBg:"#1c1200",red:"#f87171",redBg:"#1c0808",
     purple:"#a78bfa",purpleBg:"#130e24",
-    sidebar:"#080808",sideText:"#71717a",sideActive:"#84CC16",sideHover:"#161616",
+    sidebar:"#080808",sideText:"#71717a",sideActive:"#c4b5fd",sideHover:"#161616",
     topbar:"#111111",shadow:"rgba(0,0,0,0.3)",shadowMd:"rgba(0,0,0,0.6)",
     card:"#111111",scrollThumb:"#27272a",
     cardShadow:"0 1px 2px rgba(0,0,0,0.3),0 10px 25px rgba(0,0,0,0.4)",
@@ -126,6 +128,7 @@ const INIT = {
   users:[],
   clients:[],
   tasks:[],
+  projects:[],
   leaves:[],
   leaveBalances:{},
   meetings:[],
@@ -186,7 +189,7 @@ function Av({init,size=36,t,online=false}){
 }
 function Badge({label,color="muted",t,small=false}){
   const C={green:{bg:t.greenBg,fg:t.green},blue:{bg:t.blueBg,fg:t.blue},amber:{bg:t.amberBg,fg:t.amber},red:{bg:t.redBg,fg:t.red},purple:{bg:t.purpleBg,fg:t.purple},lime:{bg:t.limeBg,fg:t.limeDeep},muted:{bg:t.surfaceAlt,fg:t.textMuted}}[color]||{bg:t.surfaceAlt,fg:t.textMuted};
-  return <span style={{display:"inline-flex",alignItems:"center",padding:small?"2px 8px":"3px 10px",borderRadius:99,fontSize:small?10:11,fontWeight:600,letterSpacing:"0.01em",background:C.bg,color:C.fg,whiteSpace:"nowrap",flexShrink:0,fontFamily:"'Inter',sans-serif",lineHeight:1.6}}>{label}</span>;
+  return <span style={{display:"inline-flex",alignItems:"center",padding:small?"3px 10px":"4px 12px",borderRadius:99,fontSize:small?11:12,fontWeight:700,letterSpacing:"0.01em",background:C.bg,color:C.fg,whiteSpace:"nowrap",flexShrink:0,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>{label}</span>;
 }
 function Btn({children,onClick,v="primary",t,style={},disabled=false,size="md",icon}){
   const sz={sm:{p:"5px 12px",fs:12},md:{p:"8px 16px",fs:13},lg:{p:"11px 22px",fs:14}}[size]||{p:"8px 16px",fs:13};
@@ -291,7 +294,7 @@ function StatCard({label,value,sub,color="lime",icon:Icon,t,delay=0,onClick}){
   const iconBg=bgMap[color]||t.limeBg;
   const n=useCountUp(typeof value==="number"?value:0);
   return(
-    <Card t={t} onClick={onClick} style={{animation:`fadeUp .28s ease ${delay}ms both`,cursor:onClick?"pointer":"default"}}>
+    <Card t={t} onClick={onClick} style={{animation:`fadeUp .28s ease ${delay}ms both`,cursor:onClick?"pointer":"default",borderLeft:`3px solid ${clr}`}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
         <span style={{fontSize:12,fontWeight:500,color:t.textMuted,fontFamily:"'Inter',sans-serif",lineHeight:1.4}}>{label}</span>
         {Icon&&<div style={{width:34,height:34,borderRadius:10,background:iconBg,display:"flex",alignItems:"center",justifyContent:"center",color:clr,flexShrink:0}}><Icon size={16} strokeWidth={1.8}/></div>}
@@ -515,20 +518,46 @@ function Dashboard({t,data,go}){
         <Card t={t} style={{animation:"fadeUp .4s .3s both"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
             <h3 style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,color:t.text,margin:0}}>Needs Approval</h3>
-            <button onClick={()=>go("leaves")} style={{fontSize:12,color:"#84CC16",background:"none",border:"none",cursor:"pointer",fontWeight:500,display:"flex",alignItems:"center",gap:3,fontFamily:"'Inter',sans-serif"}}>Review <ArrowRight size={12}/></button>
+            <button onClick={()=>go("projects")} style={{fontSize:12,color:"#84CC16",background:"none",border:"none",cursor:"pointer",fontWeight:500,display:"flex",alignItems:"center",gap:3,fontFamily:"'Inter',sans-serif"}}>Review <ArrowRight size={12}/></button>
           </div>
-          {[...data.leaves.filter(l=>l.status==="Pending"),...data.tasks.filter(tk=>tk.extRequest?.status==="Pending")].length===0
-            ?<p style={{color:t.textMuted,fontSize:13}}>All clear — nothing pending.</p>
-            :data.leaves.filter(l=>l.status==="Pending").map((lv,i)=>{
-              const u=data.users.find(u=>u.id===lv.uId);
-              return(
-                <div key={lv.id} onClick={()=>go("leaves")} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:`1px solid ${t.border}`,cursor:"pointer"}}>
-                  <Av init={u?.av||"?"} size={30} t={t}/>
-                  <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:t.text}}>{u?.name}</div><div style={{fontSize:11,color:t.textMuted}}>{lv.type} · {fd(lv.from)}–{fd(lv.to)}</div></div>
-                  <Badge label="Leave" color="amber" t={t} small/>
-                </div>
-              );
-            })}
+          {(() => {
+            const pendingLeaves = data.leaves.filter(l=>l.status==="Pending");
+            const reviewTasks = data.tasks.filter(tk=>tk.status==="Review");
+            const extRequests = data.tasks.filter(tk=>tk.extRequest?.status==="Pending");
+            const allItems = [...pendingLeaves, ...reviewTasks, ...extRequests].slice(0,5);
+            return allItems.length===0
+              ?<p style={{color:t.textMuted,fontSize:13}}>All clear — nothing pending.</p>
+              :allItems.map((item,i)=>{
+                if(item.type) { // It's a leave
+                  const u=data.users.find(u=>u.id===item.uId);
+                  return(
+                    <div key={item.id} onClick={()=>go("leaves")} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:`1px solid ${t.border}`,cursor:"pointer"}}>
+                      <Av init={u?.av||"?"} size={30} t={t}/>
+                      <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:t.text}}>{u?.name}</div><div style={{fontSize:11,color:t.textMuted}}>{item.type} · {fd(item.from)}–{fd(item.to)}</div></div>
+                      <Badge label="Leave" color="amber" t={t} small/>
+                    </div>
+                  );
+                } else if(item.status==="Review") { // It's a review task
+                  const u=data.users.find(u=>u.id===item.aId);
+                  return(
+                    <div key={item.id} onClick={()=>go("projects")} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:`1px solid ${t.border}`,cursor:"pointer"}}>
+                      <Av init={u?.av||"?"} size={30} t={t}/>
+                      <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:t.text}}>{item.title}</div><div style={{fontSize:11,color:t.textMuted}}>Task · {fd(item.due)}</div></div>
+                      <Badge label="Review" color="amber" t={t} small/>
+                    </div>
+                  );
+                } else { // It's an extension request
+                  const u=data.users.find(u=>u.id===item.aId);
+                  return(
+                    <div key={item.id} onClick={()=>go("projects")} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:`1px solid ${t.border}`,cursor:"pointer"}}>
+                      <Av init={u?.av||"?"} size={30} t={t}/>
+                      <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:t.text}}>{item.title}</div><div style={{fontSize:11,color:t.textMuted}}>Ext. Request · {fd(item.extRequest?.newDue)}</div></div>
+                      <Badge label="Pending" color="amber" t={t} small/>
+                    </div>
+                  );
+                }
+              });
+          })()}
         </Card>
       </div>
     </div>
@@ -580,6 +609,19 @@ function Projects({t,data,setData,toast,currentUser,pendingTaskId,clearPendingTa
   const isFounder=currentUser?.role==="Founder"||currentUser?.role==="Admin";
   const isHoD=currentUser?.role==="HoD"||currentUser?.role==="Head of Department"||currentUser?.role==="Manager";
   const isMember=!isFounder&&!isHoD;
+  const canManage=isFounder||isHoD;
+
+  // Project management state
+  const [view,setView]=useState("projects"); // "projects" or "tasks"
+  const [currentProject,setCurrentProject]=useState(null);
+  const [showAddProj,setShowAddProj]=useState(false);
+  const [showConfirm,setShowConfirm]=useState(false);
+  const [projDraft,setProjDraft]=useState(null);
+  const [projForm,setProjForm]=useState({name:"",clientId:"",projectLead:"",members:[],deadline:"",estHours:"",brief:"",briefLinks:[""],outputLink:"",references:[""],priority:"Medium",status:"Not Started"});
+  const [searchProj,setSearchProj]=useState("");
+  const [filterProjStatus,setFilterProjStatus]=useState("all");
+
+  // Existing task state
   const [filterStatus,setFilterStatus]=useState("All");
   const [filterClient,setFilterClient]=useState("All");
   const [filterDept,setFilterDept]=useState("All");
@@ -606,6 +648,36 @@ function Projects({t,data,setData,toast,currentUser,pendingTaskId,clearPendingTa
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
   const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
 
+  // Project functions
+  const createProject=()=>{
+    if(!projForm.name.trim()){toast("Project name required","error");return;}
+    setProjDraft({...projForm});
+    setShowAddProj(false);
+    setShowConfirm(true);
+  };
+
+  const confirmCreateProject=()=>{
+    const newProj={...projDraft,id:"p"+Date.now(),createdAt:new Date().toISOString(),createdBy:currentUser?.id};
+    setData(d=>({...d,projects:[...d.projects,newProj]}));
+    setShowConfirm(false);
+    setProjForm({name:"",clientId:"",projectLead:"",members:[],deadline:"",estHours:"",brief:"",briefLinks:[""],outputLink:"",references:[""],priority:"Medium",status:"Not Started"});
+    setProjDraft(null);
+    toast("Project created successfully");
+  };
+
+  const deleteProject=(id)=>{
+    if(!window.confirm("Delete this project? This will NOT delete associated tasks."))return;
+    setData(d=>({...d,projects:d.projects.filter(p=>p.id!==id)}));
+    if(currentProject?.id===id) setCurrentProject(null);
+    toast("Project deleted");
+  };
+
+  const projects=(data.projects||[]).filter(p=>{
+    if(searchProj&&!p.name.toLowerCase().includes(searchProj.toLowerCase())&&!cName(p.clientId).toLowerCase().includes(searchProj.toLowerCase()))return false;
+    if(filterProjStatus!=="all"&&p.status!==filterProjStatus)return false;
+    return true;
+  });
+
   // Auto-select dept when assignee chosen (only if user is in exactly 1 dept)
   const handleAssign=aId=>{
     const user=data.users.find(u=>u.id===aId);
@@ -630,7 +702,10 @@ function Projects({t,data,setData,toast,currentUser,pendingTaskId,clearPendingTa
   const tomorrow=new Date(Date.now()+86400000).toISOString().split("T")[0];
 
   // Role-based task filtering: members only see their own tasks; HoD sees dept tasks
-  const visibleTasks=data.tasks.filter(tk=>{
+  let visibleTasks=data.tasks.filter(tk=>{
+    // If viewing inside a project, filter by projectId
+    if(view==="tasks"&&currentProject&&tk.projectId!==currentProject.id) return false;
+
     if(isFounder) return true;
     if(isHoD) return data.users.find(u=>u.id===tk.aId)?.dept===currentUser?.dept;
     return tk.aId===currentUser?.id; // member sees only their own
@@ -804,11 +879,136 @@ Please open the app to accept or reject.
 
   return(
     <div>
-      <SHead t={t} title="Projects" sub="All tasks across clients and team"
-        action={<Btn t={t} v="lime" onClick={()=>setShowAdd(true)} icon={<Plus size={14}/>}>New Task</Btn>}/>
+      {view==="projects"?(
+        <>
+          <SHead t={t} title="Projects" sub="Organize and manage projects"
+            action={canManage?<Btn t={t} v="lime" onClick={()=>setShowAddProj(true)} icon={<Plus size={14}/>}>New Project</Btn>:null}/>
 
-      {/* HoD deadline proposals awaiting founder approval */}
-      {pendingProposals.length>0&&(
+          {/* Project search and filter */}
+          <div style={{display:"flex",gap:10,marginBottom:20,alignItems:"center"}}>
+            <div style={{position:"relative",flex:1,maxWidth:340}}>
+              <Search size={14} style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:t.textMuted,pointerEvents:"none"}}/>
+              <input value={searchProj} onChange={e=>setSearchProj(e.target.value)} placeholder="Search projects…" style={{...iStyle(t),paddingLeft:34}}/>
+            </div>
+            <select value={filterProjStatus} onChange={e=>setFilterProjStatus(e.target.value)} style={{...iStyle(t),width:"auto",minWidth:140}}>
+              <option value="all">All Statuses</option>
+              <option value="Not Started">Not Started</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Review">Review</option>
+              <option value="On Hold">On Hold</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+
+          {/* Projects grid */}
+          {projects.length===0?(
+            <div style={{textAlign:"center",padding:"60px 20px",color:t.textMuted}}>
+              <FolderKanban size={40} style={{margin:"0 auto 12px",opacity:.4}}/>
+              <p style={{fontSize:14,fontWeight:500}}>No projects yet. Click "New Project" to create one.</p>
+            </div>
+          ):(
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(340px,1fr))",gap:16}}>
+              {projects.map((proj,i)=>{
+                const projTasks=data.tasks.filter(tk=>tk.projectId===proj.id);
+                const lead=data.users.find(u=>u.id===proj.projectLead);
+                const doneTasks=projTasks.filter(tk=>tk.status==="Completed").length;
+                return(
+                  <Card t={t} key={proj.id} onClick={()=>{setCurrentProject(proj);setView("tasks");}} style={{cursor:"pointer",animation:`fadeUp .3s ease ${i*40}ms both`,borderLeft:`4px solid ${PC(proj.priority)===true?"#84CC16":proj.priority==="High"?t.red:proj.priority==="Low"?t.green:t.amber}`}}>
+                    <div className="card-actions" style={{position:"absolute",top:10,right:10,display:"flex",gap:4,zIndex:10}}>
+                      {canManage&&(
+                        <button onClick={e=>{e.stopPropagation();deleteProject(proj.id);}} style={{width:26,height:26,borderRadius:6,background:t.redBg,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.red}}><Trash2 size={11}/></button>
+                      )}
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                      <div style={{width:40,height:40,borderRadius:10,background:t.limeBg,display:"flex",alignItems:"center",justifyContent:"center",color:t.lime,flexShrink:0}}><FolderKanban size={18}/></div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:15,color:t.text}}>{proj.name}</div>
+                        <div style={{fontSize:11,color:t.textMuted,marginTop:1}}>{proj.clientId?cName(proj.clientId):"No client"}</div>
+                      </div>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,fontSize:11,color:t.textMuted,marginBottom:12,paddingBottom:12,borderBottom:`1px solid ${t.border}`}}>
+                      <div><span style={{fontWeight:600,color:t.textMid}}>Tasks</span><br/>{doneTasks}/{projTasks.length} done</div>
+                      <div><span style={{fontWeight:600,color:t.textMid}}>Deadline</span><br/>{fd(proj.deadline)||"—"}</div>
+                      {lead&&<div style={{gridColumn:"1/-1"}}><span style={{fontWeight:600,color:t.textMid}}>Lead</span><br/><div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}><Av init={lead.av} size={18} t={t}/>{lead.name}</div></div>}
+                    </div>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                      {proj.status&&<Badge label={proj.status} color={SC(proj.status)} t={t} small/>}
+                      {proj.priority&&<Badge label={proj.priority} color={PC(proj.priority)} t={t} small/>}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Add Project Modal */}
+          <Modal open={showAddProj} onClose={()=>setShowAddProj(false)} title="New Project" t={t} w={540}>
+            <Field label="Project Name *" t={t}><Inp value={projForm.name} onChange={e=>setProjForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Steel Wire Brochure" t={t}/></Field>
+            <Field label="Client" t={t}><Sel value={projForm.clientId} onChange={e=>setProjForm(p=>({...p,clientId:e.target.value}))} t={t}><option value="">Select client (optional)</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
+            <Field label="Project Lead" t={t}><Sel value={projForm.projectLead} onChange={e=>setProjForm(p=>({...p,projectLead:e.target.value}))} t={t}><option value="">Select lead</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
+            <Field label="Deadline" t={t}><Inp type="date" value={projForm.deadline} onChange={e=>setProjForm(p=>({...p,deadline:e.target.value}))} t={t}/></Field>
+            <Field label="Est. Hours" t={t}><Inp type="number" value={projForm.estHours} onChange={e=>setProjForm(p=>({...p,estHours:e.target.value}))} placeholder="e.g. 40" t={t}/></Field>
+            <Field label="Brief" t={t}><Tex value={projForm.brief} onChange={e=>setProjForm(p=>({...p,brief:e.target.value}))} placeholder="Project overview…" t={t} rows={3}/></Field>
+            <Field label="Priority" t={t}><Sel value={projForm.priority} onChange={e=>setProjForm(p=>({...p,priority:e.target.value}))} t={t}><option>High</option><option>Medium</option><option>Low</option></Sel></Field>
+            <Field label="Status" t={t}><Sel value={projForm.status} onChange={e=>setProjForm(p=>({...p,status:e.target.value}))} t={t}><option>Not Started</option><option>In Progress</option><option>Review</option><option>On Hold</option><option>Completed</option></Sel></Field>
+            <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:8}}>
+              <Btn v="secondary" t={t} onClick={()=>setShowAddProj(false)}>Cancel</Btn>
+              <Btn v="lime" t={t} onClick={createProject}>Continue to Confirmation</Btn>
+            </div>
+          </Modal>
+
+          {/* Confirmation Modal */}
+          {showConfirm&&projDraft&&(
+            <Modal open onClose={()=>setShowConfirm(false)} title="Confirm Project" t={t} w={520}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+                {[["Name",projDraft.name],["Client",projDraft.clientId?cName(projDraft.clientId):"—"],["Lead",projDraft.projectLead?uName(projDraft.projectLead):"—"],["Deadline",fd(projDraft.deadline)||"—"],["Hours",projDraft.estHours||"—"],["Priority",projDraft.priority],["Status",projDraft.status]].map(([l,v])=>(
+                  <div key={l} style={{background:t.surfaceAlt,borderRadius:9,padding:"10px 14px",border:`1px solid ${t.border}`}}>
+                    <div style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",color:t.textMuted,marginBottom:4}}>{l}</div>
+                    <div style={{fontSize:13,color:t.text,fontWeight:500}}>{v}</div>
+                  </div>
+                ))}
+              </div>
+              {projDraft.brief&&<div style={{background:t.surfaceAlt,borderRadius:9,padding:"12px 14px",marginBottom:16,border:`1px solid ${t.border}`}}>
+                <div style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",color:t.textMuted,marginBottom:6}}>Brief</div>
+                <p style={{fontSize:13,color:t.text,lineHeight:1.6,margin:0}}>{projDraft.brief}</p>
+              </div>}
+              <div style={{display:"flex",gap:9,justifyContent:"flex-end"}}>
+                <Btn v="secondary" t={t} onClick={()=>setShowConfirm(false)}>Back</Btn>
+                <Btn v="lime" t={t} onClick={confirmCreateProject}>Confirm & Create</Btn>
+              </div>
+            </Modal>
+          )}
+        </>
+      ):(
+        <>
+          {/* Inside project view */}
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
+            <button onClick={()=>{setCurrentProject(null);setView("projects");}} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",cursor:"pointer",color:t.lime,fontWeight:600,fontSize:13,fontFamily:"'Inter',sans-serif"}}>
+              <ChevronLeft size={16}/>Projects
+            </button>
+            <span style={{color:t.textMuted}}>/</span>
+            <span style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:15,color:t.text}}>{currentProject?.name}</span>
+          </div>
+
+          {/* Project info summary */}
+          <Card t={t} style={{marginBottom:20}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:12}}>
+              {[["Client",currentProject?.clientId?cName(currentProject.clientId):"—"],["Lead",currentProject?.projectLead?uName(currentProject.projectLead):"—"],["Deadline",fd(currentProject?.deadline)||"—"],["Status",currentProject?.status||"—"]].map(([l,v])=>(
+                <div key={l}>
+                  <div style={{fontSize:10,fontWeight:600,color:t.textMuted,textTransform:"uppercase",marginBottom:4}}>{ l}</div>
+                  <div style={{fontSize:13,fontWeight:600,color:t.text}}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <SHead t={t} title="" sub=""
+            action={<Btn t={t} v="lime" onClick={()=>{setForm(p=>({...p,projectId:currentProject?.id||""}));setShowAdd(true);}} icon={<Plus size={14}/>}>New Task</Btn>}/>
+        </>
+      )}
+
+      {/* HoD deadline proposals awaiting founder approval (only in tasks view or if no projects) */}
+      {view==="tasks"&&pendingProposals.length>0&&(
         <div style={{background:t.amberBg,border:`1px solid ${t.amber}30`,borderRadius:12,padding:"12px 16px",marginBottom:16}}>
           <div style={{fontWeight:700,fontSize:13,color:t.amber,marginBottom:10,display:"flex",alignItems:"center",gap:6}}><AlarmClock size={14}/>Deadline proposals awaiting your approval</div>
           {pendingProposals.map(tk=>(
@@ -832,6 +1032,9 @@ Please open the app to accept or reject.
         </div>
       )}
 
+      {/* Only show filters and tasks if in tasks view or no projects exist */}
+      {(view==="tasks"||!data.projects||data.projects.length===0)?(
+        <>
       {/* Filter rows */}
       <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
@@ -1029,7 +1232,6 @@ Please open the app to accept or reject.
           </div>
         </Modal>
       )}
-      {/* New Task Modal */}
       <Modal open={showAdd} onClose={()=>{setShowAdd(false);setDueWarn("");}} title="New Task" t={t} w={520}>
         <Field label="Task Title *" t={t}><Inp value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="e.g. Annual Report Design" t={t}/></Field>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -1065,49 +1267,37 @@ Please open the app to accept or reject.
           <Btn v="lime" t={t} onClick={addTask} icon={<Plus size={13}/>}>Create Task</Btn>
         </div>
       </Modal>
+        </>
+      ) : null}
     </div>
   );
 }
 
 // ── TIME LOGS ────────────────────────────────────────────────────────────────
-function TimeLogs({t,data,setData,toast}){
-  const [filterUser,setFilterUser]=useState("all");
-  const [filterTask,setFilterTask]=useState("all");
+function TimeLogs({t,data,setData,toast,currentUser}){
+  const isFounder=currentUser?.role==="Founder"||currentUser?.role==="Admin";
+  const isHoD=currentUser?.role==="HoD"||currentUser?.role==="Head of Department"||currentUser?.role==="Manager";
+  const canView=isFounder||isHoD;
+
+  if(!canView) return(
+    <div style={{textAlign:"center",padding:"80px 20px"}}>
+      <Lock size={36} color={t.textMuted} style={{margin:"0 auto 16px"}}/>
+      <p style={{color:t.textMuted,fontSize:15}}>Access restricted. Only Founders, Managers, and HoDs can view Time Logs.</p>
+    </div>
+  );
+
+  const [expandedProj,setExpandedProj]=useState(null);
   const [showLog,setShowLog]=useState(false);
   const [lf,setLf]=useState({tId:"",uId:"",date:"",hrs:"",note:""});
 
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
   const tName=id=>data.tasks.find(tk=>tk.id===id)?.title||"—";
+  const deptName=id=>data.departments.find(d=>d.id===id)?.name||"—";
+  const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
 
-  const logs=data.timeLogs.filter(l=>{
-    if(filterUser!=="all"&&l.uId!==filterUser)return false;
-    if(filterTask!=="all"&&l.tId!==filterTask)return false;
-    return true;
-  });
-
-  const totalHrs=logs.reduce((s,l)=>s+(l.hrs||0),0);
-  const autoHrs=logs.filter(l=>l.auto).reduce((s,l)=>s+(l.hrs||0),0);
-  const manualCount=logs.filter(l=>!l.auto).length;
-
-  // Per-member summary
-  const perMember=data.users.filter(u=>u.role!=="Admin").map(u=>{
-    const uLogs=data.timeLogs.filter(l=>l.uId===u.id);
-    const hrs=uLogs.reduce((s,l)=>s+(l.hrs||0),0);
-    const activeTasks=data.tasks.filter(tk=>tk.aId===u.id&&tk.status==="In Progress").length;
-    return{...u,hrs,activeTasks,logCount:uLogs.length};
-  }).sort((a,b)=>b.hrs-a.hrs);
-
-  // Per-task summary with grade
-  const taskSummary=data.tasks.filter(tk=>tk.est>0).map(tk=>{
-    const grade=()=>{
-      if(tk.status!=="Completed"&&tk.status!=="Delayed")return{label:"In Progress",color:"blue"};
-      if(tk.logged<tk.est*0.95)return{label:"Before Time",color:"green"};
-      if(tk.logged<=tk.est*1.05)return{label:"On Time",color:"lime"};
-      return{label:"Overtime",color:"red"};
-    };
-    const pct=tk.est>0?Math.round((tk.logged/tk.est)*100):0;
-    return{...tk,grade:grade(),pct};
-  });
+  // Total hours logged
+  const totalHrs=data.timeLogs.reduce((s,l)=>s+(l.hrs||0),0);
+  const activeTasks=data.tasks.filter(tk=>tk.status==="In Progress").length;
 
   const logTime=()=>{
     if(!lf.tId||!lf.uId||!lf.hrs){toast("Fill all required fields","error");return;}
@@ -1130,103 +1320,111 @@ function TimeLogs({t,data,setData,toast}){
       {/* Top stats */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:22}}>
         <StatCard label="Total Hours Logged" value={totalHrs} icon={Clock3} color="lime" t={t} delay={0}/>
-        <StatCard label="Auto-tracked" value={autoHrs} icon={Zap} color="green" t={t} delay={60}/>
-        <StatCard label="Manual Entries" value={manualCount} icon={FileText} color="blue" t={t} delay={120}/>
-        <StatCard label="Active Tasks" value={data.tasks.filter(tk=>tk.status==="In Progress").length} icon={Play} color="amber" t={t} delay={180}/>
+        <StatCard label="Active Tasks" value={activeTasks} icon={Play} color="amber" t={t} delay={60}/>
       </div>
 
-      {/* SECTION 1: Who's Logged What — member breakdown */}
-      <Card t={t} style={{marginBottom:16,animation:"fadeUp .4s .05s both"}}>
-        <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:15,color:t.text,marginBottom:4}}>Hours by Member</div>
-        <div style={{fontSize:12,color:t.textMuted,marginBottom:16}}>How many hours each person has logged in total</div>
-        {perMember.length===0&&<p style={{fontSize:13,color:t.textMuted}}>No members yet.</p>}
-        {perMember.map((m,i)=>(
-          <div key={m.id} style={{marginBottom:16,animation:`fadeUp .3s ${i*40}ms both`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <Av init={m.av} size={32} t={t}/>
-                <div>
-                  <div style={{fontSize:13,fontWeight:700,color:t.text}}>{m.name}</div>
-                  <div style={{fontSize:11,color:t.textMuted}}>{m.role} · {m.activeTasks} active task{m.activeTasks!==1?"s":""} · {m.logCount} log entr{m.logCount===1?"y":"ies"}</div>
-                </div>
-              </div>
-              <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:22,color:t.lime}}>{m.hrs}<span style={{fontSize:13,fontWeight:500,color:t.textMuted}}> hrs</span></div>
-            </div>
-            <PBar value={m.hrs} max={Math.max(...perMember.map(x=>x.hrs),1)} color="lime" t={t} h={4} delay={i*45} showPct={false}/>
-          </div>
-        ))}
-      </Card>
+      {/* Project-based cards if projects exist */}
+      {data.projects&&data.projects.length>0?(
+        <>
+          <div style={{marginBottom:28}}>
+            <h2 style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>Hours by Project</h2>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:16}}>
+              {data.projects.map((proj,i)=>{
+                const projTasks=data.tasks.filter(tk=>tk.projectId===proj.id);
+                const logged=data.timeLogs.filter(l=>projTasks.find(tk=>tk.id===l.tId)).reduce((s,l)=>s+(l.hrs||0),0);
+                const estHours=proj.estHours||0;
+                const doneTasks=projTasks.filter(tk=>tk.status==="Completed").length;
+                const lead=data.users.find(u=>u.id===proj.projectLead);
+                const isExpanded=expandedProj===proj.id;
 
-      {/* SECTION 2: Task Performance Grades */}
-      <Card t={t} style={{marginBottom:16,animation:"fadeUp .4s .1s both"}}>
-        <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:15,color:t.text,marginBottom:4}}>Task Time Performance</div>
-        <div style={{fontSize:12,color:t.textMuted,marginBottom:16}}>How much time was used vs estimated — graded after completion</div>
-        {taskSummary.length===0&&<p style={{fontSize:13,color:t.textMuted}}>No tasks with time estimates yet.</p>}
-        <div style={{display:"flex",flexDirection:"column",gap:2}}>
-          {taskSummary.map((tk,i)=>(
-            <div key={tk.id} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:12,alignItems:"center",padding:"10px 13px",background:t.surfaceAlt,borderRadius:10,animation:`fadeUp .25s ${i*25}ms both`}}>
-              <div>
-                <div style={{fontSize:13,fontWeight:600,color:t.text}}>{tk.title}</div>
-                <div style={{fontSize:11,color:t.textMuted,marginTop:2}}>Assigned to {uName(tk.aId).split(" ")[0]}</div>
-              </div>
-              <div>
-                <div style={{fontSize:12,fontWeight:700,color:t.text}}>{tk.logged}h <span style={{color:t.textMuted,fontWeight:400}}>/ {tk.est}h est.</span></div>
-                <PBar value={tk.logged} max={Math.max(tk.est,tk.logged,1)} color={tk.logged>tk.est?"red":tk.pct>80?"amber":"lime"} t={t} h={3} showPct={false}/>
-              </div>
-              <Badge label={tk.status} color={SC(tk.status)} t={t} small/>
-              <span style={{display:"inline-flex",alignItems:"center",gap:5,padding:"3px 9px",borderRadius:99,background:t[tk.grade.color+"Bg"],color:t[tk.grade.color],fontSize:11,fontWeight:700}}>
-                {tk.grade.color==="green"&&<CheckCircle2 size={11}/>}
-                {tk.grade.color==="lime"&&<Check size={11}/>}
-                {tk.grade.color==="red"&&<TrendingDown size={11}/>}
-                {tk.grade.color==="blue"&&<Clock3 size={11}/>}
-                {tk.grade.label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Card>
+                return(
+                  <div key={proj.id} style={{animation:`fadeUp .3s ease ${i*40}ms both`}}>
+                    <Card t={t} onClick={()=>setExpandedProj(isExpanded?null:proj.id)} style={{cursor:"pointer",borderLeft:`4px solid ${PC(proj.priority)===true?"#84CC16":proj.priority==="High"?t.red:proj.priority==="Low"?t.green:t.amber}`}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+                        <div>
+                          <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:14,color:t.text}}>{proj.name}</div>
+                          <div style={{fontSize:11,color:t.textMuted,marginTop:2}}>{proj.clientId?cName(proj.clientId):"No client"}</div>
+                        </div>
+                        <Badge label={`${logged}h / ${estHours}h`} color="blue" t={t} small/>
+                      </div>
+                      <PBar value={logged} max={Math.max(estHours,logged,1)} color="lime" t={t} h={6} delay={i*45}/>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,fontSize:11,color:t.textMuted,marginTop:12,paddingTop:12,borderTop:`1px solid ${t.border}`}}>
+                        <div><span style={{fontWeight:600,color:t.textMid}}>Deadline</span><br/>{fd(proj.deadline)||"—"}</div>
+                        <div><span style={{fontWeight:600,color:t.textMid}}>Tasks</span><br/>{doneTasks}/{projTasks.length} done</div>
+                        {lead&&<div style={{gridColumn:"1/-1"}}><span style={{fontWeight:600,color:t.textMid}}>Lead</span><br/><div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}><Av init={lead.av} size={20} t={t}/>{lead.name}</div></div>}
+                      </div>
+                      {proj.status&&<div style={{marginTop:10}}><Badge label={proj.status} color={SC(proj.status)} t={t} small/></div>}
+                    </Card>
 
-      {/* SECTION 3: Log entries with filters */}
-      <Card t={t} style={{animation:"fadeUp .4s .15s both"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
-          <div>
-            <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:15,color:t.text,marginBottom:2}}>All Log Entries</div>
-            <div style={{fontSize:12,color:t.textMuted}}>{logs.length} entr{logs.length===1?"y":"ies"} · {totalHrs}h total shown</div>
+                    {/* Expanded task list */}
+                    {isExpanded&&(
+                      <Card t={t} style={{marginTop:8,background:t.surfaceAlt}}>
+                        <div style={{fontWeight:600,fontSize:12,color:t.text,marginBottom:12}}>Tasks in this project:</div>
+                        {projTasks.length===0?(
+                          <p style={{fontSize:12,color:t.textMuted}}>No tasks in this project.</p>
+                        ):(
+                          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                            {projTasks.map(task=>{
+                              const assignee=data.users.find(u=>u.id===task.aId);
+                              const assigneeDept=data.departments.find(d=>d.id===assignee?.dept);
+                              const taskLogs=data.timeLogs.filter(l=>l.tId===task.id).reduce((s,l)=>s+(l.hrs||0),0);
+                              return(
+                                <div key={task.id} style={{padding:"10px 12px",background:t.surface,borderRadius:8,border:`1px solid ${t.border}`}}>
+                                  <div style={{fontSize:12,fontWeight:600,color:t.text}}>{task.title}</div>
+                                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:6,fontSize:10,color:t.textMuted}}>
+                                    <div><strong style={{color:t.textMid}}>Assigned:</strong> {assignee?.name||"—"}{assigneeDept?` (${assigneeDept.name})`:""}</div>
+                                    <div><strong style={{color:t.textMid}}>Hours:</strong> {taskLogs}h / {task.est||"—"}h est</div>
+                                    <div><strong style={{color:t.textMid}}>Due:</strong> {fd(task.due)||"—"}</div>
+                                  </div>
+                                  {task.completedAt&&<div style={{fontSize:9,color:t.lime,marginTop:4}}>✓ Completed {fd(task.completedAt)}</div>}
+                                  <div style={{marginTop:6}}><Badge label={task.status} color={SC(task.status)} t={t} small/></div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </Card>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            <select value={filterUser} onChange={e=>setFilterUser(e.target.value)} style={{...iStyle(t),width:150,padding:"6px 10px",fontSize:12}}>
-              <option value="all">All members</option>
-              {data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-            <select value={filterTask} onChange={e=>setFilterTask(e.target.value)} style={{...iStyle(t),width:180,padding:"6px 10px",fontSize:12}}>
-              <option value="all">All tasks</option>
-              {data.tasks.map(tk=><option key={tk.id} value={tk.id}>{tk.title}</option>)}
-            </select>
-          </div>
-        </div>
-        {logs.length===0
-          ?<div style={{textAlign:"center",padding:"28px 0",color:t.textMuted,fontSize:13}}>No log entries match your filters.</div>
-          :<div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {[...logs].reverse().map((log,i)=>(
-              <div key={log.id} style={{display:"grid",gridTemplateColumns:"2fr 1fr 80px 80px 1fr auto",gap:10,alignItems:"center",padding:"10px 13px",background:t.surfaceAlt,borderRadius:10,animation:`fadeUp .22s ${Math.min(i,10)*20}ms both`}}>
-                <div>
-                  <div style={{fontSize:12,fontWeight:700,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tName(log.tId)}</div>
-                  <div style={{fontSize:11,color:t.textMuted,marginTop:1}}>{log.note||"No note"}</div>
+        </>
+      ):null}
+
+      {/* Fallback: Hours by Member if no projects */}
+      {!data.projects||data.projects.length===0?(() => {
+        const perMember=data.users.filter(u=>u.role!=="Admin").map(u=>{
+          const uLogs=data.timeLogs.filter(l=>l.uId===u.id);
+          const hrs=uLogs.reduce((s,l)=>s+(l.hrs||0),0);
+          const activeTasks=data.tasks.filter(tk=>tk.aId===u.id&&tk.status==="In Progress").length;
+          return{...u,hrs,activeTasks,logCount:uLogs.length};
+        }).sort((a,b)=>b.hrs-a.hrs);
+
+        return(
+          <Card t={t} style={{marginBottom:16,animation:"fadeUp .4s .05s both"}}>
+            <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:15,color:t.text,marginBottom:4}}>Hours by Member</div>
+            <div style={{fontSize:12,color:t.textMuted,marginBottom:16}}>How many hours each person has logged in total</div>
+            {perMember.length===0&&<p style={{fontSize:13,color:t.textMuted}}>No members yet.</p>}
+            {perMember.map((m,i)=>(
+              <div key={m.id} style={{marginBottom:16,animation:`fadeUp .3s ${i*40}ms both`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <Av init={m.av} size={32} t={t}/>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:700,color:t.text}}>{m.name}</div>
+                      <div style={{fontSize:11,color:t.textMuted}}>{m.role} · {m.activeTasks} active task{m.activeTasks!==1?"s":""} · {m.logCount} log entr{m.logCount===1?"y":"ies"}</div>
+                    </div>
+                  </div>
+                  <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:22,color:t.lime}}>{m.hrs}<span style={{fontSize:13,fontWeight:500,color:t.textMuted}}> hrs</span></div>
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <Av init={data.users.find(u=>u.id===log.uId)?.av||"?"} size={22} t={t}/>
-                  <span style={{fontSize:12,color:t.textMid}}>{uName(log.uId).split(" ")[0]}</span>
-                </div>
-                <span style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:18,color:t.lime}}>{log.hrs}<span style={{fontSize:11,color:t.textMuted,fontWeight:400}}>h</span></span>
-                <span style={{fontSize:11,color:t.textMuted}}>{log.date?fd(log.date):"—"}</span>
-                <span style={{fontSize:11,color:t.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{log.note||""}</span>
-                {log.auto
-                  ?<span style={{display:"inline-flex",alignItems:"center",gap:3,padding:"2px 7px",background:t.limeBg,borderRadius:99,fontSize:10,color:t.limeDeep,fontWeight:700,flexShrink:0}}><Zap size={9}/>Auto</span>
-                  :<span style={{display:"inline-flex",alignItems:"center",gap:3,padding:"2px 7px",background:t.blueBg,borderRadius:99,fontSize:10,color:t.blue,fontWeight:700,flexShrink:0}}><FileText size={9}/>Manual</span>}
+                <PBar value={m.hrs} max={Math.max(...perMember.map(x=>x.hrs),1)} color="lime" t={t} h={4} delay={i*45} showPct={false}/>
               </div>
             ))}
-          </div>}
-      </Card>
+          </Card>
+        );
+      })():null}
 
       {/* Log Time Modal */}
       <Modal open={showLog} onClose={()=>setShowLog(false)} title="Log Time" t={t} w={440}>
@@ -2114,6 +2312,8 @@ function Team({t,data,setData,toast}){
   const [showAdd,setShowAdd]=useState(false);
   const [form,setForm]=useState({name:"",email:"",phone:"",role:"",dept:"",dob:""});
   const [editMember,setEditMember]=useState(null);
+  const [searchQ,setSearchQ]=useState("");
+  const [filterDept,setFilterDept]=useState("all");
 
   const del=id=>{
     if(!window.confirm("Remove this team member?"))return;
@@ -2166,8 +2366,26 @@ function Team({t,data,setData,toast}){
     <div>
       <SHead t={t} title="Team" sub="Members, roles, contact info and birthday reminders"
         action={<Btn v="lime" t={t} onClick={()=>setShowAdd(true)} icon={<Plus size={14}/>}>Add Member</Btn>}/>
+
+      <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"flex-end"}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",marginBottom:6}}>Search by name</div>
+          <div style={{display:"flex",alignItems:"center",padding:"8px 13px",background:t.surface,border:`1px solid ${t.border}`,borderRadius:8,gap:8}}>
+            <Search size={14} color={t.textMuted}/>
+            <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="Search members…" style={{flex:1,background:"none",border:"none",outline:"none",fontSize:13,color:t.text,fontFamily:"'Inter',sans-serif"}}/>
+          </div>
+        </div>
+        <div style={{width:180}}>
+          <div style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",marginBottom:6}}>Filter by dept</div>
+          <Sel value={filterDept} onChange={e=>setFilterDept(e.target.value)} t={t}>
+            <option value="all">All Departments</option>
+            {data.departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+          </Sel>
+        </div>
+      </div>
+
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        {data.users.filter(u=>u.role!=="Admin").map((m,i)=>{
+        {data.users.filter(u=>u.role!=="Admin"&&(searchQ===""||u.name.toLowerCase().includes(searchQ.toLowerCase()))&&(filterDept==="all"||u.dept===filterDept)).map((m,i)=>{
           const tasks=data.tasks.filter(tk=>tk.aId===m.id);
           const dept=data.departments.find(d=>d.id===m.dept);
           const today=new Date();
@@ -3228,6 +3446,7 @@ function AdProjects({t,data,setData,toast,currentUser}){
   });
   const projTasks=id=>(data.adTasks||[]).filter(tk=>tk.projectId===id);
 
+  const canViewTasks = currentUser?.role==="Founder"||currentUser?.role==="Admin";
   const TabBtn=({id,label,Icon,count})=>(
     <button onClick={()=>setTab(id)} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 16px",borderRadius:8,border:"none",background:tab===id?t.text:"transparent",color:tab===id?"#fff":t.textMuted,fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,cursor:"pointer",transition:"all .15s"}}>
       <Icon size={14}/>{label}{count>0&&<span style={{background:tab===id?t.lime:t.surfaceAlt,color:tab===id?"#000":t.textMid,borderRadius:99,fontSize:10,fontWeight:700,padding:"1px 6px",marginLeft:2}}>{count}</span>}
@@ -3239,14 +3458,14 @@ function AdProjects({t,data,setData,toast,currentUser}){
       <SHead t={t} title="Ad-hoc Projects" sub="Client projects outside the retainer" action={
         <div style={{display:"flex",gap:8}}>
           {tab==="projects"&&<Btn v="lime" t={t} onClick={()=>{setProjForm(PROJ_BLANK);setShowAddProj(true);}} icon={<Plus size={14}/>}>New Project</Btn>}
-          {tab==="tasks"&&<Btn v="lime" t={t} onClick={()=>{setTaskForm({...TASK_BLANK,projectId:filterProj!=="all"?filterProj:""});setShowAddTask(true);}} icon={<Plus size={14}/>}>New Task</Btn>}
+          {tab==="tasks"&&canViewTasks&&<Btn v="lime" t={t} onClick={()=>{setTaskForm({...TASK_BLANK,projectId:filterProj!=="all"?filterProj:""});setShowAddTask(true);}} icon={<Plus size={14}/>}>New Task</Btn>}
         </div>
       }/>
 
       {/* Tabs */}
       <div style={{display:"flex",gap:4,marginBottom:24,background:t.surfaceAlt,borderRadius:10,padding:4,width:"fit-content",border:`1px solid ${t.border}`}}>
         <TabBtn id="projects" label="Projects" Icon={FolderOpen} count={projects.length}/>
-        <TabBtn id="tasks" label="Tasks" Icon={ClipboardList} count={allTasks.length}/>
+        {canViewTasks&&<TabBtn id="tasks" label="Tasks" Icon={ClipboardList} count={allTasks.length}/>}
       </div>
 
       {/* ── PROJECTS TAB ── */}
@@ -3301,7 +3520,7 @@ function AdProjects({t,data,setData,toast,currentUser}){
       )}
 
       {/* ── TASKS TAB ── */}
-      {tab==="tasks"&&(
+      {tab==="tasks"&&canViewTasks&&(
         <>
           <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
             <div style={{position:"relative",flex:1,maxWidth:300}}>
@@ -3319,30 +3538,38 @@ function AdProjects({t,data,setData,toast,currentUser}){
               <p style={{fontSize:14,fontWeight:500}}>No tasks yet. Click "New Task" to add one.</p>
             </div>
           ):(
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}} className="grid-1-mobile">
-              {allTasks.map((tk,i)=>(
-                <Card t={t} key={tk.id} style={{animation:`fadeUp .25s ease ${i*30}ms both`,position:"relative"}}>
-                  <div className="card-actions" style={{position:"absolute",top:10,right:10,display:"flex",gap:4,zIndex:10}}>
-                    <button onClick={()=>{setEditTaskForm({...tk});setShowEditTask(true);}} style={{width:26,height:26,borderRadius:6,background:t.surfaceAlt,border:`1px solid ${t.border}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted}} onMouseEnter={e=>e.currentTarget.style.color=t.blue} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Edit2 size={11}/></button>
-                    <button onClick={()=>deleteTask(tk.id)} style={{width:26,height:26,borderRadius:6,background:t.redBg,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.red}}><Trash2 size={11}/></button>
-                  </div>
-                  <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:8,paddingRight:60}}>
-                    <button onClick={()=>toggleTaskDone(tk.id)} style={{background:"none",border:"none",cursor:"pointer",padding:0,color:tk.status==="Completed"?t.lime:t.textMuted,flexShrink:0,marginTop:1}}>
-                      {tk.status==="Completed"?<CheckSquare size={16}/>:<Square size={16}/>}
-                    </button>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:600,fontSize:13,color:t.text,textDecoration:tk.status==="Completed"?"line-through":"none",opacity:tk.status==="Completed"?0.5:1}}>{tk.title}</div>
-                      <div style={{fontSize:11,color:t.textMuted,marginTop:2}}>{projName(tk.projectId)}</div>
-                    </div>
-                  </div>
-                  <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
-                    <Badge label={tk.status} color={PS_COLOR[tk.status]||"muted"} t={t}/>
-                  </div>
-                  {tk.notes&&<p style={{fontSize:12,color:t.textMuted,lineHeight:1.5,marginBottom:8}}>{tk.notes}</p>}
-                  {tk.filesLink&&<a href={tk.filesLink} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:12,color:t.blue,textDecoration:"none",fontWeight:500}}><ExtLink size={11}/>View Files</a>}
-                </Card>
-              ))}
-            </div>
+            <Card t={t}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'Inter',sans-serif"}}>
+                <thead>
+                  <tr style={{borderBottom:`2px solid ${t.border}`}}>
+                    <th style={{textAlign:"left",padding:"12px",fontSize:12,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Client</th>
+                    <th style={{textAlign:"left",padding:"12px",fontSize:12,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Project</th>
+                    <th style={{textAlign:"left",padding:"12px",fontSize:12,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Task Title</th>
+                    <th style={{textAlign:"left",padding:"12px",fontSize:12,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Deadline</th>
+                    <th style={{textAlign:"left",padding:"12px",fontSize:12,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Status</th>
+                    <th style={{textAlign:"center",padding:"12px",fontSize:12,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allTasks.map((tk,i)=>{
+                    const proj=(data.adProjects||[]).find(p=>p.id===tk.projectId);
+                    return(
+                      <tr key={tk.id} style={{borderBottom:`1px solid ${t.border}`,animation:`fadeUp .25s ease ${i*30}ms both`}}>
+                        <td style={{padding:"12px",fontSize:13,color:t.text}}>{proj?cName(proj.clientId):"—"}</td>
+                        <td style={{padding:"12px",fontSize:13,color:t.text}}>{proj?.name||"—"}</td>
+                        <td style={{padding:"12px",fontSize:13,color:t.text,fontWeight:500}}>{tk.title}</td>
+                        <td style={{padding:"12px",fontSize:13,color:t.textMuted}}>{tk.deadline||"—"}</td>
+                        <td style={{padding:"12px"}}><Badge label={tk.status} color={PS_COLOR[tk.status]||"muted"} t={t} small/></td>
+                        <td style={{padding:"12px",textAlign:"center",display:"flex",gap:6,justifyContent:"center"}}>
+                          <button onClick={()=>{setEditTaskForm({...tk});setShowEditTask(true);}} style={{width:28,height:28,borderRadius:6,background:t.surfaceAlt,border:`1px solid ${t.border}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted}} onMouseEnter={e=>e.currentTarget.style.color=t.blue} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Edit2 size={12}/></button>
+                          <button onClick={()=>deleteTask(tk.id)} style={{width:28,height:28,borderRadius:6,background:t.redBg,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.red}}><Trash2 size={12}/></button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </Card>
           )}
         </>
       )}
@@ -3988,6 +4215,9 @@ function App({firebaseUid}){
   const [pageKey,setPageKey]=useState(0);
   const [pendingTaskId,setPendingTaskId]=useState(null);
   const [showTutorial,setShowTutorial]=useState(false);
+  const [navOrder,setNavOrder]=useState(null);
+  const dragItem=useRef(null);
+  const dragOver=useRef(null);
   const t=dark?D.dark:D.light;
 
   // The currently logged-in user — matched strictly by Firebase UID, then email.
@@ -4008,9 +4238,9 @@ function App({firebaseUid}){
       // safeList: a missing or permission-denied collection returns [] instead of crashing everything
       const safeList = (col) => listDocs(col).catch(e => { console.warn(`loadAll: ${col} failed`, e); return []; });
       try {
-        const [users,departments,clients,tasks,leaves,meetings,timeLogs,notifications,onboarding,credentials,adProjects,adTasks,settingsDocs] = await Promise.all([
+        const [users,departments,clients,tasks,projects,leaves,meetings,timeLogs,notifications,onboarding,credentials,adProjects,adTasks,settingsDocs] = await Promise.all([
           listDocs(COLS.USERS), listDocs(COLS.DEPARTMENTS), listDocs(COLS.CLIENTS),
-          listDocs(COLS.TASKS), listDocs(COLS.LEAVES), listDocs(COLS.MEETINGS),
+          listDocs(COLS.TASKS), safeList(COLS.PROJECTS), listDocs(COLS.LEAVES), listDocs(COLS.MEETINGS),
           listDocs(COLS.TIMELOGS), listDocs(COLS.NOTIFICATIONS), listDocs(COLS.ONBOARDING),
           safeList(COLS.CREDENTIALS), safeList(COLS.ADPROJECTS), safeList(COLS.ADTASKS),
           safeList(COLS.SETTINGS),
@@ -4021,7 +4251,7 @@ function App({firebaseUid}){
         setData(d=>({
           ...d,
           firstLogin: users.length===0,
-          users, departments, clients, tasks, leaves, meetings,
+          users, departments, clients, tasks, projects, leaves, meetings,
           timeLogs, notifications, onboarding, leaveBalances, credentials,
           adProjects, adTasks, settings: settingsDoc,
         }));
@@ -4032,6 +4262,11 @@ function App({firebaseUid}){
     }
     loadAll();
   },[]);
+
+  // Load nav order from currentUser
+  useEffect(()=>{
+    if(currentUser?.navOrder) setNavOrder(currentUser.navOrder);
+  },[currentUser?.navOrder]);
 
   // ── Sync helpers ──────────────────────────────────────────────────────────
   const syncCreate = useCallback(async (col, item) => {
@@ -4112,6 +4347,11 @@ function App({firebaseUid}){
         if (!old) syncCreate(COLS.ADTASKS, tk);
         else if (JSON.stringify(tk)!==JSON.stringify(old)) syncUpdate(COLS.ADTASKS, tk.id, tk);
       });
+      if (next.projects !== prev.projects) next.projects.forEach(p => {
+        const old = prev.projects.find(x=>x.id===p.id);
+        if (!old) syncCreate(COLS.PROJECTS, p);
+        else if (JSON.stringify(p)!==JSON.stringify(old)) syncUpdate(COLS.PROJECTS, p.id, p);
+      });
       if (next.settings !== prev.settings) {
         syncUpdate(COLS.SETTINGS, "global", next.settings);
       }
@@ -4140,7 +4380,7 @@ function App({firebaseUid}){
     allotedboard: <AllotedBoard t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
     calendar:     <CalendarView t={t} data={data} go={go}/>,
     timelogs:     <TimeLogs     t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
-    efficiency:   <Efficiency   t={t} data={data} currentUser={currentUser}/>,
+    efficiency:   <Efficiency   t={t} data={data} currentUser={currentUser} toast={toast}/>,
     clients:      <Clients      t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
     meetings:     <Meetings     t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
     leaves:       <Leaves       t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
@@ -4215,21 +4455,45 @@ function App({firebaseUid}){
             </button>
           </div>
           <nav style={{flex:1,padding:"8px 6px",overflowY:"auto",overflowX:"hidden"}}>
-            {NAV.filter(n=>n.roles==="all"||(n.roles==="manager"&&(isFounder||isHoD))||(n.roles==="founder"&&isFounder)).map(({id,label,Icon},i)=>{
-              const active=nav===id,b=badge(id);
-              return(
-                <button key={id} onClick={()=>go(id)} title={!side?label:""} style={{width:"100%",display:"flex",alignItems:"center",gap:side?10:0,justifyContent:side?"flex-start":"center",padding:side?"7px 10px":"10px 0",borderRadius:8,border:"none",background:active?"rgba(132,204,22,0.10)":"transparent",color:active?"#84CC16":t.sideText,letterSpacing:"-0.01em",fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:active?600:400,cursor:"pointer",marginBottom:1,position:"relative",transition:"background 0.15s ease,color 0.15s ease",animation:`fadeUp .3s ease ${i*20}ms both`,whiteSpace:"nowrap",overflow:"hidden"}}
-                  onMouseEnter={e=>{if(!active){e.currentTarget.style.background=t.sideHover;e.currentTarget.style.color=t.text;}}}
-                  onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.sideText;}}}>
-                  {active&&<div style={{position:"absolute",left:0,top:"18%",bottom:"18%",width:3,borderRadius:"0 3px 3px 0",background:"#84CC16"}}/>}
-                  <div style={{position:"relative",flexShrink:0}}>
-                    <Icon size={17} strokeWidth={active?2:1.5}/>
-                    {b>0&&<span style={{position:"absolute",top:-6,right:-6,minWidth:15,height:15,borderRadius:99,background:"#84CC16",color:"#000000",fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",animation:"notifPop .5s cubic-bezier(.22,1,.36,1)"}}>{b}</span>}
-                  </div>
-                  {side&&<span style={{flex:1,textAlign:"left"}}>{label}</span>}
-                </button>
-              );
-            })}
+            {(() => {
+              const filtered = NAV.filter(n=>n.roles==="all"||(n.roles==="manager"&&(isFounder||isHoD))||(n.roles==="founder"&&isFounder));
+              const ordered = navOrder ? filtered.sort((a,b)=>(navOrder.indexOf(a.id)||-1)-(navOrder.indexOf(b.id)||-1)) : filtered;
+              return ordered.map(({id,label,Icon},i)=>{
+                const active=nav===id,b=badge(id);
+                return(
+                  <button
+                    key={id}
+                    draggable={side}
+                    onDragStart={()=>{dragItem.current=id;}}
+                    onDragEnter={()=>{dragOver.current=id;}}
+                    onDragEnd={()=>{
+                      if(dragItem.current!==dragOver.current&&dragItem.current&&dragOver.current){
+                        const newOrder = [...ordered];
+                        const fromIdx = newOrder.findIndex(n=>n.id===dragItem.current);
+                        const toIdx = newOrder.findIndex(n=>n.id===dragOver.current);
+                        [newOrder[fromIdx],newOrder[toIdx]]=[newOrder[toIdx],newOrder[fromIdx]];
+                        const newNavOrder = newOrder.map(n=>n.id);
+                        setNavOrder(newNavOrder);
+                        if(currentUser) updateDoc_(COLS.USERS,currentUser.id,{navOrder:newNavOrder}).catch(()=>{});
+                      }
+                      dragItem.current=null;dragOver.current=null;
+                    }}
+                    onDragOver={e=>e.preventDefault()}
+                    onClick={()=>go(id)}
+                    title={!side?label:""}
+                    style={{width:"100%",display:"flex",alignItems:"center",gap:side?10:0,justifyContent:side?"flex-start":"center",padding:side?"7px 10px":"10px 0",borderRadius:8,border:"none",background:active?"rgba(132,204,22,0.10)":"transparent",color:active?"#84CC16":t.sideText,letterSpacing:"-0.01em",fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:active?600:400,cursor:side?"grab":"pointer",marginBottom:1,position:"relative",transition:"background 0.15s ease,color 0.15s ease",animation:`fadeUp .3s ease ${i*20}ms both`,whiteSpace:"nowrap",overflow:"hidden",opacity:dragItem.current===id?0.5:1}}
+                    onMouseEnter={e=>{if(!active){e.currentTarget.style.background=t.sideHover;e.currentTarget.style.color=t.text;}}}
+                    onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.sideText;}}}>
+                    {active&&<div style={{position:"absolute",left:0,top:"18%",bottom:"18%",width:3,borderRadius:"0 3px 3px 0",background:t.sideActive}}/>}
+                    <div style={{position:"relative",flexShrink:0}}>
+                      <Icon size={17} strokeWidth={active?2:1.5}/>
+                      {b>0&&<span style={{position:"absolute",top:-6,right:-6,minWidth:15,height:15,borderRadius:99,background:t.sideActive,color:"#000000",fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",animation:"notifPop .5s cubic-bezier(.22,1,.36,1)"}}>{b}</span>}
+                    </div>
+                    {side&&<span style={{flex:1,textAlign:"left"}}>{label}</span>}
+                  </button>
+                );
+              });
+            })()}
           </nav>
           <div style={{padding:side?"10px 8px":"10px 0",borderTop:`1px solid ${t.border}`,display:"flex",flexDirection:"column",gap:6}}>
             {side&&<button onClick={()=>setShowTutorial(true)} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"none",border:`1px solid ${t.border}`,borderRadius:8,cursor:"pointer",color:t.sideText,fontSize:11,fontWeight:600,transition:"all .15s"}} onMouseEnter={e=>{e.currentTarget.style.background=t.sideHover;e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background="none";e.currentTarget.style.color=t.sideText;}}>
