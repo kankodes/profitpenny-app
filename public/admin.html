@@ -19,7 +19,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>ProfitPenny Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -44,9 +44,31 @@
   --green:#4ADE80;
   --greenBg:rgba(74,222,128,0.1);
   --radius:10px;
-  --font-head:'Syne',sans-serif;
-  --font-mono:'Space Mono',monospace;
-  --font-body:'DM Sans',sans-serif;
+  --font-head:'Inter',sans-serif;
+  --font-mono:'Inter',monospace;
+  --font-body:'Inter',sans-serif;
+}
+html.light {
+  --bg: #f8f7ff;
+  --surface: #ffffff;
+  --surface2: #f0f0f8;
+  --surface3: #e8e8f0;
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.12);
+  --text: #111827;
+  --textMuted: #6b7280;
+  --textDim: #9ca3af;
+  --accent: #84CC16;
+  --accentDim: #65a30d;
+  --accentBg: rgba(132,204,22,0.10);
+  --red: #dc2626;
+  --redBg: rgba(220,38,38,0.10);
+  --amber: #d97706;
+  --amberBg: rgba(217,119,6,0.10);
+  --blue: #2563eb;
+  --blueBg: rgba(37,99,235,0.10);
+  --green: #16a34a;
+  --greenBg: rgba(22,163,74,0.10);
 }
 html,body{height:100%;font-family:var(--font-body);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;}
 ::-webkit-scrollbar{width:4px;height:4px;}
@@ -294,6 +316,17 @@ function renderToasts(){
   el.innerHTML = state.toasts.map(t=>`<div class="toast toast-${t.type}">${t.type==='success'?'✓':t.type==='error'?'✕':'ℹ'} ${t.msg}</div>`).join('');
 }
 
+// ── THEME INITIALIZATION & TOGGLE ──────────────────────────────────────────────
+// Default to light mode
+if(!localStorage.getItem('adminTheme')||localStorage.getItem('adminTheme')==='light'){
+  document.documentElement.classList.add('light');
+}
+
+window.toggleTheme = () => {
+  const isLight = document.documentElement.classList.toggle('light');
+  localStorage.setItem('adminTheme', isLight ? 'light' : 'dark');
+};
+
 // ── LOAD DATA ─────────────────────────────────────────────────────────────────
 async function loadData(){
   try {
@@ -424,6 +457,7 @@ function render(){
     <header class="topbar">
       <div style="font-family:var(--font-mono);font-size:11px;color:var(--textDim);text-transform:uppercase;letter-spacing:0.1em;">${state.page.replace(/([A-Z])/g,' $1')}</div>
       <div class="flex">
+        <button class="btn btn-ghost btn-icon" onclick="toggleTheme()" title="Toggle theme" style="font-size:16px;">☀️</button>
         <div style="font-family:var(--font-mono);font-size:11px;color:var(--textDim);">${new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</div>
         <div style="width:1px;height:20px;background:var(--border);margin:0 4px;"></div>
         <div class="badge badge-green" style="font-size:10px;">● LIVE</div>
@@ -732,11 +766,20 @@ function settingsPage(){
         <button class="btn btn-accent btn-sm" onclick="saveSettings()">Save</button>
       </div>
       <div class="card">
-        <div style="font-family:var(--font-head);font-weight:700;font-size:15px;margin-bottom:16px;">Danger Zone</div>
-        <p style="font-size:13px;color:var(--textMuted);margin-bottom:14px;">These actions are irreversible. Proceed with caution.</p>
+        <div style="font-family:var(--font-head);font-weight:700;font-size:15px;margin-bottom:6px;color:var(--red)">⚠ Danger Zone</div>
+        <p style="font-size:13px;color:var(--textMuted);margin-bottom:14px;">These actions are irreversible. Proceed with extreme caution.</p>
         <div style="display:flex;flex-direction:column;gap:10px;">
-          <button class="btn btn-danger" onclick="toast('Not implemented in demo — connect your own backup system','info')">Export All Data (JSON)</button>
-          <button class="btn btn-danger" onclick="toast('Contact Anthropic support to wipe production data','info')">Reset All App Data</button>
+          <button class="btn btn-secondary btn-sm" onclick="exportAllData()">📥 Export All Data (JSON)</button>
+          <button class="btn btn-danger" onclick="showResetModal()">🗑 Reset App Data…</button>
+          <div id="reset-confirm-area" style="display:none;background:var(--redBg);border:1px solid rgba(220,38,38,0.3);border-radius:10px;padding:16px;margin-top:4px;">
+            <p style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:12px;">This will delete ALL tasks, leaves, time logs, meetings, notifications and other operational data. Users and clients will be preserved.</p>
+            <div class="field"><label>Verification Password</label><input class="inp" id="reset-pwd-inp" type="password" placeholder="Enter verification password"/></div>
+            <div class="field"><label>Type RESET to confirm</label><input class="inp" id="reset-confirm-inp" placeholder="RESET"/></div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-danger" onclick="confirmReset()">Confirm Reset</button>
+              <button class="btn btn-secondary" onclick="document.getElementById('reset-confirm-area').style.display='none'">Cancel</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="card">
@@ -765,6 +808,69 @@ window.saveSettings = async () => {
   state.settings=s;
   await audit('Settings updated');
   toast('Settings saved');
+};
+
+// ── DANGER ZONE FUNCTIONS ──────────────────────────────────────────────────────
+window.exportAllData = async () => {
+  try {
+    toast('Exporting data…', 'info');
+    const allData = {
+      users: state.users,
+      clients: state.clients,
+      departments: state.departments,
+      tasks: state.tasks,
+      leaves: state.leaves,
+      meetings: state.meetings,
+      timeLogs: state.timeLogs,
+      notifications: state.notifications,
+      exportedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(allData, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `profitpenny-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Data exported successfully', 'success');
+    await audit('Data exported', state.userProfile?.email||state.user?.email);
+  } catch(e) { toast('Export failed: ' + e.message, 'error'); }
+};
+
+window.showResetModal = () => {
+  const el = document.getElementById('reset-confirm-area');
+  if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+};
+
+window.confirmReset = async () => {
+  const pwd = document.getElementById('reset-pwd-inp')?.value;
+  if(pwd !== 'ProfitPenny@2026') {
+    toast('Incorrect verification password', 'error');
+    return;
+  }
+  const confirmText = document.getElementById('reset-confirm-inp')?.value;
+  if(confirmText !== 'RESET') {
+    toast('Please type RESET to confirm', 'error');
+    return;
+  }
+  try {
+    toast('Resetting app data…', 'info');
+    const collections_to_reset = ['tasks','leaves','meetings','timelogs','notifications','onboarding','credentials','adprojects','adtasks','settings','projects'];
+    for(const col of collections_to_reset) {
+      try {
+        const snap = await getDocs(collection(db, col));
+        const deletes = snap.docs.map(d => deleteDoc(doc(db, col, d.id)));
+        await Promise.all(deletes);
+      } catch(e) {
+        // Collection might not exist, continue
+      }
+    }
+    await audit('⚠️ App data reset performed', state.userProfile?.email||state.user?.email);
+    toast('App data reset complete. Users and clients were preserved.', 'success', 8000);
+    document.getElementById('reset-confirm-area').style.display = 'none';
+    document.getElementById('reset-pwd-inp').value = '';
+    document.getElementById('reset-confirm-inp').value = '';
+  } catch(e) { toast('Reset failed: ' + e.message, 'error'); }
 };
 
 // ── AUDIT LOG PAGE ────────────────────────────────────────────────────────────
