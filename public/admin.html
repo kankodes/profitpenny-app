@@ -772,10 +772,49 @@ function settingsPage(){
           <button class="btn btn-secondary btn-sm" onclick="exportAllData()">📥 Export All Data (JSON)</button>
           <button class="btn btn-danger" onclick="showResetModal()">🗑 Reset App Data…</button>
           <div id="reset-confirm-area" style="display:none;background:var(--redBg);border:1px solid rgba(220,38,38,0.3);border-radius:10px;padding:16px;margin-top:4px;">
-            <p style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:12px;">This will delete ALL tasks, leaves, time logs, meetings, notifications and other operational data. Users and clients will be preserved.</p>
+            <p style="font-weight:700;color:var(--red);margin-bottom:12px;font-size:14px;">⚠️ Select collections to reset. Users and clients are always preserved.</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;" id="reset-collection-grid">
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 10px;border-radius:7px;background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.15);">
+                <input type="checkbox" name="reset-col" value="tasks" checked/> Tasks
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 10px;border-radius:7px;background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.15);">
+                <input type="checkbox" name="reset-col" value="leaves" checked/> Leaves
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 10px;border-radius:7px;background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.15);">
+                <input type="checkbox" name="reset-col" value="meetings" checked/> Meetings
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 10px;border-radius:7px;background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.15);">
+                <input type="checkbox" name="reset-col" value="timelogs" checked/> Time Logs
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 10px;border-radius:7px;background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.15);">
+                <input type="checkbox" name="reset-col" value="notifications" checked/> Notifications
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 10px;border-radius:7px;background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.15);">
+                <input type="checkbox" name="reset-col" value="onboarding"/> Onboarding
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 10px;border-radius:7px;background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.15);">
+                <input type="checkbox" name="reset-col" value="credentials"/> Credentials
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 10px;border-radius:7px;background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.15);">
+                <input type="checkbox" name="reset-col" value="adprojects"/> Ad-Hoc Projects
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 10px;border-radius:7px;background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.15);">
+                <input type="checkbox" name="reset-col" value="adtasks"/> Ad-Hoc Tasks
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 10px;border-radius:7px;background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.15);">
+                <input type="checkbox" name="reset-col" value="projects"/> Projects
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 10px;border-radius:7px;background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.15);">
+                <input type="checkbox" name="reset-col" value="settings"/> Settings
+              </label>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+              <button class="btn btn-ghost btn-sm" onclick="document.querySelectorAll('[name=reset-col]').forEach(c=>c.checked=true)" style="font-size:11px">Select All</button>
+              <button class="btn btn-ghost btn-sm" onclick="document.querySelectorAll('[name=reset-col]').forEach(c=>c.checked=false)" style="font-size:11px">Deselect All</button>
+            </div>
             <div class="field"><label>Verification Password</label><input class="inp" id="reset-pwd-inp" type="password" placeholder="Enter verification password"/></div>
             <div class="field"><label>Type RESET to confirm</label><input class="inp" id="reset-confirm-inp" placeholder="RESET"/></div>
-            <div style="display:flex;gap:8px;">
+            <div style="display:flex;gap:8px;margin-top:4px;">
               <button class="btn btn-danger" onclick="confirmReset()">Confirm Reset</button>
               <button class="btn btn-secondary" onclick="document.getElementById('reset-confirm-area').style.display='none'">Cancel</button>
             </div>
@@ -844,7 +883,7 @@ window.showResetModal = () => {
 
 window.confirmReset = async () => {
   const pwd = document.getElementById('reset-pwd-inp')?.value;
-  if(pwd !== 'ProfitPenny@2026') {
+  if(!pwd || pwd !== 'ProfitPenny@2026') {
     toast('Incorrect verification password', 'error');
     return;
   }
@@ -853,9 +892,14 @@ window.confirmReset = async () => {
     toast('Please type RESET to confirm', 'error');
     return;
   }
+  const selectedCols = [...document.querySelectorAll('[name=reset-col]:checked')].map(c=>c.value);
+  if(selectedCols.length===0) {
+    toast('Select at least one collection to reset', 'error');
+    return;
+  }
   try {
-    toast('Resetting app data…', 'info');
-    const collections_to_reset = ['tasks','leaves','meetings','timelogs','notifications','onboarding','credentials','adprojects','adtasks','settings','projects'];
+    toast(`Resetting ${selectedCols.length} collection(s)…`, 'info');
+    const collections_to_reset = selectedCols;
     for(const col of collections_to_reset) {
       try {
         const snap = await getDocs(collection(db, col));
