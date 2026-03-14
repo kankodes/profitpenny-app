@@ -618,6 +618,7 @@ function Projects({t,data,setData,toast,currentUser,pendingTaskId,clearPendingTa
   const [showConfirm,setShowConfirm]=useState(false);
   const [projDraft,setProjDraft]=useState(null);
   const [projForm,setProjForm]=useState({name:"",clientId:"",projectLead:"",members:[],deadline:"",estHours:"",brief:"",briefAttachment:"",outputLink:"",references:[""],priority:"Medium",status:"Not Started"});
+  const [expandedSt,setExpandedSt]=useState(null); // "taskId::stId" for expanded subtask in card
   const [projDueWarn,setProjDueWarn]=useState("");
   const [searchProj,setSearchProj]=useState("");
   const [filterProjStatus,setFilterProjStatus]=useState("all");
@@ -968,6 +969,14 @@ Please open the app to accept or reject.
                       {proj.status&&<Badge label={proj.status} color={SC(proj.status)} t={t} small/>}
                       {proj.priority&&<Badge label={proj.priority} color={PC(proj.priority)} t={t} small/>}
                     </div>
+                    {/* Links row */}
+                    {(proj.briefAttachment||proj.outputLink||(proj.references||[]).filter(r=>r).length>0)&&(
+                      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8,paddingTop:8,borderTop:`1px solid ${t.border}`}} onClick={e=>e.stopPropagation()}>
+                        {proj.briefAttachment&&<a href={proj.briefAttachment} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 9px",background:t.blueBg,color:t.blue,borderRadius:7,fontSize:11,fontWeight:600,textDecoration:"none"}}><Link2 size={10}/>Brief Doc</a>}
+                        {proj.outputLink&&<a href={proj.outputLink} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 9px",background:t.limeBg,color:t.limeDeep,borderRadius:7,fontSize:11,fontWeight:600,textDecoration:"none"}}><ExternalLink size={10}/>Output</a>}
+                        {(proj.references||[]).filter(r=>r).map((ref,ri)=><a key={ri} href={ref} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 9px",background:t.surfaceAlt,color:t.textMid,borderRadius:7,fontSize:11,fontWeight:600,textDecoration:"none"}}><Link2 size={10}/>Ref {ri+1}</a>)}
+                      </div>
+                    )}
                   </Card>
                 );
               })}
@@ -1074,6 +1083,15 @@ Please open the app to accept or reject.
                 </div>
               ))}
             </div>
+            {/* Project links */}
+            {(currentProject?.briefAttachment||currentProject?.outputLink||(currentProject?.references||[]).filter(r=>r).length>0)&&(
+              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:12,paddingTop:12,borderTop:`1px solid ${t.border}`}}>
+                {currentProject.briefAttachment&&<a href={currentProject.briefAttachment} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",background:t.blueBg,color:t.blue,borderRadius:8,fontSize:12,fontWeight:600,textDecoration:"none"}}><Link2 size={12}/>Brief Document</a>}
+                {currentProject.outputLink&&<a href={currentProject.outputLink} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",background:t.limeBg,color:t.limeDeep,borderRadius:8,fontSize:12,fontWeight:600,textDecoration:"none"}}><ExternalLink size={12}/>Output Folder</a>}
+                {(currentProject.references||[]).filter(r=>r).map((ref,ri)=><a key={ri} href={ref} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",background:t.surfaceAlt,color:t.textMid,borderRadius:8,fontSize:12,fontWeight:600,textDecoration:"none"}}><Link2 size={12}/>Reference {ri+1}</a>)}
+              </div>
+            )}
+            {currentProject?.brief&&<div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${t.border}`,fontSize:12,color:t.textMid,lineHeight:1.6}}>{currentProject.brief}</div>}
           </Card>
 
           <SHead t={t} title="" sub=""
@@ -1165,6 +1183,38 @@ Please open the app to accept or reject.
                 </div>
               </div>
               {task.extRequest?.status==="Pending"&&<div style={{marginTop:8,padding:"5px 10px",background:t.purpleBg,borderRadius:8,fontSize:11,color:t.purple,display:"flex",alignItems:"center",gap:6}}><AlarmClock size={12}/> Extension pending → {fd(task.extRequest.newDue)}</div>}
+              {/* Sub-task branches */}
+              {(task.subtasks||[]).length>0&&(
+                <div style={{marginTop:8,paddingTop:8,borderTop:`1px dashed ${t.border}`}}>
+                  <div style={{fontSize:10,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:5}}>Sub-tasks ({(task.subtasks||[]).filter(s=>s.done).length}/{(task.subtasks||[]).length})</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                    {(task.subtasks||[]).map(st=>{
+                      const stKey=`${task.id}::${st.id}`;
+                      const isExpanded=expandedSt===stKey;
+                      return(
+                        <div key={st.id} style={{marginLeft:12,borderLeft:`2px solid ${st.done?t.lime+"60":t.border}`,paddingLeft:10}}>
+                          <div onClick={e=>{e.stopPropagation();setExpandedSt(isExpanded?null:stKey);}} style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",padding:"4px 0"}}>
+                            <div style={{width:12,height:12,borderRadius:3,flexShrink:0,background:st.done?t.lime:"transparent",border:`2px solid ${st.done?t.lime:t.borderMid}`,display:"flex",alignItems:"center",justifyContent:"center"}}>{st.done&&<Check size={7} color="#0A0A0A" strokeWidth={3}/>}</div>
+                            <span style={{fontSize:12,color:st.done?t.textMuted:t.text,fontWeight:500,textDecoration:st.done?"line-through":"none",flex:1}}>{st.title}</span>
+                            {st.aId&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:3}}><User size={9}/>{data.users.find(u=>u.id===st.aId)?.name?.split(" ")[0]||"?"}</span>}
+                            {st.due&&<span style={{fontSize:10,color:t.textMuted,fontWeight:600}}>{fd(st.due)}</span>}
+                            <ChevronDown size={10} style={{color:t.textMuted,transform:isExpanded?"rotate(180deg)":"rotate(0deg)",transition:"transform .15s"}}/>
+                          </div>
+                          {isExpanded&&(st.brief||(st.drive||st.refLink))&&(
+                            <div style={{padding:"6px 0 6px 4px",display:"flex",flexDirection:"column",gap:4}}>
+                              {st.brief&&<p style={{fontSize:11,color:t.textMuted,lineHeight:1.5,margin:0,fontStyle:"italic"}}>{st.brief}</p>}
+                              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                                {st.drive&&<a href={st.drive} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:t.blue,textDecoration:"none",display:"flex",alignItems:"center",gap:3}}><Link2 size={9}/>Drive</a>}
+                                {st.refLink&&<a href={st.refLink} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:t.textMid,textDecoration:"none",display:"flex",alignItems:"center",gap:3}}><Link2 size={9}/>Reference</a>}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -3463,6 +3513,13 @@ function AdProjects({t,data,setData,toast,currentUser}){
   const [filterProj,setFilterProj]=useState("all");// projectId filter for tasks tab
   const [searchProj,setSearchProj]=useState("");
   const [searchTask,setSearchTask]=useState("");
+  // Commercials
+  const [commUnlocked,setCommUnlocked]=useState(false);
+  const [commPwdInput,setCommPwdInput]=useState("");
+  const [commFilterClient,setCommFilterClient]=useState("all");
+  const [commFilterMonth,setCommFilterMonth]=useState("all");
+  const [editingCommCell,setEditingCommCell]=useState(null); // {rowId,field}
+  const [editingCommVal,setEditingCommVal]=useState("");
 
   const PROJ_BLANK={name:"",clientId:"",brief:"",poc:"",cost:"",deadline:"",filesLink:""};
   const TASK_BLANK={projectId:"",title:"",status:"Not Started",notes:"",filesLink:""};
@@ -3524,20 +3581,39 @@ function AdProjects({t,data,setData,toast,currentUser}){
 
   const isFounderAdmin = currentUser?.role==="Founder"||currentUser?.role==="Admin";
   const canManageProj = isFounderAdmin||currentUser?.role==="Manager";
-  const canViewCommercials = isFounderAdmin; // 3rd tab: Founder & Admin only
+  const canViewCommercials = isFounderAdmin||currentUser?.role==="Manager"; // Founder, Admin, Office Manager
   const TabBtn=({id,label,Icon,count})=>(
     <button onClick={()=>setTab(id)} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 16px",borderRadius:8,border:"none",background:tab===id?t.text:"transparent",color:tab===id?"#fff":t.textMuted,fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,cursor:"pointer",transition:"all .15s"}}>
       <Icon size={14}/>{label}{count>0&&<span style={{background:tab===id?t.lime:t.surfaceAlt,color:tab===id?"#000":t.textMid,borderRadius:99,fontSize:10,fontWeight:700,padding:"1px 6px",marginLeft:2}}>{count}</span>}
     </button>
   );
 
-  // Commercials data: group by client → list ad-hoc projects with month, status, cost
-  const commercialsRows=(data.adProjects||[]).map(p=>{
+  // Commercials data
+  const allCommRows=(data.adProjects||[]).map(p=>{
     const client=data.clients.find(c=>c.id===p.clientId);
     const tasks=projTasks(p.id);
     const monthName=p.createdAt?new Date(p.createdAt).toLocaleDateString("en-IN",{month:"long",year:"numeric"}):"—";
-    return{...p,clientName:client?.name||"—",monthName,taskCount:tasks.length,doneTasks:tasks.filter(t=>t.status==="Completed").length};
+    const monthKey=p.createdAt?new Date(p.createdAt).toLocaleDateString("en-IN",{month:"long",year:"numeric"}):"—";
+    return{...p,clientName:client?.name||"—",monthName,monthKey,taskCount:tasks.length,doneTasks:tasks.filter(t=>t.status==="Completed").length};
   }).sort((a,b)=>a.clientName.localeCompare(b.clientName));
+  const commMonths=[...new Set(allCommRows.map(r=>r.monthKey).filter(m=>m!=="—"))];
+  const commercialsRows=allCommRows.filter(r=>{
+    if(commFilterClient!=="all"&&r.clientId!==commFilterClient)return false;
+    if(commFilterMonth!=="all"&&r.monthKey!==commFilterMonth)return false;
+    return true;
+  });
+  const saveCommCell=(rowId,field,val)=>{
+    setData(d=>({...d,adProjects:(d.adProjects||[]).map(p=>p.id===rowId?{...p,[field]:val}:p)}));
+    setEditingCommCell(null);
+  };
+  const downloadCommCSV=()=>{
+    const headers=["Client","Month","Project Name","Deadline","Delivery Date","File Link","Payment Status","Tasks Done","Tasks Total","Cost (₹)"];
+    const rows=commercialsRows.map(r=>[r.clientName,r.monthName,r.name,r.deadline?new Date(r.deadline).toLocaleDateString("en-IN"):"",r.deliveryDate||"",r.fileLink||"",r.paymentStatus||"",r.doneTasks,r.taskCount,r.cost||""]);
+    const csv=[headers,...rows].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob=new Blob([csv],{type:"text/csv"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=`commercials_${new Date().toLocaleDateString("en-IN").replace(/\//g,"-")}.csv`;a.click();URL.revokeObjectURL(url);
+  };
 
   return(
     <div>
@@ -3589,7 +3665,6 @@ function AdProjects({t,data,setData,toast,currentUser}){
                     </div>
                     <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
                       <Badge label={p.status} color={PS_COLOR[p.status]||"muted"} t={t}/>
-                      {p.cost&&<Badge label={`₹${p.cost}`} color="green" t={t}/>}
                     </div>
                     {p.brief&&<p style={{fontSize:12,color:t.textMuted,lineHeight:1.5,marginBottom:12,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{p.brief}</p>}
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,fontSize:11,color:t.textMuted,borderTop:`1px solid ${t.border}`,paddingTop:10}}>
@@ -3708,45 +3783,103 @@ function AdProjects({t,data,setData,toast,currentUser}){
       {/* ── COMMERCIALS TAB (Founder/Admin only) ── */}
       {tab==="commercials"&&canViewCommercials&&(
         <div>
-          {commercialsRows.length===0?(
-            <div style={{textAlign:"center",padding:"60px 20px",color:t.textMuted}}>
-              <DollarSign size={40} style={{margin:"0 auto 12px",opacity:.4}}/>
-              <p style={{fontSize:14,fontWeight:500}}>No ad-hoc projects yet.</p>
+          {!commUnlocked?(
+            <div style={{maxWidth:380,margin:"60px auto",textAlign:"center"}}>
+              <div style={{width:56,height:56,borderRadius:16,background:t.amberBg,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}><Lock size={24} color={t.amber}/></div>
+              <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:6}}>Commercials — Restricted</div>
+              <div style={{fontSize:13,color:t.textMuted,marginBottom:20}}>Enter the password to view commercial data.</div>
+              <input type="password" value={commPwdInput} onChange={e=>setCommPwdInput(e.target.value)} placeholder="Enter password…" style={{...iStyle(t),marginBottom:12,textAlign:"center"}}
+                onKeyDown={e=>e.key==="Enter"&&(commPwdInput==="ProfitPenny@2026"?setCommUnlocked(true):toast("Incorrect password","error"))}/>
+              <Btn v="lime" t={t} onClick={()=>{if(commPwdInput==="ProfitPenny@2026"){setCommUnlocked(true);setCommPwdInput("");}else toast("Incorrect password","error");}}>Unlock</Btn>
             </div>
           ):(
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                <thead>
-                  <tr style={{background:t.surfaceAlt,borderBottom:`2px solid ${t.border}`}}>
-                    {["Client","Month","Project Name","Deadline","Status","Tasks","Commercials (₹)"].map(h=>(
-                      <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,color:t.textMuted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.05em",whiteSpace:"nowrap"}}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {commercialsRows.map((row,i)=>(
-                    <tr key={row.id} style={{borderBottom:`1px solid ${t.border}`,background:i%2===0?t.surface:t.surfaceAlt,transition:"background .12s"}} className="row-interactive">
-                      <td style={{padding:"11px 14px",fontWeight:600,color:t.text}}>{row.clientName}</td>
-                      <td style={{padding:"11px 14px",color:t.textMid}}>{row.monthName}</td>
-                      <td style={{padding:"11px 14px",fontWeight:500,color:t.text}}>{row.name}</td>
-                      <td style={{padding:"11px 14px",color:t.textMid,whiteSpace:"nowrap"}}>{row.deadline?new Date(row.deadline).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}):"—"}</td>
-                      <td style={{padding:"11px 14px"}}><Badge label={row.status||"Not Started"} color={PS_COLOR[row.status||"Not Started"]||"muted"} t={t} small/></td>
-                      <td style={{padding:"11px 14px",color:t.textMid}}>{row.doneTasks}/{row.taskCount}</td>
-                      <td style={{padding:"11px 14px",fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:14,color:row.cost?t.green:t.textMuted}}>{row.cost?`₹${Number(row.cost).toLocaleString("en-IN")}`:"—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                {commercialsRows.length>0&&(
-                  <tfoot>
-                    <tr style={{borderTop:`2px solid ${t.border}`,background:t.surfaceAlt}}>
-                      <td colSpan={6} style={{padding:"10px 14px",fontWeight:700,color:t.text,fontSize:13}}>Total</td>
-                      <td style={{padding:"10px 14px",fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:15,color:t.green}}>
-                        ₹{commercialsRows.reduce((s,r)=>s+(parseFloat(r.cost)||0),0).toLocaleString("en-IN")}
-                      </td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
+            <div>
+              {/* Filters + Download */}
+              <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+                <select value={commFilterClient} onChange={e=>setCommFilterClient(e.target.value)} style={{...iStyle(t),width:"auto",minWidth:160}}>
+                  <option value="all">All Clients</option>
+                  {data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <select value={commFilterMonth} onChange={e=>setCommFilterMonth(e.target.value)} style={{...iStyle(t),width:"auto",minWidth:160}}>
+                  <option value="all">All Months</option>
+                  {commMonths.map(m=><option key={m} value={m}>{m}</option>)}
+                </select>
+                <div style={{flex:1}}/>
+                <Btn v="secondary" t={t} size="sm" onClick={downloadCommCSV} icon={<FileText size={13}/>}>Download CSV</Btn>
+                <Btn v="ghost" t={t} size="sm" icon={<Lock size={12}/>} onClick={()=>{setCommUnlocked(false);setCommPwdInput("");}}>Lock</Btn>
+              </div>
+              {commercialsRows.length===0?(
+                <div style={{textAlign:"center",padding:"60px 20px",color:t.textMuted}}>
+                  <DollarSign size={40} style={{margin:"0 auto 12px",opacity:.4}}/>
+                  <p style={{fontSize:14,fontWeight:500}}>No results for selected filters.</p>
+                </div>
+              ):(
+                <div style={{overflowX:"auto"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                    <thead>
+                      <tr style={{background:t.surfaceAlt,borderBottom:`2px solid ${t.border}`}}>
+                        {["Client","Month","Project Name","Deadline","Status","Tasks","Delivery Date","File Link","Payment Status","Cost (₹)"].map(h=>(
+                          <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,color:t.textMuted,fontSize:11,textTransform:"uppercase",letterSpacing:"0.05em",whiteSpace:"nowrap"}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {commercialsRows.map((row,i)=>{
+                        const isEditingDD=editingCommCell?.rowId===row.id&&editingCommCell?.field==="deliveryDate";
+                        const isEditingFL=editingCommCell?.rowId===row.id&&editingCommCell?.field==="fileLink";
+                        const isEditingPS=editingCommCell?.rowId===row.id&&editingCommCell?.field==="paymentStatus";
+                        return(
+                          <tr key={row.id} style={{borderBottom:`1px solid ${t.border}`,background:i%2===0?t.surface:t.surfaceAlt,transition:"background .12s"}} className="row-interactive">
+                            <td style={{padding:"11px 14px",fontWeight:600,color:t.text}}>{row.clientName}</td>
+                            <td style={{padding:"11px 14px",color:t.textMid}}>{row.monthName}</td>
+                            <td style={{padding:"11px 14px",fontWeight:500,color:t.text}}>{row.name}</td>
+                            <td style={{padding:"11px 14px",color:t.textMid,whiteSpace:"nowrap"}}>{row.deadline?new Date(row.deadline).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}):"—"}</td>
+                            <td style={{padding:"11px 14px"}}><Badge label={row.status||"Not Started"} color={PS_COLOR[row.status||"Not Started"]||"muted"} t={t} small/></td>
+                            <td style={{padding:"11px 14px",color:t.textMid}}>{row.doneTasks}/{row.taskCount}</td>
+                            {/* Editable: Delivery Date */}
+                            <td style={{padding:"6px 10px",minWidth:130}} onClick={()=>{if(!isEditingDD){setEditingCommCell({rowId:row.id,field:"deliveryDate"});setEditingCommVal(row.deliveryDate||"");}}}>
+                              {isEditingDD?(
+                                <input type="date" value={editingCommVal} onChange={e=>setEditingCommVal(e.target.value)} onBlur={()=>saveCommCell(row.id,"deliveryDate",editingCommVal)} onKeyDown={e=>{if(e.key==="Enter")saveCommCell(row.id,"deliveryDate",editingCommVal);if(e.key==="Escape")setEditingCommCell(null);}} autoFocus style={{...iStyle(t),fontSize:12,padding:"4px 8px",width:"100%"}}/>
+                              ):(
+                                <span style={{fontSize:12,color:row.deliveryDate?t.text:t.textMuted,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>{row.deliveryDate?new Date(row.deliveryDate).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}):"Click to set"}<Edit size={10} style={{opacity:0.4}}/></span>
+                              )}
+                            </td>
+                            {/* Editable: File Link */}
+                            <td style={{padding:"6px 10px",minWidth:130}} onClick={()=>{if(!isEditingFL){setEditingCommCell({rowId:row.id,field:"fileLink"});setEditingCommVal(row.fileLink||"");}}}>
+                              {isEditingFL?(
+                                <input type="url" value={editingCommVal} onChange={e=>setEditingCommVal(e.target.value)} onBlur={()=>saveCommCell(row.id,"fileLink",editingCommVal)} onKeyDown={e=>{if(e.key==="Enter")saveCommCell(row.id,"fileLink",editingCommVal);if(e.key==="Escape")setEditingCommCell(null);}} autoFocus placeholder="https://..." style={{...iStyle(t),fontSize:12,padding:"4px 8px",width:"100%"}}/>
+                              ):(
+                                row.fileLink?<a href={row.fileLink} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:12,color:t.blue,textDecoration:"none",display:"flex",alignItems:"center",gap:4}}><ExtLink size={11}/>Open File</a>:<span style={{fontSize:12,color:t.textMuted,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>Click to set<Edit size={10} style={{opacity:0.4}}/></span>
+                              )}
+                            </td>
+                            {/* Editable: Payment Status */}
+                            <td style={{padding:"6px 10px",minWidth:130}} onClick={()=>{if(!isEditingPS){setEditingCommCell({rowId:row.id,field:"paymentStatus"});setEditingCommVal(row.paymentStatus||"Pending");}}}>
+                              {isEditingPS?(
+                                <select value={editingCommVal} onChange={e=>{setEditingCommVal(e.target.value);saveCommCell(row.id,"paymentStatus",e.target.value);}} onBlur={()=>setEditingCommCell(null)} autoFocus style={{...iStyle(t),fontSize:12,padding:"4px 8px"}}>
+                                  <option>Pending</option><option>Invoiced</option><option>Partially Paid</option><option>Paid</option><option>Overdue</option>
+                                </select>
+                              ):(
+                                <span style={{fontSize:12,cursor:"pointer",color:row.paymentStatus==="Paid"?t.green:row.paymentStatus==="Overdue"?t.red:row.paymentStatus==="Invoiced"?t.blue:t.amber,fontWeight:600,display:"flex",alignItems:"center",gap:4}}>{row.paymentStatus||"Pending"}<Edit size={10} style={{opacity:0.4,color:t.textMuted}}/></span>
+                              )}
+                            </td>
+                            <td style={{padding:"11px 14px",fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:14,color:row.cost?t.green:t.textMuted}}>{row.cost?`₹${Number(row.cost).toLocaleString("en-IN")}`:"—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    {commercialsRows.length>0&&(
+                      <tfoot>
+                        <tr style={{borderTop:`2px solid ${t.border}`,background:t.surfaceAlt}}>
+                          <td colSpan={9} style={{padding:"10px 14px",fontWeight:700,color:t.text,fontSize:13}}>Total</td>
+                          <td style={{padding:"10px 14px",fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:15,color:t.green}}>
+                            ₹{commercialsRows.reduce((s,r)=>s+(parseFloat(r.cost)||0),0).toLocaleString("en-IN")}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>
