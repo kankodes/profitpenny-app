@@ -365,6 +365,7 @@ const PAGE_TIPS={
   onboarding:{title:"Onboarding",tip:"Track the onboarding progress of new team members through a step-by-step checklist. Each step can be checked off as completed."},
   notifications:{title:"Notifications",tip:"All approvals, alerts, and reminders land here. Click any notification to jump directly to the action it's referring to. Unread notifications also appear as a badge on the sidebar."},
   quicknotes:{title:"Quick Notes",tip:"Your private notepad — only you can see your notes. Jot down ideas, plan your day, or capture anything you need. Notes are grouped by date for easy reference."},
+  mytasks:{title:"My Tasks",tip:"Your personal private task board. Add tasks only you can see — set priority, due date, and notes. Drag cards across Todo / In Progress / Done columns to track your own workflow."},
   credentials:{title:"Credentials",tip:"Shared app logins for the team. Managers can add credentials for tools like Figma, Canva, Slack etc. All team members can view and copy login IDs and passwords."},
   adprojects:{title:"Ad-hoc Projects",tip:"Track client projects outside the retainer — briefs, costs, deadlines, delivery dates, and final file links. Each project has its own task list."},
 };
@@ -2597,15 +2598,20 @@ function Team({t,data,setData,toast}){
 }
 
 // ── BOARD VIEW ────────────────────────────────────────────────────────────────
+// ── BOARD DESIGN TOKENS (Stitch / Swiss International Style) ─────────────────
+const BOARD_COL_BORDER={"Not Started":"#454747","In Progress":"#3b82f6","Review":"#f59e0b","Rework":"#a855f7","Completed":"#22c55e"};
+const BOARD_COL_LABEL={"Not Started":"#71717a","In Progress":"#93c5fd","Review":"#fcd34d","Rework":"#c4b5fd","Completed":"#86efac"};
+const BOARD_PRIO_STRIP={"Urgent":"#f87171","High":"#fcd34d","Medium":"#60a5fa","Low":"#52525b"};
+
 function BoardView({t,data,setData,toast,currentUser}){
   const COLS_BOARD=["Not Started","In Progress","Review","Rework","Completed"];
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
   const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
-  const colColor={"Not Started":t.textMuted,"In Progress":t.blue,"Review":t.amber,"Rework":t.purple,"Completed":t.green};
   const [dragId,setDragId]=useState(null);
-  const [sel,setSel]=useState(null);          // selected task for detail modal
-  const [comment,setComment]=useState("");    // new comment text
-  const [reviewModal,setReviewModal]=useState(null); // {taskId} - pick reviewer
+  const [dragOver,setDragOver]=useState(null);
+  const [sel,setSel]=useState(null);
+  const [comment,setComment]=useState("");
+  const [reviewModal,setReviewModal]=useState(null);
   const [reviewerId,setReviewerId]=useState("");
 
   const move=(taskId,newStatus)=>{
@@ -2664,45 +2670,76 @@ function BoardView({t,data,setData,toast,currentUser}){
   const taskForSel=sel?data.tasks.find(t=>t.id===sel.id)||sel:null;
 
   return(
-    <div>
-      <SHead t={t} title="My Board" sub="Kanban view — drag tasks across columns, click a card for details"/>
-      <div style={{display:"flex",gap:14,overflowX:"auto",paddingBottom:12,alignItems:"flex-start"}}>
-        {COLS_BOARD.map(col=>{
+    <div style={{animation:"pageEnter .28s ease both"}}>
+      <SHead t={t} title="My Board" sub="Kanban pipeline · drag to move · click to open"/>
+      {/* Board columns */}
+      <div style={{display:"flex",gap:14,overflowX:"auto",paddingBottom:20,alignItems:"flex-start",marginTop:4}}>
+        {COLS_BOARD.map((col,ci)=>{
           const tasks=data.tasks.filter(tk=>tk.status===col);
+          const isOver=dragOver===col;
           return(
-            <div key={col} style={{minWidth:230,maxWidth:250,flexShrink:0,background:t.surfaceAlt,borderRadius:14,padding:12,borderTop:`3px solid ${colColor[col]}`}}
-              onDragOver={e=>e.preventDefault()}
-              onDrop={e=>{e.preventDefault();if(dragId)move(dragId,col);setDragId(null);}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:colColor[col]}}>{col}</span>
-                <span style={{fontSize:11,fontWeight:700,color:t.textMuted,background:t.surface,borderRadius:99,padding:"1px 8px"}}>{tasks.length}</span>
+            <div key={col}
+              style={{minWidth:246,maxWidth:260,flexShrink:0,animation:`fadeUp .32s ease ${ci*55}ms both`}}
+              onDragOver={e=>{e.preventDefault();setDragOver(col);}}
+              onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget))setDragOver(null);}}
+              onDrop={e=>{e.preventDefault();if(dragId)move(dragId,col);setDragId(null);setDragOver(null);}}>
+              {/* Column header — Swiss style: top border + uppercase label */}
+              <div style={{borderTop:`2px solid ${BOARD_COL_BORDER[col]}`,paddingTop:10,marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <span style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:"0.1em",color:BOARD_COL_LABEL[col],fontFamily:"'Inter',sans-serif"}}>{col}</span>
+                <span style={{fontSize:10,fontWeight:700,background:t.dark?"#1f201d":t.surfaceAlt,color:BOARD_COL_LABEL[col],padding:"2px 8px",borderRadius:2,fontFamily:"'Inter',sans-serif",letterSpacing:"0.04em"}}>{String(tasks.length).padStart(2,"0")}</span>
               </div>
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {tasks.map(task=>(
+              {/* Cards */}
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {tasks.map((task,ti)=>(
                   <div key={task.id} draggable
                     onDragStart={()=>setDragId(task.id)}
+                    onDragEnd={()=>{setDragId(null);setDragOver(null);}}
                     onClick={()=>setSel(task)}
-                    style={{background:t.card,border:`1px solid ${t.border}`,borderRadius:10,padding:"11px 12px",cursor:"pointer",transition:"all .15s",userSelect:"none",position:"relative"}}
-                    onMouseEnter={e=>{e.currentTarget.style.borderColor=colColor[col];e.currentTarget.style.boxShadow=`0 4px 16px ${t.shadowMd}`;}}
-                    onMouseLeave={e=>{e.currentTarget.style.borderColor=t.border;e.currentTarget.style.boxShadow="none";}}>
-                    {/* Priority strip */}
-                    <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,borderRadius:"10px 0 0 10px",background:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted}}/>
-                    <div style={{paddingLeft:6}}>
-                      <div style={{fontSize:12,fontWeight:700,color:t.text,marginBottom:4,lineHeight:1.4}}>{task.title}</div>
-                      <div style={{fontSize:11,color:t.textMuted,marginBottom:6}}>{cName(task.cId).split(" ")[0]}</div>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:5}}>
-                          <Av init={data.users.find(u=>u.id===task.aId)?.av||"?"} size={20} t={t}/>
-                          <span style={{fontSize:11,color:t.textMuted}}>{uName(task.aId).split(" ")[0]}</span>
-                        </div>
-                        <span style={{fontSize:10,color:isOverdue(task.due)&&col!=="Completed"?t.red:t.textMuted,fontWeight:600}}>{task.due?fd(task.due):"No date"}</span>
+                    style={{
+                      background:t.dark?"#1b1c19":t.card,
+                      borderLeft:`3px solid ${BOARD_PRIO_STRIP[task.priority]||"#454747"}`,
+                      borderRadius:4,
+                      padding:"12px 12px 12px 14px",
+                      cursor:"pointer",userSelect:"none",
+                      transition:"background .14s, outline .14s",
+                      outline:dragId===task.id?`1px solid ${BOARD_COL_BORDER[col]}`:"1px solid transparent",
+                      animation:`fadeUp .26s ease ${ci*55+ti*22}ms both`,
+                      opacity:dragId===task.id?0.5:1,
+                    }}
+                    onMouseEnter={e=>{e.currentTarget.style.background=t.dark?"#252620":t.hover;e.currentTarget.style.outline=`1px solid rgba(181,211,52,0.14)`;}}
+                    onMouseLeave={e=>{e.currentTarget.style.background=t.dark?"#1b1c19":t.card;e.currentTarget.style.outline="1px solid transparent";}}>
+                    <div style={{fontSize:12,fontWeight:700,color:t.text,marginBottom:5,lineHeight:1.35,letterSpacing:"-0.01em"}}>{task.title}</div>
+                    <div style={{fontSize:10,color:t.textMuted,fontStyle:"italic",marginBottom:8,fontWeight:500,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{cName(task.cId)}</div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:5}}>
+                        <Av init={data.users.find(u=>u.id===task.aId)?.av||"?"} size={18} t={t}/>
+                        <span style={{fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.04em"}}>{uName(task.aId).split(" ")[0]}</span>
                       </div>
-                      {task.status==="In Progress"&&task.startedAt&&<div style={{marginTop:5,display:"flex",alignItems:"center",gap:4}}><div style={{width:5,height:5,borderRadius:"50%",background:t.lime,animation:"ping 1.5s ease-out infinite"}}/><LiveTimer startedAt={task.startedAt} t={t} active/></div>}
-                      {(task.comments||[]).length>0&&<div style={{marginTop:5,fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:3}}><Hash size={9}/>{task.comments.length} comment{task.comments.length!==1?"s":""}</div>}
+                      <span style={{fontSize:10,fontWeight:700,color:isOverdue(task.due)&&col!=="Completed"?t.red:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em"}}>{task.due?fd(task.due):"—"}</span>
                     </div>
+                    {task.status==="In Progress"&&task.startedAt&&(
+                      <div style={{marginTop:6,display:"flex",alignItems:"center",gap:4}}>
+                        <div style={{width:5,height:5,borderRadius:"50%",background:"#84cc16",animation:"ping 1.5s ease-out infinite",flexShrink:0}}/>
+                        <LiveTimer startedAt={task.startedAt} t={t} active/>
+                      </div>
+                    )}
+                    {(task.comments||[]).length>0&&(
+                      <div style={{marginTop:5,display:"flex",alignItems:"center",gap:3,fontSize:10,color:t.textMuted}}>
+                        <Hash size={9}/><span style={{letterSpacing:"0.04em"}}>{task.comments.length} comment{task.comments.length!==1?"s":""}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
-                {tasks.length===0&&<div style={{fontSize:12,color:t.textMuted,textAlign:"center",padding:"16px 0",opacity:0.4,borderRadius:8,border:`1.5px dashed ${t.border}`}}>Drop here</div>}
+                {/* Drop zone */}
+                <div style={{
+                  border:`1.5px dashed ${isOver?BOARD_COL_BORDER[col]:t.border}`,
+                  borderRadius:4,padding:"14px 0",textAlign:"center",
+                  fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.09em",
+                  color:isOver?BOARD_COL_LABEL[col]:t.textMuted,
+                  transition:"all .14s",
+                  opacity:isOver?1:tasks.length===0?0.6:0.3,
+                  background:isOver?`${BOARD_COL_BORDER[col]}10`:"transparent",
+                }}>Drop here</div>
               </div>
             </div>
           );
@@ -2798,6 +2835,226 @@ function BoardView({t,data,setData,toast,currentUser}){
           <Btn v="lime" t={t} onClick={confirmReview} icon={<Send size={12}/>}>Send for Review</Btn>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+// ── MY TASKS ──────────────────────────────────────────────────────────────────
+function MyTasks({t,currentUser,toast}){
+  const MT_COLS=["Todo","In Progress","Done"];
+  const MT_COL_BORDER={"Todo":"#454747","In Progress":"#3b82f6","Done":"#22c55e"};
+  const MT_COL_LABEL={"Todo":"#71717a","In Progress":"#93c5fd","Done":"#86efac"};
+  const PRIO_COLORS={"Urgent":t.red,"High":t.amber,"Medium":t.blue,"Low":t.textMuted};
+  const userId=currentUser?.id;
+
+  const [tasks,setTasks]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [showAdd,setShowAdd]=useState(false);
+  const [form,setForm]=useState({title:"",priority:"Medium",due:"",note:""});
+  const [dragId,setDragId]=useState(null);
+  const [dragOver,setDragOver]=useState(null);
+  const [sel,setSel]=useState(null);
+  const [editMode,setEditMode]=useState(false);
+  const [saving,setSaving]=useState(false);
+
+  useEffect(()=>{
+    if(!userId){setLoading(false);return;}
+    listDocs(COLS.MYTASKS).then(all=>{
+      setTasks(all.filter(tk=>tk.userId===userId).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)));
+      setLoading(false);
+    }).catch(()=>setLoading(false));
+  },[userId]);
+
+  const addTask=async()=>{
+    if(!form.title.trim()){toast("Title is required","error");return;}
+    setSaving(true);
+    const task={id:"mt"+Date.now(),userId,title:form.title.trim(),priority:form.priority,due:form.due,note:form.note.trim(),status:"Todo",createdAt:new Date().toISOString()};
+    await createDoc(COLS.MYTASKS,task.id,task);
+    setTasks(p=>[task,...p]);
+    setShowAdd(false);setForm({title:"",priority:"Medium",due:"",note:""});
+    setSaving(false);toast("Task added");
+  };
+
+  const moveTask=async(taskId,newStatus)=>{
+    await updateDoc_(COLS.MYTASKS,taskId,{status:newStatus});
+    setTasks(p=>p.map(tk=>tk.id===taskId?{...tk,status:newStatus}:tk));
+    if(sel?.id===taskId)setSel(p=>({...p,status:newStatus}));
+  };
+
+  const saveEdit=async()=>{
+    if(!sel?.title?.trim())return;
+    setSaving(true);
+    await updateDoc_(COLS.MYTASKS,sel.id,{title:sel.title,priority:sel.priority,due:sel.due,note:sel.note||""});
+    setTasks(p=>p.map(tk=>tk.id===sel.id?{...tk,...sel}:tk));
+    setEditMode(false);setSaving(false);toast("Task updated");
+  };
+
+  const deleteTask=async(id)=>{
+    if(!window.confirm("Delete this task?"))return;
+    await deleteDoc_(COLS.MYTASKS,id);
+    setTasks(p=>p.filter(tk=>tk.id!==id));
+    setSel(null);toast("Task deleted");
+  };
+
+  const totalTasks=tasks.length;
+  const doneTasks=tasks.filter(tk=>tk.status==="Done").length;
+
+  return(
+    <div style={{animation:"pageEnter .28s ease both"}}>
+      <SHead t={t} title="My Tasks" sub="Your private task board — only visible to you"
+        action={<Btn v="lime" t={t} onClick={()=>{setShowAdd(true);setForm({title:"",priority:"Medium",due:"",note:""}); }} icon={<Plus size={14}/>}>New Task</Btn>}/>
+
+      {/* Progress strip */}
+      {totalTasks>0&&(
+        <div style={{marginBottom:20,padding:"12px 16px",background:t.dark?"#1b1c19":t.surfaceAlt,borderRadius:6,display:"flex",alignItems:"center",gap:16,animation:"fadeUp .28s ease both"}}>
+          <div style={{flex:1}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+              <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:t.textMuted}}>Progress</span>
+              <span style={{fontSize:10,fontWeight:700,color:t.green,letterSpacing:"0.04em"}}>{doneTasks}/{totalTasks} done</span>
+            </div>
+            <PBar value={doneTasks} max={totalTasks} color="lime" t={t}/>
+          </div>
+        </div>
+      )}
+
+      {loading?(
+        <p style={{color:t.textMuted,fontSize:13}}>Loading…</p>
+      ):totalTasks===0?(
+        <div style={{textAlign:"center",padding:"64px 0",animation:"fadeUp .28s both"}}>
+          <ClipboardList size={44} strokeWidth={1} color={t.textMuted}/>
+          <p style={{color:t.textMuted,fontSize:14,marginTop:14,fontWeight:600}}>No tasks yet.</p>
+          <p style={{color:t.textMuted,fontSize:13,marginTop:4}}>Hit "New Task" to add your first personal task.</p>
+        </div>
+      ):(
+        <div style={{display:"flex",gap:14,overflowX:"auto",paddingBottom:20,alignItems:"flex-start"}}>
+          {MT_COLS.map((col,ci)=>{
+            const colTasks=tasks.filter(tk=>tk.status===col);
+            const isOver=dragOver===col;
+            return(
+              <div key={col}
+                style={{minWidth:246,maxWidth:260,flexShrink:0,animation:`fadeUp .32s ease ${ci*55}ms both`}}
+                onDragOver={e=>{e.preventDefault();setDragOver(col);}}
+                onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget))setDragOver(null);}}
+                onDrop={e=>{e.preventDefault();if(dragId)moveTask(dragId,col);setDragId(null);setDragOver(null);}}>
+                {/* Column header */}
+                <div style={{borderTop:`2px solid ${MT_COL_BORDER[col]}`,paddingTop:10,marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <span style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:"0.1em",color:MT_COL_LABEL[col]}}>{col}</span>
+                  <span style={{fontSize:10,fontWeight:700,background:t.dark?"#1f201d":t.surfaceAlt,color:MT_COL_LABEL[col],padding:"2px 8px",borderRadius:2,letterSpacing:"0.04em"}}>{String(colTasks.length).padStart(2,"0")}</span>
+                </div>
+                {/* Cards */}
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {colTasks.map((task,ti)=>(
+                    <div key={task.id} draggable
+                      onDragStart={()=>setDragId(task.id)}
+                      onDragEnd={()=>{setDragId(null);setDragOver(null);}}
+                      onClick={()=>{setSel(task);setEditMode(false);}}
+                      style={{
+                        background:t.dark?"#1b1c19":t.card,
+                        borderLeft:`3px solid ${BOARD_PRIO_STRIP[task.priority]||"#454747"}`,
+                        borderRadius:4,padding:"12px 12px 12px 14px",
+                        cursor:"pointer",userSelect:"none",
+                        transition:"background .14s, outline .14s",
+                        outline:dragId===task.id?`1px solid ${MT_COL_BORDER[col]}`:"1px solid transparent",
+                        animation:`fadeUp .26s ease ${ci*55+ti*22}ms both`,
+                        opacity:dragId===task.id?0.5:1,
+                      }}
+                      onMouseEnter={e=>{e.currentTarget.style.background=t.dark?"#252620":t.hover;e.currentTarget.style.outline=`1px solid rgba(181,211,52,0.14)`;}}
+                      onMouseLeave={e=>{e.currentTarget.style.background=t.dark?"#1b1c19":t.card;e.currentTarget.style.outline="1px solid transparent";}}>
+                      <div style={{fontSize:12,fontWeight:700,color:t.text,marginBottom:5,lineHeight:1.35,letterSpacing:"-0.01em"}}>{task.title}</div>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span style={{fontSize:10,fontWeight:700,color:PRIO_COLORS[task.priority]||t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em"}}>{task.priority}</span>
+                        <span style={{fontSize:10,fontWeight:700,color:isOverdue(task.due)&&col!=="Done"?t.red:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em"}}>{task.due?fd(task.due):"—"}</span>
+                      </div>
+                      {task.note&&<div style={{marginTop:6,fontSize:11,color:t.textMuted,lineHeight:1.5,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{task.note}</div>}
+                    </div>
+                  ))}
+                  <div style={{
+                    border:`1.5px dashed ${isOver?MT_COL_BORDER[col]:t.border}`,
+                    borderRadius:4,padding:"14px 0",textAlign:"center",
+                    fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.09em",
+                    color:isOver?MT_COL_LABEL[col]:t.textMuted,
+                    transition:"all .14s",
+                    opacity:isOver?1:colTasks.length===0?0.6:0.3,
+                    background:isOver?`${MT_COL_BORDER[col]}10`:"transparent",
+                  }}>Drop here</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add task modal */}
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="New Personal Task" t={t} w={440}>
+        <Field label="Title *" t={t}><Inp value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="What needs to be done?" t={t}/></Field>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,margin:"12px 0"}}>
+          <Field label="Priority" t={t}>
+            <Sel value={form.priority} onChange={e=>setForm(p=>({...p,priority:e.target.value}))} t={t}>
+              {["Urgent","High","Medium","Low"].map(p=><option key={p} value={p}>{p}</option>)}
+            </Sel>
+          </Field>
+          <Field label="Due Date" t={t}><Inp type="date" value={form.due} onChange={e=>setForm(p=>({...p,due:e.target.value}))} t={t}/></Field>
+        </div>
+        <Field label="Notes" t={t}><Tex value={form.note} onChange={e=>setForm(p=>({...p,note:e.target.value}))} placeholder="Optional context…" t={t} rows={3}/></Field>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:16}}>
+          <Btn v="secondary" t={t} onClick={()=>setShowAdd(false)}>Cancel</Btn>
+          <Btn v="lime" t={t} onClick={addTask} disabled={saving} icon={<Plus size={13}/>}>{saving?"Saving…":"Add Task"}</Btn>
+        </div>
+      </Modal>
+
+      {/* Detail / edit modal */}
+      {sel&&(
+        <Modal open title={editMode?"Edit Task":sel.title} onClose={()=>{setSel(null);setEditMode(false);}} t={t} w={440}>
+          {editMode?(
+            <>
+              <Field label="Title" t={t}><Inp value={sel.title} onChange={e=>setSel(p=>({...p,title:e.target.value}))} t={t}/></Field>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,margin:"12px 0"}}>
+                <Field label="Priority" t={t}>
+                  <Sel value={sel.priority} onChange={e=>setSel(p=>({...p,priority:e.target.value}))} t={t}>
+                    {["Urgent","High","Medium","Low"].map(p=><option key={p} value={p}>{p}</option>)}
+                  </Sel>
+                </Field>
+                <Field label="Due Date" t={t}><Inp type="date" value={sel.due||""} onChange={e=>setSel(p=>({...p,due:e.target.value}))} t={t}/></Field>
+              </div>
+              <Field label="Notes" t={t}><Tex value={sel.note||""} onChange={e=>setSel(p=>({...p,note:e.target.value}))} t={t} rows={3}/></Field>
+              <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:16}}>
+                <Btn v="secondary" t={t} onClick={()=>setEditMode(false)}>Cancel</Btn>
+                <Btn v="lime" t={t} onClick={saveEdit} disabled={saving} icon={<Check size={13}/>}>{saving?"Saving…":"Save"}</Btn>
+              </div>
+            </>
+          ):(
+            <>
+              <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+                <Badge label={sel.status} color={sel.status==="Done"?"green":sel.status==="In Progress"?"blue":"muted"} t={t}/>
+                <Badge label={sel.priority||"Medium"} color={PC(sel.priority)} t={t}/>
+                {sel.due&&<Badge label={fd(sel.due)} color={isOverdue(sel.due)&&sel.status!=="Done"?"red":"muted"} t={t}/>}
+              </div>
+              {sel.note&&<div style={{padding:"10px 14px",background:t.surfaceAlt,borderRadius:6,marginBottom:14}}>
+                <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:t.textMuted,marginBottom:5}}>Notes</div>
+                <p style={{fontSize:13,color:t.textMid,lineHeight:1.7,margin:0,whiteSpace:"pre-wrap"}}>{sel.note}</p>
+              </div>}
+              {/* Move to */}
+              <div style={{borderTop:`1px solid ${t.border}`,paddingTop:14,marginBottom:14}}>
+                <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:t.textMuted,marginBottom:9}}>Move to</div>
+                <div style={{display:"flex",gap:6}}>
+                  {MT_COLS.map(st=>{
+                    const active=sel.status===st;
+                    const clr=MT_COL_BORDER[st];
+                    return <button key={st} onClick={()=>moveTask(sel.id,st)}
+                      style={{padding:"5px 13px",borderRadius:4,border:`1.5px solid ${active?clr:t.border}`,background:active?clr+"22":t.surfaceAlt,color:active?MT_COL_LABEL[st]:t.textMuted,fontSize:11,fontWeight:active?700:500,cursor:"pointer",transition:"all .14s",display:"flex",alignItems:"center",gap:5}}>
+                      {active&&<Check size={10}/>}{st}
+                    </button>;
+                  })}
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8,justifyContent:"space-between",alignItems:"center"}}>
+                <Btn v="danger" t={t} onClick={()=>deleteTask(sel.id)} icon={<Trash2 size={12}/>}>Delete</Btn>
+                <Btn v="secondary" t={t} onClick={()=>setEditMode(true)} icon={<Edit2 size={12}/>}>Edit</Btn>
+              </div>
+            </>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
@@ -4343,6 +4600,7 @@ const NAV=[
   {id:"adprojects",   label:"Ad-hoc Projects",Icon:FolderOpen,       roles:"manager"},
   {id:"credentials",  label:"Credentials",    Icon:KeyRound,         roles:"all"},
   {id:"quicknotes",   label:"Quick Notes",    Icon:StickyNote,       roles:"all"},
+  {id:"mytasks",      label:"My Tasks",       Icon:ClipboardList,    roles:"all"},
   {id:"notifications",label:"Notifications",  Icon:Bell,             roles:"all"},
 ];
 
@@ -4648,6 +4906,7 @@ function App({firebaseUid}){
     onboarding:   <Onboarding   t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
     notifications:<Notifications t={t} data={data} setData={setDataAndSync} go={go} currentUser={currentUser}/>,
     quicknotes:   <QuickNotes    t={t} currentUser={currentUser} toast={toast}/>,
+    mytasks:      <MyTasks       t={t} currentUser={currentUser} toast={toast}/>,
     credentials:  <Credentials   t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
     adprojects:   <AdProjects    t={t} data={data} setData={setDataAndSync} toast={toast} currentUser={currentUser}/>,
   };
