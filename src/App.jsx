@@ -274,7 +274,7 @@ function Field({label,children,t}){return <div style={{marginBottom:14}}><label 
 function Modal({open,onClose,title,children,t,w=560,subtitle}){
   if(!open)return null;
   return(
-    <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(10,15,30,0.55)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease"}}>
+    <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:t?.dark?"rgba(5,8,18,0.55)":"rgba(15,23,42,0.22)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease"}}>
       <div onClick={e=>e.stopPropagation()} className="scale-in modal-w" style={{background:t.dark?t.surface:"#ffffff",borderRadius:20,width:"100%",maxWidth:w,maxHeight:"90vh",overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",boxShadow:"0 8px 32px rgba(15,23,42,0.18),0 32px 80px rgba(15,23,42,0.22)"}}>
         <div style={{padding:"22px 26px 18px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",borderBottom:`1px solid ${t.border}`,position:"sticky",top:0,background:t.dark?t.surface:"#ffffff",zIndex:1,borderRadius:"20px 20px 0 0"}}>
           <div><h3 style={{margin:0,fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:17,color:t.text,letterSpacing:"-0.02em",lineHeight:1.3}}>{title}</h3>{subtitle&&<p style={{margin:"4px 0 0",fontSize:13,color:t.textMuted,fontWeight:400,lineHeight:1.5}}>{subtitle}</p>}</div>
@@ -2764,67 +2764,59 @@ function BoardView({t,data,setData,toast,currentUser}){
           const isOver=dragOver===col;
           return(
             <div key={col}
-              style={{minWidth:246,maxWidth:260,flexShrink:0,animation:`fadeUp .32s ease ${ci*55}ms both`}}
+              style={{width:272,flexShrink:0,display:"flex",flexDirection:"column",borderRadius:16,border:`1.5px solid ${isOver?BOARD_COL_BORDER[col]:t.border}`,background:isOver?`${BOARD_COL_BORDER[col]}0a`:t.dark?"rgba(255,255,255,0.025)":t.surfaceAlt,transition:"border-color .15s,background .15s",animation:`fadeUp .32s ease ${ci*55}ms both`,maxHeight:"calc(100vh - 220px)"}}
               onDragOver={e=>{e.preventDefault();setDragOver(col);}}
               onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget))setDragOver(null);}}
               onDrop={e=>{e.preventDefault();if(dragId)move(dragId,col);setDragId(null);setDragOver(null);}}>
-              {/* Column header — Swiss style: top border + uppercase label */}
-              <div style={{borderTop:`2px solid ${BOARD_COL_BORDER[col]}`,paddingTop:10,marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                <span style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:"0.1em",color:BOARD_COL_LABEL[col],fontFamily:"'Inter',sans-serif"}}>{col}</span>
-                <span style={{fontSize:10,fontWeight:700,background:t.dark?"#1f201d":t.surfaceAlt,color:BOARD_COL_LABEL[col],padding:"2px 8px",borderRadius:2,fontFamily:"'Inter',sans-serif",letterSpacing:"0.04em"}}>{String(tasks.length).padStart(2,"0")}</span>
+              {/* Column Header */}
+              <div style={{padding:"14px 14px 12px",borderBottom:`1px solid ${t.border}`,flexShrink:0}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{width:9,height:9,borderRadius:"50%",background:BOARD_COL_BORDER[col],flexShrink:0}}/>
+                    <span style={{fontSize:12,fontWeight:700,color:t.text,letterSpacing:"-0.01em"}}>{col}</span>
+                  </div>
+                  <span style={{fontSize:11,fontWeight:700,background:`${BOARD_COL_BORDER[col]}25`,color:BOARD_COL_BORDER[col],padding:"2px 10px",borderRadius:99}}>{tasks.length}</span>
+                </div>
               </div>
-              {/* Cards */}
-              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {/* Cards — scrollable */}
+              <div style={{flex:1,overflowY:"auto",padding:"10px",display:"flex",flexDirection:"column",gap:8}}>
                 {tasks.map((task,ti)=>(
                   <div key={task.id} draggable
                     onDragStart={()=>setDragId(task.id)}
                     onDragEnd={()=>{setDragId(null);setDragOver(null);}}
                     onClick={()=>setSel(task)}
-                    style={{
-                      background:t.dark?"#1b1c19":t.card,
-                      borderLeft:`3px solid ${BOARD_PRIO_STRIP[task.priority]||"#454747"}`,
-                      borderRadius:4,
-                      padding:"12px 12px 12px 14px",
-                      cursor:"pointer",userSelect:"none",
-                      transition:"background .14s, outline .14s",
-                      outline:dragId===task.id?`1px solid ${BOARD_COL_BORDER[col]}`:"1px solid transparent",
-                      animation:`fadeUp .26s ease ${ci*55+ti*22}ms both`,
-                      opacity:dragId===task.id?0.5:1,
-                    }}
-                    onMouseEnter={e=>{e.currentTarget.style.background=t.dark?"#252620":t.hover;e.currentTarget.style.outline=`1px solid rgba(181,211,52,0.14)`;}}
-                    onMouseLeave={e=>{e.currentTarget.style.background=t.dark?"#1b1c19":t.card;e.currentTarget.style.outline="1px solid transparent";}}>
-                    <div style={{fontSize:12,fontWeight:700,color:t.text,marginBottom:5,lineHeight:1.35,letterSpacing:"-0.01em"}}>{task.title}</div>
-                    <div style={{fontSize:10,color:t.textMuted,fontStyle:"italic",marginBottom:8,fontWeight:500,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{cName(task.cId)}</div>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:12,padding:"12px 14px",cursor:"grab",userSelect:"none",boxShadow:dragId===task.id?"0 8px 24px rgba(0,0,0,0.18)":"0 1px 3px rgba(0,0,0,0.07)",border:`1px solid ${t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)"}`,opacity:dragId===task.id?0.45:1,transition:"box-shadow .15s,transform .15s,opacity .15s",animation:`fadeUp .24s ease ${ci*40+ti*18}ms both`}}
+                    onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.1)";e.currentTarget.style.transform="translateY(-2px)";}}
+                    onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.07)";e.currentTarget.style.transform="none";}}>
+                    {/* Priority + due date row */}
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:7}}>
                       <div style={{display:"flex",alignItems:"center",gap:5}}>
-                        <Av init={data.users.find(u=>u.id===task.aId)?.av||"?"} size={18} t={t}/>
-                        <span style={{fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.04em"}}>{uName(task.aId).split(" ")[0]}</span>
+                        <div style={{width:7,height:7,borderRadius:"50%",background:BOARD_PRIO_STRIP[task.priority]||t.textMuted,flexShrink:0}}/>
+                        <span style={{fontSize:10,fontWeight:600,color:BOARD_PRIO_STRIP[task.priority]||t.textMuted}}>{task.priority||"Normal"}</span>
                       </div>
-                      <span style={{fontSize:10,fontWeight:700,color:isOverdue(task.due)&&col!=="Completed"?t.red:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em"}}>{task.due?fd(task.due):"—"}</span>
+                      {task.due&&<span style={{fontSize:10,fontWeight:600,color:isOverdue(task.due)&&col!=="Completed"?t.red:t.textMuted,display:"flex",alignItems:"center",gap:3}}><CalendarDays size={9}/>{fd(task.due)}</span>}
                     </div>
-                    {task.status==="In Progress"&&task.startedAt&&(
-                      <div style={{marginTop:6,display:"flex",alignItems:"center",gap:4}}>
-                        <div style={{width:5,height:5,borderRadius:"50%",background:"#84cc16",animation:"ping 1.5s ease-out infinite",flexShrink:0}}/>
-                        <LiveTimer startedAt={task.startedAt} t={t} active/>
+                    {/* Title */}
+                    <div style={{fontSize:13,fontWeight:600,color:t.text,lineHeight:1.4,marginBottom:4,letterSpacing:"-0.01em"}}>{task.title}</div>
+                    {/* Client */}
+                    {task.cId&&<div style={{fontSize:11,color:t.textMuted,marginBottom:6,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{cName(task.cId)}</div>}
+                    {/* Footer */}
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:6,paddingTop:8,borderTop:`1px solid ${t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.05)"}`}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <Av init={data.users.find(u=>u.id===task.aId)?.av||"?"} size={20} t={t}/>
+                        <span style={{fontSize:11,color:t.textMuted,fontWeight:500}}>{uName(task.aId).split(" ")[0]}</span>
                       </div>
-                    )}
-                    {(task.comments||[]).length>0&&(
-                      <div style={{marginTop:5,display:"flex",alignItems:"center",gap:3,fontSize:10,color:t.textMuted}}>
-                        <Hash size={9}/><span style={{letterSpacing:"0.04em"}}>{task.comments.length} comment{task.comments.length!==1?"s":""}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        {task.status==="In Progress"&&task.startedAt&&<div style={{display:"flex",alignItems:"center",gap:3}}><div style={{width:5,height:5,borderRadius:"50%",background:"#84cc16",animation:"ping 1.5s ease-out infinite"}}/><LiveTimer startedAt={task.startedAt} t={t} active/></div>}
+                        {(task.comments||[]).length>0&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:2}}><Hash size={8}/>{task.comments.length}</span>}
+                        {(task.subtasks||[]).length>0&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:2}}><CheckCircle2 size={9}/>{(task.subtasks||[]).filter(s=>s.done).length}/{(task.subtasks||[]).length}</span>}
                       </div>
-                    )}
+                    </div>
                   </div>
                 ))}
-                {/* Drop zone */}
-                <div style={{
-                  border:`1.5px dashed ${isOver?BOARD_COL_BORDER[col]:t.border}`,
-                  borderRadius:4,padding:"14px 0",textAlign:"center",
-                  fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.09em",
-                  color:isOver?BOARD_COL_LABEL[col]:t.textMuted,
-                  transition:"all .14s",
-                  opacity:isOver?1:tasks.length===0?0.6:0.3,
-                  background:isOver?`${BOARD_COL_BORDER[col]}10`:"transparent",
-                }}>Drop here</div>
+                {/* Empty/drop state */}
+                {tasks.length===0&&<div style={{padding:"24px 12px",textAlign:"center",border:`1.5px dashed ${isOver?BOARD_COL_BORDER[col]:t.border}`,borderRadius:10,color:isOver?BOARD_COL_BORDER[col]:t.textMuted,fontSize:12,fontWeight:500,transition:"all .15s",background:isOver?`${BOARD_COL_BORDER[col]}08`:"transparent"}}>{isOver?"Drop here ↓":"No tasks"}</div>}
+                {tasks.length>0&&isOver&&<div style={{padding:"14px",textAlign:"center",border:`1.5px dashed ${BOARD_COL_BORDER[col]}`,borderRadius:10,color:BOARD_COL_BORDER[col],fontSize:12,fontWeight:500,background:`${BOARD_COL_BORDER[col]}08`,transition:"all .15s"}}>Drop here ↓</div>}
               </div>
             </div>
           );
@@ -3171,23 +3163,27 @@ function ClientBoard({t,data,setData,toast,currentUser}){
     <div draggable
       onDragStart={()=>{setDragId(task.id);setDragClient(task.cId||"__none__");}}
       onClick={()=>setSel(task)}
-      style={{background:"#ffffff",border:"1px solid rgba(0,0,0,0.06)",borderRadius:10,padding:"10px 12px",cursor:"pointer",transition:"all .15s",userSelect:"none",position:"relative",marginBottom:6,...(t.dark?{background:t.card,border:`1px solid ${t.border}`}:{})}}
-      onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 2px 12px rgba(0,0,0,0.1)";e.currentTarget.style.transform="translateY(-1px)";}}
-      onMouseLeave={e=>{e.currentTarget.style.boxShadow="none";e.currentTarget.style.transform="none";}}>
-      <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,borderRadius:"10px 0 0 10px",background:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted}}/>
-      <div style={{paddingLeft:7}}>
-        <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:4,lineHeight:1.4}}>{task.title}</div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
-          <div style={{display:"flex",alignItems:"center",gap:5}}>
-            <Av init={data.users.find(u=>u.id===task.aId)?.av||"?"} size={18} t={t}/>
-            <span style={{fontSize:11,color:t.textMuted}}>{uName(task.aId).split(" ")[0]}</span>
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:5}}>
-            {task.status==="In Progress"&&task.startedAt&&<div style={{width:5,height:5,borderRadius:"50%",background:t.lime,animation:"ping 1.5s ease-out infinite"}}/>}
-            <span style={{fontSize:10,color:isOverdue(task.due)&&task.status!=="Completed"?t.red:t.textMuted,fontWeight:500}}>{task.due?fd(task.due):"No date"}</span>
-          </div>
+      style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:12,padding:"11px 13px",cursor:"grab",userSelect:"none",boxShadow:"0 1px 3px rgba(0,0,0,0.07)",border:`1px solid ${t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)"}`,transition:"box-shadow .15s,transform .15s",marginBottom:7}}
+      onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 4px 14px rgba(0,0,0,0.1)";e.currentTarget.style.transform="translateY(-1px)";}}
+      onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.07)";e.currentTarget.style.transform="none";}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+        <div style={{display:"flex",alignItems:"center",gap:5}}>
+          <div style={{width:7,height:7,borderRadius:"50%",background:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted,flexShrink:0}}/>
+          <span style={{fontSize:10,fontWeight:600,color:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted}}>{task.priority||"Normal"}</span>
         </div>
-        <div style={{marginTop:6}}><Badge label={task.status} color={{"Not Started":"muted","In Progress":"blue","Review":"amber","Rework":"purple","Completed":"green"}[task.status]||"muted"} t={t} small/></div>
+        {task.due&&<span style={{fontSize:10,color:isOverdue(task.due)&&task.status!=="Completed"?t.red:t.textMuted,fontWeight:500,display:"flex",alignItems:"center",gap:3}}><CalendarDays size={9}/>{fd(task.due)}</span>}
+      </div>
+      <div style={{fontSize:12,fontWeight:600,color:t.text,lineHeight:1.4,marginBottom:7,letterSpacing:"-0.01em"}}>{task.title}</div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",paddingTop:6,borderTop:`1px solid ${t.dark?"rgba(255,255,255,0.05)":"rgba(0,0,0,0.05)"}`}}>
+        <div style={{display:"flex",alignItems:"center",gap:5}}>
+          <Av init={data.users.find(u=>u.id===task.aId)?.av||"?"} size={18} t={t}/>
+          <span style={{fontSize:11,color:t.textMuted}}>{uName(task.aId).split(" ")[0]}</span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          {task.status==="In Progress"&&task.startedAt&&<div style={{width:5,height:5,borderRadius:"50%",background:t.lime,animation:"ping 1.5s ease-out infinite"}}/>}
+          {(task.comments||[]).length>0&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:2}}><Hash size={8}/>{task.comments.length}</span>}
+          {(task.subtasks||[]).length>0&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:2}}><CheckCircle2 size={9}/>{(task.subtasks||[]).filter(s=>s.done).length}/{(task.subtasks||[]).length}</span>}
+        </div>
       </div>
     </div>
   );
@@ -3224,18 +3220,28 @@ function ClientBoard({t,data,setData,toast,currentUser}){
 
         {!collapsed&&(
           <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:8,alignItems:"flex-start"}}>
-            {byStatus.map(({st,tasks:stTasks})=>(
-              <div key={st} style={{minWidth:210,maxWidth:240,flexShrink:0,background:t.surfaceAlt,borderRadius:12,padding:"10px",borderTop:`3px solid ${colColor[st]}`,...(t.dark?{}:{background:"#f9fafb"})}}
+            {byStatus.map(({st,tasks:stTasks})=>{
+              const stBorder={"Not Started":"#454747","In Progress":"#3b82f6","Review":"#f59e0b","Rework":"#a855f7","Completed":"#22c55e"}[st]||"#454747";
+              return(
+              <div key={st} style={{width:220,flexShrink:0,display:"flex",flexDirection:"column",borderRadius:14,border:`1.5px solid ${t.border}`,background:t.dark?"rgba(255,255,255,0.025)":t.surfaceAlt,overflow:"hidden"}}
                 onDragOver={e=>e.preventDefault()}
                 onDrop={e=>{e.preventDefault();if(dragId&&dragClient===(client.id||"__none__"))moveTask(dragId,st);setDragId(null);setDragClient(null);}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-                  <span style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.06em",color:colColor[st]}}>{st}</span>
-                  <span style={{fontSize:10,fontWeight:600,color:t.textMuted,background:t.surface,borderRadius:99,padding:"1px 7px"}}>{stTasks.length}</span>
+                <div style={{padding:"10px 12px 9px",borderBottom:`1px solid ${t.border}`}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7}}>
+                      <div style={{width:8,height:8,borderRadius:"50%",background:stBorder,flexShrink:0}}/>
+                      <span style={{fontSize:11,fontWeight:700,color:t.text,letterSpacing:"-0.01em"}}>{st}</span>
+                    </div>
+                    <span style={{fontSize:10,fontWeight:700,background:`${stBorder}22`,color:stBorder,padding:"1px 8px",borderRadius:99}}>{stTasks.length}</span>
+                  </div>
                 </div>
-                {stTasks.map(task=><TaskCard key={task.id} task={task} statusColor={colColor[st]}/>)}
-                {stTasks.length===0&&<div style={{fontSize:11,color:t.textMuted,textAlign:"center",padding:"12px 0",opacity:0.35,border:"1.5px dashed rgba(0,0,0,0.1)",borderRadius:8}}>Empty</div>}
+                <div style={{padding:"8px",display:"flex",flexDirection:"column"}}>
+                  {stTasks.map(task=><TaskCard key={task.id} task={task} statusColor={colColor[st]}/>)}
+                  {stTasks.length===0&&<div style={{padding:"18px 10px",textAlign:"center",color:t.textMuted,fontSize:11,opacity:0.5}}>No tasks</div>}
+                </div>
               </div>
-            ))}
+            );})}
+
           </div>
         )}
       </div>
@@ -3328,16 +3334,24 @@ function AllotedBoard({t,data,setData,toast,currentUser}){
     <div draggable
       onDragStart={()=>{setDragId(task.id);setDragAssignee(task.aId);}}
       onClick={()=>setSel(task)}
-      style={{background:"#ffffff",border:"1px solid rgba(0,0,0,0.06)",borderRadius:10,padding:"10px 12px",cursor:"pointer",transition:"all .15s",userSelect:"none",position:"relative",marginBottom:6,...(t.dark?{background:t.card,border:`1px solid ${t.border}`}:{})}}
-      onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 2px 12px rgba(0,0,0,0.1)";e.currentTarget.style.transform="translateY(-1px)";}}
+      style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:12,padding:"11px 13px",cursor:"grab",userSelect:"none",boxShadow:"0 1px 3px rgba(0,0,0,0.07)",border:`1px solid ${t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)"}`,transition:"box-shadow .15s,transform .15s",marginBottom:7}}
+      onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 4px 14px rgba(0,0,0,0.1)";e.currentTarget.style.transform="translateY(-1px)";}}
       onMouseLeave={e=>{e.currentTarget.style.boxShadow="none";e.currentTarget.style.transform="none";}}>
-      <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,borderRadius:"10px 0 0 10px",background:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted}}/>
-      <div style={{paddingLeft:7}}>
-        <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:3,lineHeight:1.4}}>{task.title}</div>
-        <div style={{fontSize:11,color:t.textMuted,marginBottom:5}}>{cName(task.cId)}</div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <Badge label={task.status} color={{"Not Started":"muted","In Progress":"blue","Review":"amber","Rework":"purple","Completed":"green"}[task.status]||"muted"} t={t} small/>
-          <span style={{fontSize:10,color:isOverdue(task.due)&&task.status!=="Completed"?t.red:t.textMuted,fontWeight:500}}>{task.due?fd(task.due):"No date"}</span>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+        <div style={{display:"flex",alignItems:"center",gap:5}}>
+          <div style={{width:7,height:7,borderRadius:"50%",background:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted,flexShrink:0}}/>
+          <span style={{fontSize:10,fontWeight:600,color:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted}}>{task.priority||"Normal"}</span>
+        </div>
+        {task.due&&<span style={{fontSize:10,color:isOverdue(task.due)&&task.status!=="Completed"?t.red:t.textMuted,fontWeight:500,display:"flex",alignItems:"center",gap:3}}><CalendarDays size={9}/>{fd(task.due)}</span>}
+      </div>
+      <div style={{fontSize:12,fontWeight:600,color:t.text,lineHeight:1.4,marginBottom:4,letterSpacing:"-0.01em"}}>{task.title}</div>
+      {task.cId&&<div style={{fontSize:11,color:t.textMuted,marginBottom:7,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{cName(task.cId)}</div>}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",paddingTop:6,borderTop:`1px solid ${t.dark?"rgba(255,255,255,0.05)":"rgba(0,0,0,0.05)"}`}}>
+        <Badge label={task.status} color={{"Not Started":"muted","In Progress":"blue","Review":"amber","Rework":"purple","Completed":"green"}[task.status]||"muted"} t={t} small/>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          {task.status==="In Progress"&&task.startedAt&&<div style={{width:5,height:5,borderRadius:"50%",background:t.lime,animation:"ping 1.5s ease-out infinite"}}/>}
+          {(task.comments||[]).length>0&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:2}}><Hash size={8}/>{task.comments.length}</span>}
+          {(task.subtasks||[]).length>0&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:2}}><CheckCircle2 size={9}/>{(task.subtasks||[]).filter(s=>s.done).length}/{(task.subtasks||[]).length}</span>}
         </div>
       </div>
     </div>
@@ -3376,18 +3390,28 @@ function AllotedBoard({t,data,setData,toast,currentUser}){
 
         {!collapsed&&(
           <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:8,alignItems:"flex-start"}}>
-            {byStatus.map(({st,tasks:stTasks})=>(
-              <div key={st} style={{minWidth:210,maxWidth:240,flexShrink:0,background:t.surfaceAlt,borderRadius:12,padding:"10px",borderTop:`3px solid ${colColor[st]}`,...(t.dark?{}:{background:"#f9fafb"})}}
+            {byStatus.map(({st,tasks:stTasks})=>{
+              const stBorder={"Not Started":"#454747","In Progress":"#3b82f6","Review":"#f59e0b","Rework":"#a855f7","Completed":"#22c55e"}[st]||"#454747";
+              return(
+              <div key={st} style={{width:220,flexShrink:0,display:"flex",flexDirection:"column",borderRadius:14,border:`1.5px solid ${t.border}`,background:t.dark?"rgba(255,255,255,0.025)":t.surfaceAlt,overflow:"hidden"}}
                 onDragOver={e=>e.preventDefault()}
                 onDrop={e=>{e.preventDefault();if(dragId&&dragAssignee===user.id)moveTask(dragId,st);setDragId(null);setDragAssignee(null);}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-                  <span style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.06em",color:colColor[st]}}>{st}</span>
-                  <span style={{fontSize:10,fontWeight:600,color:t.textMuted,background:t.surface,borderRadius:99,padding:"1px 7px"}}>{stTasks.length}</span>
+                <div style={{padding:"10px 12px 9px",borderBottom:`1px solid ${t.border}`}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7}}>
+                      <div style={{width:8,height:8,borderRadius:"50%",background:stBorder,flexShrink:0}}/>
+                      <span style={{fontSize:11,fontWeight:700,color:t.text,letterSpacing:"-0.01em"}}>{st}</span>
+                    </div>
+                    <span style={{fontSize:10,fontWeight:700,background:`${stBorder}22`,color:stBorder,padding:"1px 8px",borderRadius:99}}>{stTasks.length}</span>
+                  </div>
                 </div>
-                {stTasks.map(task=><TaskCard key={task.id} task={task}/>)}
-                {stTasks.length===0&&<div style={{fontSize:11,color:t.textMuted,textAlign:"center",padding:"12px 0",opacity:0.35,border:"1.5px dashed rgba(0,0,0,0.1)",borderRadius:8}}>Empty</div>}
+                <div style={{padding:"8px",display:"flex",flexDirection:"column"}}>
+                  {stTasks.map(task=><TaskCard key={task.id} task={task}/>)}
+                  {stTasks.length===0&&<div style={{padding:"18px 10px",textAlign:"center",color:t.textMuted,fontSize:11,opacity:0.5}}>No tasks</div>}
+                </div>
               </div>
-            ))}
+            );})}
+
           </div>
         )}
       </div>
@@ -5095,7 +5119,7 @@ function App({firebaseUid}){
                     onMouseEnter={e=>{if(!active){e.currentTarget.style.background=t.dark?t.surfaceAlt:t.hover;e.currentTarget.style.color=t.text;}}}
                     onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.sideText;}}}>
                     <div style={{position:"relative",flexShrink:0,width:28,height:28,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",background:active?ncBg:"transparent",transition:"background 0.15s ease"}}>
-                      <Icon size={16} strokeWidth={active?2.2:1.5} color={active?ncFg:"inherit"}/>
+                      <Icon size={16} strokeWidth={active?2.2:1.5} color={active?ncFg:t.sideText}/>
                       {b>0&&<span style={{position:"absolute",top:-4,right:-4,minWidth:14,height:14,borderRadius:99,background:ncFg,color:"#ffffff",fontSize:8,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",animation:"notifPop .5s cubic-bezier(.22,1,.36,1)"}}>{b}</span>}
                     </div>
                     {side&&<span style={{flex:1,textAlign:"left"}}>{label}</span>}
