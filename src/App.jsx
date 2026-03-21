@@ -38,8 +38,8 @@ html,body,#root{height:100%;}
 body{font-family:'Inter',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;}
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:rgba(100,116,139,0.25);border-radius:99px;}
-::-webkit-scrollbar-thumb:hover{background:rgba(100,116,139,0.45);}
+::-webkit-scrollbar-thumb{background:#BDCABA;border-radius:99px;}
+::-webkit-scrollbar-thumb:hover{background:#A8B9A5;}
 input,select,textarea,button{font-family:'Inter',sans-serif;}
 input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(132,204,22,0.7)!important;box-shadow:0 0 0 3px rgba(132,204,22,0.10)!important;}
 /* ── KEYFRAMES ── */
@@ -71,8 +71,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(132,204,2
 .btn-base:active{opacity:0.72;}
 .btn-press{transition:all 0.15s ease;}
 .btn-press:active{transform:scale(0.97);}
-.card-interactive{transition:box-shadow 0.2s ease,border-color 0.2s ease;}
-.card-interactive:hover{box-shadow:0 2px 4px rgba(0,0,0,0.06),0 8px 24px rgba(0,0,0,0.10)!important;}
+.card-interactive{transition:box-shadow 0.2s ease,transform 0.2s ease;}
+.card-interactive:hover{box-shadow:0 4px 16px rgba(26,28,26,0.08),0 20px 40px rgba(26,28,26,0.10)!important;transform:translateY(-2px);}
 .row-interactive{transition:background 0.1s ease;}
 .row-interactive:hover{background:rgba(0,0,0,0.03)!important;}
 .notif-row{transition:background 0.1s ease;cursor:pointer;}
@@ -96,31 +96,31 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(132,204,2
 // ── TOKENS ───────────────────────────────────────────────────────────────────
 const D = {
   light:{dark:false,
-    bg:"#f4f3fb",surface:"#ffffff",surfaceAlt:"#f0eff8",hover:"#eeedf5",
-    border:"rgba(193,202,176,0.28)",borderMid:"rgba(0,0,0,0.10)",
-    text:"#1a1b21",textMid:"#424936",textMuted:"#727a64",
-    lime:"#84CC16",limeDeep:"#416900",limeBg:"rgba(132,204,22,0.10)",limeMid:"#acf847",
-    green:"#16a34a",greenBg:"rgba(22,163,74,0.10)",blue:"#2563eb",blueBg:"rgba(37,99,235,0.10)",
-    amber:"#d97706",amberBg:"rgba(217,119,6,0.10)",red:"#dc2626",redBg:"rgba(220,38,38,0.10)",
-    purple:"#7c3aed",purpleBg:"rgba(124,58,237,0.10)",
-    sidebar:"#ffffff",sideText:"#727a64",sideActive:"#84CC16",sideHover:"#f4f3fb",
-    topbar:"#ffffff",shadow:"rgba(26,27,33,0.04)",shadowMd:"rgba(26,27,33,0.12)",
-    card:"#ffffff",scrollThumb:"#c1cab0",
-    cardShadow:"0 1px 3px rgba(26,27,33,0.05),0 8px 24px rgba(26,27,33,0.07)",
-    cardShadowHover:"0 4px 12px rgba(26,27,33,0.08),0 16px 40px rgba(26,27,33,0.10)",
+    bg:"#FAF9F6",surface:"#F4F3F1",surfaceAlt:"#EFEEEB",hover:"#E9E8E5",
+    border:"rgba(189,202,186,0.4)",borderMid:"rgba(110,123,108,0.25)",
+    text:"#1A1C1A",textMid:"#3E4A3D",textMuted:"#6E7B6C",
+    lime:"#16A34A",limeDeep:"#005320",limeBg:"#F0FDF4",limeMid:"#4ADE80",
+    green:"#16A34A",greenBg:"#F0FDF4",blue:"#1D4ED8",blueBg:"#EFF6FF",
+    amber:"#A16207",amberBg:"#FEFCE8",red:"#DC2626",redBg:"#FEF2F2",
+    purple:"#7C3AED",purpleBg:"#F5F3FF",
+    sidebar:"#F4F3F1",sideText:"#6E7B6C",sideActive:"#16A34A",sideHover:"#FFFFFF",
+    topbar:"#FAF9F6",shadow:"rgba(26,28,26,0.04)",shadowMd:"rgba(26,28,26,0.10)",
+    card:"#FFFFFF",scrollThumb:"#BDCABA",
+    cardShadow:"0 1px 2px rgba(26,28,26,0.04),0 4px 16px rgba(26,28,26,0.06)",
+    cardShadowHover:"0 4px 16px rgba(26,28,26,0.08),0 20px 40px rgba(26,28,26,0.10)",
   },
   dark:{dark:true,
-    bg:"#0e0f0c",surface:"#131411",surfaceAlt:"#1b1c19",hover:"#252620",
+    bg:"#141211",surface:"#1C1A18",surfaceAlt:"#252220",hover:"#2D2A27",
     border:"rgba(255,255,255,0.07)",borderMid:"rgba(255,255,255,0.12)",
-    text:"#e4e2dd",textMid:"#c6c9b0",textMuted:"#71716e",
-    lime:"#B5D334",limeDeep:"#91db2a",limeBg:"rgba(181,211,52,0.10)",limeMid:"#d1f04f",
-    green:"#4ade80",greenBg:"#052e16",blue:"#60a5fa",blueBg:"#0a1628",
-    amber:"#fcd34d",amberBg:"#1c1200",red:"#f87171",redBg:"#1c0808",
-    purple:"#a78bfa",purpleBg:"#130e24",
-    sidebar:"#0e0f0c",sideText:"#71716e",sideActive:"#B5D334",sideHover:"#1b1c19",
-    topbar:"#131411",shadow:"rgba(0,0,0,0.3)",shadowMd:"rgba(0,0,0,0.6)",
-    card:"#131411",scrollThumb:"#343531",
-    cardShadow:"0 1px 2px rgba(0,0,0,0.3),0 10px 25px rgba(0,0,0,0.4)",
+    text:"#E8E3DC",textMid:"#C4BAB0",textMuted:"#8A8078",
+    lime:"#4ADE80",limeDeep:"#86EFAC",limeBg:"rgba(74,222,128,0.10)",limeMid:"#86EFAC",
+    green:"#4ADE80",greenBg:"rgba(74,222,128,0.10)",blue:"#60A5FA",blueBg:"rgba(96,165,250,0.10)",
+    amber:"#FCD34D",amberBg:"rgba(252,211,77,0.10)",red:"#F87171",redBg:"rgba(248,113,113,0.10)",
+    purple:"#A78BFA",purpleBg:"rgba(167,139,250,0.10)",
+    sidebar:"#1C1A18",sideText:"#8A8078",sideActive:"#4ADE80",sideHover:"#252220",
+    topbar:"#141211",shadow:"rgba(0,0,0,0.3)",shadowMd:"rgba(0,0,0,0.6)",
+    card:"#1C1A18",scrollThumb:"#3A3530",
+    cardShadow:"0 1px 2px rgba(0,0,0,0.3),0 8px 24px rgba(0,0,0,0.4)",
     cardShadowHover:"0 4px 12px rgba(0,0,0,0.4),0 20px 40px rgba(0,0,0,0.5)",
   }
 };
@@ -161,7 +161,7 @@ const isOverdue = d=>d&&new Date(d)<new Date();
 const clamp=(n,lo,hi)=>Math.min(hi,Math.max(lo,n));
 const SC = s=>({Completed:"green","In Progress":"blue",Review:"amber",Delayed:"red","Not Started":"muted",Pending:"amber",Approved:"green",Rejected:"red"}[s]||"muted");
 const PC = p=>({High:"red",Medium:"amber",Low:"green"}[p]||"muted");
-const iStyle=t=>({width:"100%",padding:"9px 13px",background:t.dark?t.surfaceAlt:t.surface,border:`1px solid ${t.border}`,borderRadius:8,color:t.text,fontSize:13,fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color 0.15s,box-shadow 0.15s",});
+const iStyle=t=>({width:"100%",padding:"10px 14px",background:t.dark?t.surfaceAlt:"#FFFFFF",border:`1px solid ${t.dark?t.border:"rgba(189,202,186,0.6)"}`,borderRadius:12,color:t.text,fontSize:13,fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color 0.15s,box-shadow 0.15s",});
 
 // ── HOOKS ────────────────────────────────────────────────────────────────────
 function useToast(){
@@ -197,12 +197,12 @@ function Badge({label,color="muted",t,small=false}){
   return <span style={{display:"inline-flex",alignItems:"center",padding:small?"3px 10px":"4px 12px",borderRadius:99,fontSize:small?11:12,fontWeight:700,letterSpacing:"0.01em",background:C.bg,color:C.fg,whiteSpace:"nowrap",flexShrink:0,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>{label}</span>;
 }
 function Btn({children,onClick,v="primary",t,style={},disabled=false,size="md",icon}){
-  const sz={sm:{p:"5px 12px",fs:12},md:{p:"8px 16px",fs:13},lg:{p:"11px 22px",fs:14}}[size]||{p:"8px 16px",fs:13};
-  const base={display:"inline-flex",alignItems:"center",gap:6,borderRadius:10,fontFamily:"'Inter',sans-serif",fontWeight:600,cursor:disabled?"not-allowed":"pointer",border:"1px solid transparent",transition:"all 0.15s ease",opacity:disabled?0.45:1,padding:sz.p,fontSize:sz.fs,letterSpacing:"-0.01em",lineHeight:"1.4",flexShrink:0,outline:"none"};
+  const sz={sm:{p:"5px 14px",fs:12},md:{p:"8px 18px",fs:13},lg:{p:"11px 24px",fs:14}}[size]||{p:"8px 18px",fs:13};
+  const base={display:"inline-flex",alignItems:"center",gap:6,borderRadius:99,fontFamily:"'Inter',sans-serif",fontWeight:600,cursor:disabled?"not-allowed":"pointer",border:"1px solid transparent",transition:"all 0.15s ease",opacity:disabled?0.45:1,padding:sz.p,fontSize:sz.fs,letterSpacing:"-0.01em",lineHeight:"1.4",flexShrink:0,outline:"none"};
   const V={
-    primary:{background:t.text||"#111827",color:"#ffffff",borderColor:"transparent",boxShadow:"none"},
-    lime:{background:"#84CC16",color:"#1a1a1a",borderColor:"transparent",boxShadow:"none"},
-    secondary:{background:t.surface||"#ffffff",color:t.textMid||"#374151",borderColor:t.border||"rgba(0,0,0,0.1)",boxShadow:"none"},
+    primary:{background:"linear-gradient(135deg,#16A34A,#15803D)",color:"#FFFFFF",borderColor:"transparent",boxShadow:"none"},
+    lime:{background:"linear-gradient(135deg,#16A34A,#15803D)",color:"#FFFFFF",borderColor:"transparent",boxShadow:"none"},
+    secondary:{background:t.dark?t.surfaceAlt:t.surface,color:t.textMid||"#374151",borderColor:t.border||"rgba(189,202,186,0.6)",boxShadow:"none"},
     ghost:{background:"transparent",color:t.textMuted,borderColor:"transparent",boxShadow:"none"},
     danger:{background:t.redBg,color:t.red,borderColor:"transparent",boxShadow:"none"},
     success:{background:t.greenBg,color:t.green,borderColor:"transparent",boxShadow:"none"},
@@ -211,10 +211,12 @@ function Btn({children,onClick,v="primary",t,style={},disabled=false,size="md",i
   const vs=V[v]||V.secondary;
   return <button className="btn-base" onClick={disabled?undefined:onClick} disabled={disabled} style={{...base,background:vs.background,color:vs.color,borderColor:vs.borderColor,boxShadow:vs.boxShadow,...style}}>{icon&&<span style={{display:"flex",alignItems:"center"}}>{icon}</span>}{children}</button>;
 }
-function Card({children,t,style={},lift=false,onClick,pad=20}){
-  const cls=lift?"hover-lift":"";
-  const interactive=onClick?"card-interactive":"";
-  return <div className={[cls,interactive].filter(Boolean).join(" ")} onClick={onClick} style={{background:t.card||"#ffffff",border:`1px solid ${t.border}`,borderRadius:16,padding:pad,cursor:onClick?"pointer":"default",boxShadow:t.cardShadow,transition:"box-shadow 0.22s ease,transform 0.22s ease",...style}} onMouseEnter={onClick?e=>{e.currentTarget.style.boxShadow=t.cardShadowHover;e.currentTarget.style.transform="translateY(-2px)";}:undefined} onMouseLeave={onClick?e=>{e.currentTarget.style.boxShadow=t.cardShadow;e.currentTarget.style.transform="translateY(0)";}:undefined}>{children}</div>;
+function Card({children,t,style={},lift=false,onClick,pad=22}){
+  const base={background:t.card,borderRadius:20,padding:pad,cursor:onClick?"pointer":"default",boxShadow:t.cardShadow,transition:"box-shadow 0.22s ease,transform 0.22s ease",...style};
+  return <div onClick={onClick}
+    style={base}
+    onMouseEnter={onClick||lift?e=>{e.currentTarget.style.boxShadow=t.cardShadowHover;e.currentTarget.style.transform="translateY(-2px)";}:undefined}
+    onMouseLeave={onClick||lift?e=>{e.currentTarget.style.boxShadow=t.cardShadow;e.currentTarget.style.transform="translateY(0)";}:undefined}>{children}</div>;
 }
 function PBar({value,max=100,color="lime",t,h=5,delay=0,showPct=true}){
   const pct=clamp(max>0?Math.round((value/max)*100):0,0,100);
@@ -285,8 +287,8 @@ function SHead({title,sub,action,t}){
   return(
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:28,animation:"fadeUp .28s ease both"}}>
       <div>
-        <h1 style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:22,letterSpacing:"-0.03em",color:t.text,margin:0,lineHeight:1.2}}>{title}</h1>
-        {sub&&<p style={{fontSize:13,color:t.textMuted,margin:"4px 0 0",fontWeight:400,lineHeight:1.5}}>{sub}</p>}
+        <h1 style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:24,letterSpacing:"-0.04em",color:t.text,margin:0,lineHeight:1.2}}>{title}</h1>
+        {sub&&<p style={{fontSize:14,color:t.textMuted,margin:"4px 0 0",fontWeight:400,lineHeight:1.5}}>{sub}</p>}
       </div>
       {action&&<div style={{flexShrink:0}}>{action}</div>}
     </div>
@@ -299,15 +301,15 @@ function StatCard({label,value,sub,color="lime",icon:Icon,t,delay=0,onClick}){
   const iconBg=bgMap[color]||t.limeBg;
   const n=useCountUp(typeof value==="number"?value:0);
   return(
-    <div onClick={onClick} style={{background:t.card,border:`1px solid ${t.border}`,borderRadius:16,padding:"20px 22px",cursor:onClick?"pointer":"default",boxShadow:t.cardShadow,transition:"box-shadow 0.22s ease,transform 0.22s ease",animation:`fadeUp .28s ease ${delay}ms both`}}
+    <div onClick={onClick} style={{background:t.card,borderRadius:20,padding:"22px 24px",cursor:onClick?"pointer":"default",boxShadow:t.cardShadow,transition:"box-shadow 0.22s ease,transform 0.22s ease",animation:`fadeUp .28s ease ${delay}ms both`}}
       onMouseEnter={onClick?e=>{e.currentTarget.style.boxShadow=t.cardShadowHover;e.currentTarget.style.transform="translateY(-2px)";}:undefined}
       onMouseLeave={onClick?e=>{e.currentTarget.style.boxShadow=t.cardShadow;e.currentTarget.style.transform="translateY(0)";}:undefined}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
-        <span style={{fontSize:11,fontWeight:600,color:t.textMuted,fontFamily:"'Inter',sans-serif",textTransform:"uppercase",letterSpacing:"0.06em"}}>{label}</span>
-        {Icon&&<div style={{width:38,height:38,borderRadius:12,background:iconBg,display:"flex",alignItems:"center",justifyContent:"center",color:clr,flexShrink:0}}><Icon size={17} strokeWidth={1.6}/></div>}
+        {Icon&&<div style={{width:44,height:44,borderRadius:14,background:iconBg,display:"flex",alignItems:"center",justifyContent:"center",color:clr,flexShrink:0}}><Icon size={20} strokeWidth={1.6}/></div>}
+        <span style={{fontSize:11,fontWeight:700,color:t.textMuted,fontFamily:"'Inter',sans-serif",textTransform:"uppercase",letterSpacing:"0.07em",textAlign:"right",flex:1,paddingRight:Icon?8:0,paddingTop:4}}>{label}</span>
       </div>
-      <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:34,color:t.text,lineHeight:1,letterSpacing:"-0.04em",animation:`countUp .4s ease ${delay+80}ms both`}}>{typeof value==="number"?n:value}</div>
-      {sub&&<div style={{fontSize:12,color:t.textMuted,marginTop:6,fontWeight:400,lineHeight:1.4}}>{sub}</div>}
+      <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:36,color:t.text,lineHeight:1,letterSpacing:"-0.04em"}}>{typeof value==="number"?n:value}</div>
+      {sub&&<div style={{fontSize:12,color:t.textMuted,marginTop:6,fontWeight:400}}>{sub}</div>}
     </div>
   );
 }
@@ -437,10 +439,10 @@ function Tutorial({t,onClose}){
 
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
 const DCardSec=({label,onClick,t,children})=>(
-  <div style={{background:t.card,border:`1px solid ${t.border}`,borderRadius:16,padding:"20px 22px",boxShadow:t.cardShadow}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+  <div style={{background:t.card,borderRadius:20,padding:"22px 24px",boxShadow:t.cardShadow}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
       <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:t.textMuted}}>{label}</span>
-      {onClick&&<button onClick={onClick} style={{fontSize:12,color:t.lime,background:"none",border:"none",cursor:"pointer",fontWeight:600,display:"flex",alignItems:"center",gap:3,fontFamily:"'Inter',sans-serif",letterSpacing:"-0.01em"}}>View all <ArrowRight size={11}/></button>}
+      {onClick&&<button onClick={onClick} style={{fontSize:12,color:t.lime,fontWeight:600,background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontFamily:"'Inter',sans-serif"}}>View all <ArrowRight size={11}/></button>}
     </div>
     {children}
   </div>
@@ -456,35 +458,22 @@ function Dashboard({t,data,go,currentUser}){
   const upcoming=[...data.meetings].filter(m=>new Date(m.date)>=today).sort((a,b)=>new Date(a.date)-new Date(b.date));
   const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
   const hour=today.getHours();
-  const greeting=hour<12?"Good morning":"hour"<17?"Good afternoon":"Good evening";
+  const greeting=hour<12?"Good morning":hour<17?"Good afternoon":"Good evening";
   const todayStr=`${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
   const bdays=data.users.filter(u=>u.dob&&u.dob.slice(5)===todayStr);
 
   return(
     <div>
-      {/* Welcome banner */}
-      <div style={{background:t.dark?"linear-gradient(135deg,#1a2200 0%,#111111 100%)":"linear-gradient(135deg,rgba(132,204,22,0.12) 0%,rgba(132,204,22,0.02) 100%)",border:`1px solid ${t.dark?"rgba(132,204,22,0.15)":t.border}`,borderRadius:20,padding:"24px 28px",marginBottom:24,animation:"fadeUp .28s ease both",position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",right:0,top:0,width:200,height:"100%",background:t.dark?"radial-gradient(ellipse at right,rgba(181,211,52,0.07),transparent)":"radial-gradient(ellipse at right,rgba(132,204,22,0.08),transparent)",pointerEvents:"none"}}/>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
-          <div>
-            <p style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:t.lime,margin:"0 0 6px"}}>{today.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
-            <h1 style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:26,letterSpacing:"-0.04em",color:t.text,margin:0,lineHeight:1.15}}>{greeting}, {currentUser?.name?.split(" ")[0]||"there"} 👋</h1>
-            <p style={{fontSize:13,color:t.textMuted,margin:"6px 0 0",fontWeight:400}}>Here's what's happening at the studio today.</p>
-          </div>
-          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-            {[{label:"Tasks",value:total,color:t.blue,bg:t.blueBg},{label:"In Progress",value:inProg,color:t.lime,bg:t.limeBg},{label:"For Review",value:review,color:t.amber,bg:t.amberBg}].map(s=>(
-              <div key={s.label} onClick={()=>go("projects")} style={{background:t.dark?`${s.bg}`:s.bg,borderRadius:12,padding:"10px 16px",cursor:"pointer",border:`1px solid ${s.color}20`,transition:"transform .18s",textAlign:"center"}} onMouseEnter={e=>e.currentTarget.style.transform="scale(1.03)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
-                <div style={{fontSize:20,fontWeight:800,color:s.color,letterSpacing:"-0.04em",lineHeight:1}}>{s.value}</div>
-                <div style={{fontSize:10,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginTop:3}}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Hero greeting */}
+      <div style={{marginBottom:28,animation:"fadeUp .28s ease both"}}>
+        <p style={{fontSize:12,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.09em",color:t.lime,marginBottom:8}}>{today.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
+        <h1 style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:32,letterSpacing:"-0.04em",color:t.text,margin:"0 0 8px",lineHeight:1.1}}>{greeting}, {currentUser?.name?.split(" ")[0]||"there"} 👋</h1>
+        <p style={{fontSize:14,color:t.textMuted,margin:0,fontWeight:400}}>Here's what's happening at the studio today.</p>
       </div>
 
       {/* Birthday banner */}
       {bdays.length>0&&(
-        <div style={{marginBottom:20,padding:"11px 16px",background:t.amberBg,border:`1px solid ${t.amber}30`,borderRadius:14,display:"flex",alignItems:"center",gap:10,animation:"fadeUp .3s both"}}>
+        <div style={{marginBottom:20,padding:"12px 18px",background:t.amberBg,border:`1px solid ${t.amber}25`,borderRadius:16,display:"flex",alignItems:"center",gap:10,animation:"fadeUp .3s both"}}>
           <Cake size={18} color={t.amber}/>
           <span style={{fontSize:13,fontWeight:500,color:t.textMid}}>🎂 <strong style={{color:t.text}}>{bdays.map(u=>u.name).join(", ")}</strong> {bdays.length===1?"has":"have"} a birthday today!</span>
         </div>
@@ -492,21 +481,20 @@ function Dashboard({t,data,go,currentUser}){
 
       {/* Stat cards */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14,marginBottom:24}}>
-        <StatCard label="Total Tasks"   value={total}       icon={FolderKanban} color="text"  t={t} delay={0}   onClick={()=>go("projects")}/>
-        <StatCard label="Completed"     value={comp}        icon={CheckCircle2} color="green" t={t} delay={50}  onClick={()=>go("projects")}/>
-        <StatCard label="In Progress"   value={inProg}      icon={Activity}     color="blue"  t={t} delay={100} onClick={()=>go("board")}/>
-        <StatCard label="For Review"    value={review}      icon={Eye}          color="amber" t={t} delay={150} onClick={()=>go("board")}/>
-        <StatCard label="Pending Leaves"value={pendLeaves}  icon={Umbrella}     color="amber" t={t} delay={200} onClick={()=>go("leaves")}/>
+        <StatCard label="Total Tasks"    value={total}      icon={FolderKanban} color="text"  t={t} delay={0}   onClick={()=>go("projects")}/>
+        <StatCard label="Completed"      value={comp}       icon={CheckCircle2} color="green" t={t} delay={50}  onClick={()=>go("projects")}/>
+        <StatCard label="In Progress"    value={inProg}     icon={Activity}     color="blue"  t={t} delay={100} onClick={()=>go("board")}/>
+        <StatCard label="For Review"     value={review}     icon={Eye}          color="amber" t={t} delay={150} onClick={()=>go("board")}/>
+        <StatCard label="Pending Leaves" value={pendLeaves} icon={Umbrella}     color="red"   t={t} delay={200} onClick={()=>go("leaves")}/>
       </div>
 
       {/* Main two-column */}
       <div style={{display:"grid",gridTemplateColumns:"1.5fr 1fr",gap:18,marginBottom:18}}>
-        {/* Active tasks */}
         <DCardSec label="Active Tasks" onClick={()=>go("projects")} t={t}>
           {tasks.filter(x=>x.status!=="Completed").length===0
             ?<p style={{color:t.textMuted,fontSize:13,textAlign:"center",padding:"20px 0"}}>No active tasks.</p>
             :tasks.filter(x=>x.status!=="Completed").slice(0,5).map((task,i)=>(
-              <div key={task.id} onClick={()=>go("projects")} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",marginBottom:4,borderRadius:10,cursor:"pointer",transition:"background .12s",animation:`fadeUp .28s ease ${i*28}ms both`}}
+              <div key={task.id} onClick={()=>go("projects")} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",marginBottom:4,borderRadius:12,cursor:"pointer",transition:"background .15s",animation:`fadeUp .28s ease ${i*28}ms both`}}
                 onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
                 onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                 <div style={{width:8,height:8,borderRadius:"50%",background:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted,flexShrink:0}}/>
@@ -522,17 +510,16 @@ function Dashboard({t,data,go,currentUser}){
           ))}
         </DCardSec>
 
-        {/* Right column: meetings + approvals */}
         <div style={{display:"flex",flexDirection:"column",gap:18}}>
           <DCardSec label="Upcoming Meetings" onClick={()=>go("meetings")} t={t}>
             {upcoming.length===0
               ?<p style={{color:t.textMuted,fontSize:13}}>No upcoming meetings.</p>
               :upcoming.slice(0,3).map((m,i)=>(
-                <div key={m.id} onClick={()=>go("meetings")} style={{display:"flex",gap:12,alignItems:"center",padding:"8px 10px",borderRadius:10,cursor:"pointer",transition:"background .12s",animation:`fadeUp .3s ${i*40}ms both`}}
+                <div key={m.id} onClick={()=>go("meetings")} style={{display:"flex",gap:12,alignItems:"center",padding:"8px 10px",borderRadius:12,cursor:"pointer",transition:"background .15s",animation:`fadeUp .3s ${i*40}ms both`}}
                   onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <div style={{flexShrink:0,width:38,height:38,borderRadius:10,background:t.limeBg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-                    <span style={{fontWeight:800,fontSize:15,color:t.lime,lineHeight:1}}>{new Date(m.date).getDate()}</span>
+                  <div style={{flexShrink:0,width:40,height:40,borderRadius:12,background:t.limeBg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+                    <span style={{fontWeight:800,fontSize:16,color:t.lime,lineHeight:1}}>{new Date(m.date).getDate()}</span>
                     <span style={{fontSize:9,fontWeight:700,color:t.limeDeep,textTransform:"uppercase"}}>{new Date(m.date).toLocaleDateString("en-IN",{month:"short"})}</span>
                   </div>
                   <div style={{flex:1,minWidth:0}}>
@@ -551,14 +538,13 @@ function Dashboard({t,data,go,currentUser}){
                 :items.map((item,i)=>{
                   const u=data.users.find(u=>u.id===(item.uId||item.aId));
                   const label=item.type?"Leave":item.status==="Review"?"Review":"Ext. Req";
-                  const col=item.type?"amber":"amber";
                   return(
-                    <div key={item.id} onClick={()=>go(item.type?"leaves":"projects")} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,cursor:"pointer",transition:"background .12s",animation:`fadeUp .3s ${i*35}ms both`}}
+                    <div key={item.id} onClick={()=>go(item.type?"leaves":"projects")} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:12,cursor:"pointer",transition:"background .15s",animation:`fadeUp .3s ${i*35}ms both`}}
                       onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
                       onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                       <Av init={u?.av||"?"} size={28} t={t}/>
                       <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:600,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u?.name||item.title}</div></div>
-                      <Badge label={label} color={col} t={t}/>
+                      <Badge label={label} color="amber" t={t}/>
                     </div>
                   );
                 });
@@ -572,7 +558,7 @@ function Dashboard({t,data,go,currentUser}){
         <DCardSec label="Client Happiness" onClick={()=>go("clients")} t={t}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
             {data.clients.map((c,i)=>(
-              <div key={c.id} onClick={()=>go("clients")} style={{padding:"14px 16px",background:t.surfaceAlt,borderRadius:12,cursor:"pointer",transition:"background .12s, transform .18s",animation:`fadeUp .3s ${i*40}ms both`}}
+              <div key={c.id} onClick={()=>go("clients")} style={{padding:"14px 16px",background:t.surfaceAlt,borderRadius:14,cursor:"pointer",transition:"background .15s,transform .18s",animation:`fadeUp .3s ${i*40}ms both`}}
                 onMouseEnter={e=>{e.currentTarget.style.background=t.hover;e.currentTarget.style.transform="translateY(-2px)";}}
                 onMouseLeave={e=>{e.currentTarget.style.background=t.surfaceAlt;e.currentTarget.style.transform="translateY(0)";}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
@@ -5041,8 +5027,8 @@ function App({firebaseUid}){
       <div style={{display:"flex",height:"100vh",overflow:"hidden",background:t.bg}}>
 
         {/* SIDEBAR */}
-        <aside className="sidebar-desktop" style={{width:side?224:62,flexShrink:0,background:t.sidebar,display:"flex",flexDirection:"column",transition:"width .3s cubic-bezier(.22,1,.36,1)",overflow:"hidden",borderRight:`1px solid ${t.border}`,boxShadow:t.dark?"none":"4px 0 24px rgba(100,120,200,0.06)"}}>
-          <div style={{padding:side?"16px 14px 14px":"16px 0 14px",display:"flex",alignItems:"center",justifyContent:side?"space-between":"center",borderBottom:`1px solid ${t.border}`,minHeight:64}}>
+        <aside className="sidebar-desktop" style={{width:side?224:62,flexShrink:0,background:t.sidebar,display:"flex",flexDirection:"column",transition:"width .3s cubic-bezier(.22,1,.36,1)",overflow:"hidden",borderRight:`1px solid ${t.border}`}}>
+          <div style={{padding:side?"20px 16px 16px":"20px 0 16px",display:"flex",alignItems:"center",justifyContent:side?"space-between":"center",borderBottom:`1px solid ${t.border}`,minHeight:64}}>
             <div style={{overflow:"hidden"}}><PPLogo collapsed={!side} light={!t.dark}/></div>
             <button onClick={()=>setSide(p=>!p)} style={{background:"none",border:"none",cursor:"pointer",padding:4,borderRadius:6,color:t.sideText,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"color .14s"}} onMouseEnter={e=>e.currentTarget.style.color=t.text} onMouseLeave={e=>e.currentTarget.style.color=t.sideText}>
               {side?<ChevronLeft size={16}/>:<ChevronRight size={16}/>}
@@ -5075,10 +5061,9 @@ function App({firebaseUid}){
                     onDragOver={e=>e.preventDefault()}
                     onClick={()=>go(id)}
                     title={!side?label:""}
-                    style={{width:"100%",display:"flex",alignItems:"center",gap:side?10:0,justifyContent:side?"flex-start":"center",padding:side?"7px 10px":"10px 0",borderRadius:8,border:"none",background:active?"rgba(132,204,22,0.10)":"transparent",color:active?"#84CC16":t.sideText,letterSpacing:"-0.01em",fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:active?600:400,cursor:side?"grab":"pointer",marginBottom:1,position:"relative",transition:"background 0.15s ease,color 0.15s ease",animation:`fadeUp .3s ease ${i*20}ms both`,whiteSpace:"nowrap",overflow:"hidden",opacity:dragItem.current===id?0.5:1}}
-                    onMouseEnter={e=>{if(!active){e.currentTarget.style.background=t.sideHover;e.currentTarget.style.color=t.text;}}}
+                    style={{width:"100%",display:"flex",alignItems:"center",gap:side?10:0,justifyContent:side?"flex-start":"center",padding:side?"7px 10px":"10px 0",borderRadius:10,border:"none",background:active?t.sideHover:"transparent",color:active?t.sideActive:t.sideText,letterSpacing:"-0.01em",fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:active?700:500,cursor:side?"grab":"pointer",marginBottom:1,position:"relative",transition:"background 0.15s ease,color 0.15s ease",animation:`fadeUp .3s ease ${i*20}ms both`,whiteSpace:"nowrap",overflow:"hidden",opacity:dragItem.current===id?0.5:1}}
+                    onMouseEnter={e=>{if(!active){e.currentTarget.style.background=t.dark?t.surfaceAlt:t.hover;e.currentTarget.style.color=t.text;}}}
                     onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.sideText;}}}>
-                    {active&&<div style={{position:"absolute",left:0,top:"18%",bottom:"18%",width:3,borderRadius:"0 3px 3px 0",background:t.sideActive}}/>}
                     <div style={{position:"relative",flexShrink:0}}>
                       <Icon size={17} strokeWidth={active?2:1.5}/>
                       {b>0&&<span style={{position:"absolute",top:-6,right:-6,minWidth:15,height:15,borderRadius:99,background:t.sideActive,color:"#000000",fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",animation:"notifPop .5s cubic-bezier(.22,1,.36,1)"}}>{b}</span>}
@@ -5124,7 +5109,7 @@ function App({firebaseUid}){
         </nav>
         {/* MAIN */}
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
-          <header style={{height:62,background:t.topbar,borderBottom:`1px solid ${t.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",flexShrink:0,boxShadow:`0 1px 0 ${t.border}`}}>
+          <header style={{height:62,background:t.topbar,borderBottom:`1px solid ${t.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",flexShrink:0}}>
             <div className="topbar-title" style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:15,color:t.text,letterSpacing:"-0.01em",textTransform:"capitalize"}}>{NAV.find(n=>n.id===nav)?.label??""}</div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <button onClick={()=>go("notifications")} style={{position:"relative",background:"transparent",border:`1px solid ${t.border}`,borderRadius:12,width:40,height:40,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted,transition:"all .18s ease"}} className="btn-base" onMouseEnter={e=>{e.currentTarget.style.background=t.hover;e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.textMuted;}}>
