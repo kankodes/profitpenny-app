@@ -272,7 +272,6 @@ function DeptSel({value,onChange,data,setData,t,toast,placeholder="Select dept."
 function Tex({value,onChange,placeholder,t,rows=3}){return <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{...iStyle(t),resize:"vertical",lineHeight:1.6}} onFocus={e=>{e.target.style.borderColor="#84CC16";e.target.style.boxShadow="0 0 0 3px rgba(132,204,22,0.12)";}} onBlur={e=>{e.target.style.borderColor=t.dark?t.border:"rgba(0,0,0,0.1)";e.target.style.boxShadow="none";}}/>;}
 function Field({label,children,t}){return <div style={{marginBottom:14}}><label style={{display:"block",fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:t?.textMuted||"#94a3b8",marginBottom:6,fontFamily:"'Inter',sans-serif"}}>{label}</label>{children}</div>;}
 function Modal({open,onClose,title,children,t,w=560,subtitle}){
-  useEffect(()=>{if(open){document.body.style.overflow="hidden";}else{document.body.style.overflow="";}return()=>{document.body.style.overflow="";};},[open]);
   if(!open)return null;
   return createPortal(
     <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.45)",backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease"}} onWheel={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()}>
@@ -1458,16 +1457,17 @@ function TimeLogs({t,data,setData,toast,currentUser}){
   const isHoD=currentUser?.role==="HoD"||currentUser?.role==="Head of Department"||currentUser?.role==="Manager";
   const canView=isFounder||isHoD;
 
+  // Hooks MUST be called before any conditional return (Rules of Hooks)
+  const [expandedProj,setExpandedProj]=useState(null);
+  const [showLog,setShowLog]=useState(false);
+  const [lf,setLf]=useState({tId:"",uId:"",date:"",hrs:"",note:""});
+
   if(!canView) return(
     <div style={{textAlign:"center",padding:"80px 20px"}}>
       <Lock size={36} color={t.textMuted} style={{margin:"0 auto 16px"}}/>
       <p style={{color:t.textMuted,fontSize:15}}>Access restricted. Only Founders, Managers, and HoDs can view Time Logs.</p>
     </div>
   );
-
-  const [expandedProj,setExpandedProj]=useState(null);
-  const [showLog,setShowLog]=useState(false);
-  const [lf,setLf]=useState({tId:"",uId:"",date:"",hrs:"",note:""});
 
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
   const tName=id=>data.tasks.find(tk=>tk.id===id)?.title||"—";
@@ -3820,13 +3820,8 @@ const PS_COLOR={
 };
 function AdProjects({t,data,setData,toast,currentUser}){
   const canAccess=["Founder","Admin","Manager"].includes(currentUser?.role);
-  if(!canAccess) return(
-    <div style={{textAlign:"center",padding:"80px 20px"}}>
-      <Lock size={36} color={t.textMuted} style={{margin:"0 auto 16px"}}/>
-      <p style={{color:t.textMuted,fontSize:15}}>Access restricted to Founders and Managers.</p>
-    </div>
-  );
 
+  // Hooks MUST be called before any conditional return (Rules of Hooks)
   const [tab,setTab]=useState("projects");
   const [sel,setSel]=useState(null);// selected project for detail modal
   const [showAddProj,setShowAddProj]=useState(false);
@@ -3850,6 +3845,13 @@ function AdProjects({t,data,setData,toast,currentUser}){
   const TASK_BLANK={projectId:"",title:"",status:"Not Started",notes:"",filesLink:""};
   const [projForm,setProjForm]=useState(PROJ_BLANK);
   const [taskForm,setTaskForm]=useState(TASK_BLANK);
+
+  if(!canAccess) return(
+    <div style={{textAlign:"center",padding:"80px 20px"}}>
+      <Lock size={36} color={t.textMuted} style={{margin:"0 auto 16px"}}/>
+      <p style={{color:t.textMuted,fontSize:15}}>Access restricted to Founders and Managers.</p>
+    </div>
+  );
 
   const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
   const projName=id=>(data.adProjects||[]).find(p=>p.id===id)?.name||"—";
