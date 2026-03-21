@@ -274,7 +274,7 @@ function Field({label,children,t}){return <div style={{marginBottom:14}}><label 
 function Modal({open,onClose,title,children,t,w=560,subtitle}){
   if(!open)return null;
   return createPortal(
-    <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.45)",backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease"}} onWheel={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()}>
+    <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(10,15,30,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease"}}>
       <div onClick={e=>e.stopPropagation()} className="scale-in modal-w" style={{background:t.dark?t.surface:"#ffffff",borderRadius:20,width:"100%",maxWidth:w,maxHeight:"90vh",overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",boxShadow:"0 8px 32px rgba(15,23,42,0.18),0 32px 80px rgba(15,23,42,0.22)"}}>
         <div style={{padding:"22px 26px 18px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",borderBottom:`1px solid ${t.border}`,position:"sticky",top:0,background:t.dark?t.surface:"#ffffff",zIndex:1,borderRadius:"20px 20px 0 0"}}>
           <div><h3 style={{margin:0,fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:17,color:t.text,letterSpacing:"-0.02em",lineHeight:1.3}}>{title}</h3>{subtitle&&<p style={{margin:"4px 0 0",fontSize:13,color:t.textMuted,fontWeight:400,lineHeight:1.5}}>{subtitle}</p>}</div>
@@ -5137,9 +5137,11 @@ function App({firebaseUid}){
               </button>
             </div>
           </header>
-          <main key={pageKey} className="main-pad" style={{flex:1,overflow:"auto",padding:"32px",paddingBottom:"calc(32px + env(safe-area-inset-bottom))",animation:"pageFade .22s ease both"}}>
-            <PageTip nav={nav} t={t}/>
-            {pages[nav]}
+          <main className="main-pad" style={{flex:1,overflow:"auto",padding:"32px",paddingBottom:"calc(32px + env(safe-area-inset-bottom))"}}>
+            <div key={pageKey} style={{animation:"pageFade .22s ease both"}}>
+              <PageTip nav={nav} t={t}/>
+              {pages[nav]}
+            </div>
           </main>
         </div>
       </div>
