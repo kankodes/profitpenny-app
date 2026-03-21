@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, createPortal } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { listDocs, createDoc, updateDoc_, deleteDoc_, COLS, loginUser, logoutUser, onAuth, getCurrentUser, inviteUser } from "./firebase";
 import {
   LayoutDashboard, FolderKanban, Clock3, TrendingUp, Briefcase, CalendarDays,
@@ -273,8 +273,8 @@ function Tex({value,onChange,placeholder,t,rows=3}){return <textarea value={valu
 function Field({label,children,t}){return <div style={{marginBottom:14}}><label style={{display:"block",fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:t?.textMuted||"#94a3b8",marginBottom:6,fontFamily:"'Inter',sans-serif"}}>{label}</label>{children}</div>;}
 function Modal({open,onClose,title,children,t,w=560,subtitle}){
   if(!open)return null;
-  return createPortal(
-    <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(10,15,30,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease"}}>
+  return(
+    <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(10,15,30,0.55)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease"}}>
       <div onClick={e=>e.stopPropagation()} className="scale-in modal-w" style={{background:t.dark?t.surface:"#ffffff",borderRadius:20,width:"100%",maxWidth:w,maxHeight:"90vh",overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",boxShadow:"0 8px 32px rgba(15,23,42,0.18),0 32px 80px rgba(15,23,42,0.22)"}}>
         <div style={{padding:"22px 26px 18px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",borderBottom:`1px solid ${t.border}`,position:"sticky",top:0,background:t.dark?t.surface:"#ffffff",zIndex:1,borderRadius:"20px 20px 0 0"}}>
           <div><h3 style={{margin:0,fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:17,color:t.text,letterSpacing:"-0.02em",lineHeight:1.3}}>{title}</h3>{subtitle&&<p style={{margin:"4px 0 0",fontSize:13,color:t.textMuted,fontWeight:400,lineHeight:1.5}}>{subtitle}</p>}</div>
@@ -282,8 +282,7 @@ function Modal({open,onClose,title,children,t,w=560,subtitle}){
         </div>
         <div style={{padding:"22px 26px"}}>{children}</div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 }
 function SHead({title,sub,action,t}){
@@ -358,6 +357,24 @@ function PPLogo({collapsed,light=false}){
   );
 }
 
+// ── ERROR BOUNDARY ───────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component{
+  constructor(p){super(p);this.state={err:null};}
+  static getDerivedStateFromError(e){return{err:e};}
+  componentDidCatch(e,info){console.error("React error:",e,info);}
+  render(){
+    if(this.state.err){
+      return(
+        <div style={{padding:40,fontFamily:"'Inter',sans-serif",color:"#1A1C1A"}}>
+          <h2 style={{fontSize:18,fontWeight:700,marginBottom:12,color:"#DC2626"}}>Something went wrong</h2>
+          <p style={{fontSize:13,color:"#6E7B6C",marginBottom:16}}>{this.state.err?.message||"Unknown error"}</p>
+          <button onClick={()=>this.setState({err:null})} style={{padding:"8px 18px",background:"#16A34A",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontWeight:600,fontSize:13}}>Try again</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 // ── TUTORIAL ─────────────────────────────────────────────────────────────────
 // ── PER-PAGE TIPS ─────────────────────────────────────────────────────────────
 const PAGE_TIPS={
@@ -5077,7 +5094,7 @@ function App({firebaseUid}){
                     style={{width:"100%",display:"flex",alignItems:"center",gap:side?10:0,justifyContent:side?"flex-start":"center",padding:side?"7px 10px":"10px 0",borderRadius:10,border:"none",background:active?t.sideHover:"transparent",color:active?ncFg:t.sideText,letterSpacing:"-0.01em",fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:active?700:500,cursor:side?"grab":"pointer",marginBottom:1,position:"relative",transition:"background 0.15s ease,color 0.15s ease",animation:`fadeUp .3s ease ${i*20}ms both`,whiteSpace:"nowrap",overflow:"hidden",opacity:dragItem.current===id?0.5:1}}
                     onMouseEnter={e=>{if(!active){e.currentTarget.style.background=t.dark?t.surfaceAlt:t.hover;e.currentTarget.style.color=t.text;}}}
                     onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.sideText;}}}>
-                    <div style={{position:"relative",flexShrink:0,width:28,height:28,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",background:active?ncBg:"transparent",transition:"background 0.15s ease",flexShrink:0}}>
+                    <div style={{position:"relative",flexShrink:0,width:28,height:28,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",background:active?ncBg:"transparent",transition:"background 0.15s ease"}}>
                       <Icon size={16} strokeWidth={active?2.2:1.5} color={active?ncFg:"inherit"}/>
                       {b>0&&<span style={{position:"absolute",top:-4,right:-4,minWidth:14,height:14,borderRadius:99,background:ncFg,color:"#ffffff",fontSize:8,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",animation:"notifPop .5s cubic-bezier(.22,1,.36,1)"}}>{b}</span>}
                     </div>
@@ -5137,10 +5154,12 @@ function App({firebaseUid}){
               </button>
             </div>
           </header>
-          <main className="main-pad" style={{flex:1,overflow:"auto",padding:"32px",paddingBottom:"calc(32px + env(safe-area-inset-bottom))"}}>
-            <div key={pageKey} style={{animation:"pageFade .22s ease both"}}>
-              <PageTip nav={nav} t={t}/>
-              {pages[nav]}
+          <main style={{flex:1,overflow:"hidden",position:"relative"}}>
+            <div key={pageKey} className="main-pad" style={{position:"absolute",inset:0,overflowY:"auto",padding:"32px",paddingBottom:"calc(32px + env(safe-area-inset-bottom))",animation:"pageFade .22s ease both"}}>
+              <ErrorBoundary>
+                <PageTip nav={nav} t={t}/>
+                {pages[nav]}
+              </ErrorBoundary>
             </div>
           </main>
         </div>
