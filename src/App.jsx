@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, createPortal } from "react";
 import { listDocs, createDoc, updateDoc_, deleteDoc_, COLS, loginUser, logoutUser, onAuth, getCurrentUser, inviteUser } from "./firebase";
 import {
   LayoutDashboard, FolderKanban, Clock3, TrendingUp, Briefcase, CalendarDays,
@@ -161,6 +161,9 @@ const isOverdue = d=>d&&new Date(d)<new Date();
 const clamp=(n,lo,hi)=>Math.min(hi,Math.max(lo,n));
 const SC = s=>({Completed:"green","In Progress":"blue",Review:"amber",Delayed:"red","Not Started":"muted",Pending:"amber",Approved:"green",Rejected:"red"}[s]||"muted");
 const PC = p=>({High:"red",Medium:"amber",Low:"green"}[p]||"muted");
+const ROLE_COLOR = r=>({Founder:"purple",Admin:"blue",Manager:"amber",HoD:"green","Head of Department":"green",Member:"muted"}[r]||"muted");
+// Nav module category → color token key
+const NAV_COLOR={dashboard:"blue",projects:"green",board:"green",clientboard:"green",allotedboard:"green",mytasks:"green",calendar:"blue",timelogs:"amber",efficiency:"amber",clients:"blue",meetings:"blue",adprojects:"amber",leaves:"red",departments:"purple",team:"purple",onboarding:"purple",credentials:"muted",quicknotes:"blue",notifications:"red"};
 const iStyle=t=>({width:"100%",padding:"10px 14px",background:t.dark?t.surfaceAlt:"#FFFFFF",border:`1px solid ${t.dark?t.border:"rgba(189,202,186,0.6)"}`,borderRadius:12,color:t.text,fontSize:13,fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color 0.15s,box-shadow 0.15s",});
 
 // ── HOOKS ────────────────────────────────────────────────────────────────────
@@ -271,16 +274,17 @@ function Field({label,children,t}){return <div style={{marginBottom:14}}><label 
 function Modal({open,onClose,title,children,t,w=560,subtitle}){
   useEffect(()=>{if(open){document.body.style.overflow="hidden";}else{document.body.style.overflow="";}return()=>{document.body.style.overflow="";};},[open]);
   if(!open)return null;
-  return(
-    <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.4)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease",overflow:"hidden"}} onWheel={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()}>
-      <div onClick={e=>e.stopPropagation()} className="scale-in modal-w" style={{background:t.dark?t.surface:"#ffffff",borderRadius:14,border:`1px solid ${t.border}`,width:"100%",maxWidth:w,maxHeight:"90vh",overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",boxShadow:t.dark?"0 20px 60px rgba(0,0,0,0.6)":"0 4px 6px rgba(0,0,0,0.04),0 16px 48px rgba(0,0,0,0.12)"}}>
-        <div style={{padding:"20px 24px 16px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",background:t.dark?t.surfaceAlt:t.surface,borderBottom:`1px solid ${t.border}`,borderRadius:"14px 14px 0 0"}}>
-          <div><h3 style={{margin:0,fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:16,color:t.text,letterSpacing:"-0.01em",lineHeight:1.3}}>{title}</h3>{subtitle&&<p style={{margin:"3px 0 0",fontSize:13,color:t.textMuted,fontWeight:400,lineHeight:1.5}}>{subtitle}</p>}</div>
-          <button onClick={onClose} style={{background:"transparent",border:`1px solid ${t.border}`,borderRadius:8,width:28,height:28,cursor:"pointer",color:t.textMuted,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginLeft:12,transition:"all 0.15s ease"}} onMouseEnter={e=>{e.currentTarget.style.background=t.hover;e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.textMuted;}}><X size={13}/></button>
+  return createPortal(
+    <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.45)",backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease"}} onWheel={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()}>
+      <div onClick={e=>e.stopPropagation()} className="scale-in modal-w" style={{background:t.dark?t.surface:"#ffffff",borderRadius:20,width:"100%",maxWidth:w,maxHeight:"90vh",overflowY:"auto",overflowX:"hidden",overscrollBehavior:"contain",boxShadow:"0 8px 32px rgba(15,23,42,0.18),0 32px 80px rgba(15,23,42,0.22)"}}>
+        <div style={{padding:"22px 26px 18px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",borderBottom:`1px solid ${t.border}`,position:"sticky",top:0,background:t.dark?t.surface:"#ffffff",zIndex:1,borderRadius:"20px 20px 0 0"}}>
+          <div><h3 style={{margin:0,fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:17,color:t.text,letterSpacing:"-0.02em",lineHeight:1.3}}>{title}</h3>{subtitle&&<p style={{margin:"4px 0 0",fontSize:13,color:t.textMuted,fontWeight:400,lineHeight:1.5}}>{subtitle}</p>}</div>
+          <button onClick={onClose} style={{background:t.surfaceAlt,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",color:t.textMuted,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginLeft:16,transition:"all 0.15s ease"}} onMouseEnter={e=>{e.currentTarget.style.background=t.hover;e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background=t.surfaceAlt;e.currentTarget.style.color=t.textMuted;}}><X size={14}/></button>
         </div>
-        <div style={{padding:"20px 24px"}}>{children}</div>
+        <div style={{padding:"22px 26px"}}>{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 function SHead({title,sub,action,t}){
@@ -494,15 +498,15 @@ function Dashboard({t,data,go,currentUser}){
           {tasks.filter(x=>x.status!=="Completed").length===0
             ?<p style={{color:t.textMuted,fontSize:13,textAlign:"center",padding:"20px 0"}}>No active tasks.</p>
             :tasks.filter(x=>x.status!=="Completed").slice(0,5).map((task,i)=>(
-              <div key={task.id} onClick={()=>go("projects")} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",marginBottom:4,borderRadius:12,cursor:"pointer",transition:"background .15s",animation:`fadeUp .28s ease ${i*28}ms both`}}
+              <div key={task.id} onClick={()=>go("projects")} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",marginBottom:4,borderRadius:12,cursor:"pointer",transition:"background .15s",animation:`fadeUp .28s ease ${i*28}ms both`,borderLeft:`3px solid ${task.priority==="High"?t.red:task.priority==="Medium"?t.amber:task.priority==="Low"?t.green:t.textMuted}`,paddingLeft:11}}
                 onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
                 onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                <div style={{width:8,height:8,borderRadius:"50%",background:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted,flexShrink:0}}/>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:13,fontWeight:600,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.title}</div>
                   <div style={{fontSize:11,color:t.textMuted,marginTop:1}}>{cName(task.cId)} · Due {fd(task.due)}</div>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                  {task.priority&&<span style={{fontSize:10,fontWeight:700,color:task.priority==="High"?t.red:task.priority==="Medium"?t.amber:t.green,background:task.priority==="High"?t.redBg:task.priority==="Medium"?t.amberBg:t.greenBg,padding:"2px 7px",borderRadius:99}}>{task.priority}</span>}
                   {task.status==="In Progress"&&task.startedAt&&<LiveTimer startedAt={task.startedAt} t={t} active/>}
                   <Badge label={task.status} color={SC(task.status)} t={t}/>
                 </div>
@@ -538,13 +542,15 @@ function Dashboard({t,data,go,currentUser}){
                 :items.map((item,i)=>{
                   const u=data.users.find(u=>u.id===(item.uId||item.aId));
                   const label=item.type?"Leave":item.status==="Review"?"Review":"Ext. Req";
+                  const ic=item.type?"red":item.status==="Review"?"amber":"purple";
+                  const icBorderClr=ic==="red"?t.red:ic==="purple"?t.purple:t.amber;
                   return(
-                    <div key={item.id} onClick={()=>go(item.type?"leaves":"projects")} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:12,cursor:"pointer",transition:"background .15s",animation:`fadeUp .3s ${i*35}ms both`}}
+                    <div key={item.id} onClick={()=>go(item.type?"leaves":"projects")} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",paddingLeft:8,borderRadius:12,cursor:"pointer",transition:"background .15s",animation:`fadeUp .3s ${i*35}ms both`,borderLeft:`3px solid ${icBorderClr}`}}
                       onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
                       onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                       <Av init={u?.av||"?"} size={28} t={t}/>
                       <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:600,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u?.name||item.title}</div></div>
-                      <Badge label={label} color="amber" t={t}/>
+                      <Badge label={label} color={ic} t={t}/>
                     </div>
                   );
                 });
@@ -2266,7 +2272,7 @@ function Leaves({t,data,setData,toast,currentUser}){
         {data.leaves.map((lv,i)=>{
           const u=data.users.find(u=>u.id===lv.uId);
           return(
-            <div key={lv.id} className="row-interactive" style={{display:"flex",alignItems:"flex-start",gap:12,padding:"12px 14px",background:t.surfaceAlt,borderRadius:12,marginBottom:8,animation:`fadeUp .3s ${i*35}ms both`}}>
+            <div key={lv.id} className="row-interactive" style={{display:"flex",alignItems:"flex-start",gap:12,padding:"12px 14px",background:lv.status==="Approved"?t.greenBg:lv.status==="Rejected"?t.redBg:t.surfaceAlt,borderRadius:12,marginBottom:8,animation:`fadeUp .3s ${i*35}ms both`,borderLeft:`3px solid ${lv.status==="Approved"?t.green:lv.status==="Rejected"?t.red:t.amber}`}}>
               <Av init={u?.av||"?"} size={32} t={t}/>
               <div style={{flex:1}}>
                 <div style={{fontSize:13,fontWeight:600,color:t.text}}>{u?.name}</div>
@@ -2584,8 +2590,8 @@ function Team({t,data,setData,toast}){
                     </div>
                     <div>
                       <div style={{fontWeight:700,fontSize:14,color:t.text,lineHeight:1.3}}>{m.name}{isBday&&<span style={{marginLeft:6,fontSize:10,padding:"2px 7px",background:t.amberBg,color:t.amber,borderRadius:99,fontWeight:700}}>Birthday!</span>}</div>
-                      <div style={{fontSize:12,color:t.textMuted,marginTop:2}}>{m.role||"—"}</div>
-                      <div style={{fontSize:11,fontWeight:600,color:dc,marginTop:2}}>{deptName(m.dept)}</div>
+                      <div style={{marginTop:4,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}><Badge label={m.role||"Member"} color={ROLE_COLOR(m.role)} t={t} small/></div>
+                      <div style={{fontSize:11,fontWeight:600,color:dc,marginTop:4}}>{deptName(m.dept)}</div>
                     </div>
                   </div>
                   <div style={{display:"flex",gap:4}}>
@@ -5040,6 +5046,11 @@ function App({firebaseUid}){
               const ordered = navOrder ? filtered.sort((a,b)=>(navOrder.indexOf(a.id)||-1)-(navOrder.indexOf(b.id)||-1)) : filtered;
               return ordered.map(({id,label,Icon},i)=>{
                 const active=nav===id,b=badge(id);
+                const ncKey=NAV_COLOR[id]||"lime";
+                const ncFgMap={lime:t.lime,green:t.lime,blue:t.blue,amber:t.amber,red:t.red,purple:t.purple,muted:t.textMuted};
+                const ncBgMap={lime:t.limeBg,green:t.limeBg,blue:t.blueBg,amber:t.amberBg,red:t.redBg,purple:t.purpleBg,muted:t.surfaceAlt};
+                const ncFg=ncFgMap[ncKey]||t.lime;
+                const ncBg=ncBgMap[ncKey]||t.limeBg;
                 return(
                   <button
                     key={id}
@@ -5061,12 +5072,12 @@ function App({firebaseUid}){
                     onDragOver={e=>e.preventDefault()}
                     onClick={()=>go(id)}
                     title={!side?label:""}
-                    style={{width:"100%",display:"flex",alignItems:"center",gap:side?10:0,justifyContent:side?"flex-start":"center",padding:side?"7px 10px":"10px 0",borderRadius:10,border:"none",background:active?t.sideHover:"transparent",color:active?t.sideActive:t.sideText,letterSpacing:"-0.01em",fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:active?700:500,cursor:side?"grab":"pointer",marginBottom:1,position:"relative",transition:"background 0.15s ease,color 0.15s ease",animation:`fadeUp .3s ease ${i*20}ms both`,whiteSpace:"nowrap",overflow:"hidden",opacity:dragItem.current===id?0.5:1}}
+                    style={{width:"100%",display:"flex",alignItems:"center",gap:side?10:0,justifyContent:side?"flex-start":"center",padding:side?"7px 10px":"10px 0",borderRadius:10,border:"none",background:active?t.sideHover:"transparent",color:active?ncFg:t.sideText,letterSpacing:"-0.01em",fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:active?700:500,cursor:side?"grab":"pointer",marginBottom:1,position:"relative",transition:"background 0.15s ease,color 0.15s ease",animation:`fadeUp .3s ease ${i*20}ms both`,whiteSpace:"nowrap",overflow:"hidden",opacity:dragItem.current===id?0.5:1}}
                     onMouseEnter={e=>{if(!active){e.currentTarget.style.background=t.dark?t.surfaceAlt:t.hover;e.currentTarget.style.color=t.text;}}}
                     onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.sideText;}}}>
-                    <div style={{position:"relative",flexShrink:0}}>
-                      <Icon size={17} strokeWidth={active?2:1.5}/>
-                      {b>0&&<span style={{position:"absolute",top:-6,right:-6,minWidth:15,height:15,borderRadius:99,background:t.sideActive,color:"#000000",fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",animation:"notifPop .5s cubic-bezier(.22,1,.36,1)"}}>{b}</span>}
+                    <div style={{position:"relative",flexShrink:0,width:28,height:28,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",background:active?ncBg:"transparent",transition:"background 0.15s ease",flexShrink:0}}>
+                      <Icon size={16} strokeWidth={active?2.2:1.5} color={active?ncFg:"inherit"}/>
+                      {b>0&&<span style={{position:"absolute",top:-4,right:-4,minWidth:14,height:14,borderRadius:99,background:ncFg,color:"#ffffff",fontSize:8,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",animation:"notifPop .5s cubic-bezier(.22,1,.36,1)"}}>{b}</span>}
                     </div>
                     {side&&<span style={{flex:1,textAlign:"left"}}>{label}</span>}
                   </button>
@@ -5082,7 +5093,7 @@ function App({firebaseUid}){
               <Av init={currentUser?.av||"U"} size={30} t={t}/>
               {side&&<div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:12,fontWeight:600,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{currentUser?.name||"User"}</div>
-                <div style={{fontSize:10,color:t.sideText}}>{currentUser?.role||"Member"}</div>
+                <div style={{marginTop:2}}><Badge label={currentUser?.role||"Member"} color={ROLE_COLOR(currentUser?.role)} t={t} small/></div>
               </div>}
               {side&&<button onClick={()=>{logoutUser();}} title="Sign out" style={{background:"none",border:"none",cursor:"pointer",color:t.sideText,display:"flex",alignItems:"center",padding:4,borderRadius:6,opacity:0.7,transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.7}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
