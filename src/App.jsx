@@ -54,14 +54,17 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(132,204,2
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes notifPop{0%{transform:scale(0.5)}80%{transform:scale(1.2)}100%{transform:scale(1)}}
 @keyframes pageEnter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pageFade{from{opacity:0}to{opacity:1}}
 .page-enter{animation:pageEnter 0.22s ease both;}
 /* ── UTILITY CLASSES ── */
 .fade-up{animation:fadeUp .28s ease both;}
 .scale-in{animation:scaleIn .22s ease both;}
-.hover-lift{transition:box-shadow 0.2s ease;}
+.hover-lift{transition:box-shadow 0.22s ease,transform 0.22s ease;}
+.hover-lift:hover{transform:translateY(-2px);}
 .timer-active{animation:timerPulse 1.5s ease-in-out infinite;}
 .card-actions{opacity:0;transition:opacity 0.15s ease;}
 .hover-lift:hover .card-actions{opacity:1;}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 /* ── INTERACTIVE STATES ── */
 .btn-base{transition:opacity 0.12s ease,background 0.12s ease;}
 .btn-base:hover{opacity:0.88;}
@@ -93,30 +96,32 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(132,204,2
 // ── TOKENS ───────────────────────────────────────────────────────────────────
 const D = {
   light:{dark:false,
-    bg:"#f8f7ff",surface:"#ffffff",surfaceAlt:"#f0f0f8",hover:"#f0f0f0",
-    border:"rgba(0,0,0,0.08)",borderMid:"rgba(0,0,0,0.14)",
-    text:"#111827",textMid:"#374151",textMuted:"#9ca3af",
-    lime:"#84CC16",limeDeep:"#65a30d",limeBg:"rgba(132,204,22,0.10)",limeMid:"#bef264",
+    bg:"#f4f3fb",surface:"#ffffff",surfaceAlt:"#f0eff8",hover:"#eeedf5",
+    border:"rgba(193,202,176,0.28)",borderMid:"rgba(0,0,0,0.10)",
+    text:"#1a1b21",textMid:"#424936",textMuted:"#727a64",
+    lime:"#84CC16",limeDeep:"#416900",limeBg:"rgba(132,204,22,0.10)",limeMid:"#acf847",
     green:"#16a34a",greenBg:"rgba(22,163,74,0.10)",blue:"#2563eb",blueBg:"rgba(37,99,235,0.10)",
     amber:"#d97706",amberBg:"rgba(217,119,6,0.10)",red:"#dc2626",redBg:"rgba(220,38,38,0.10)",
     purple:"#7c3aed",purpleBg:"rgba(124,58,237,0.10)",
-    sidebar:"#ffffff",sideText:"#6b7280",sideActive:"#7C3AED",sideHover:"#f3f4f6",
-    topbar:"#ffffff",shadow:"rgba(0,0,0,0.04)",shadowMd:"rgba(0,0,0,0.16)",
-    card:"#ffffff",scrollThumb:"#d1d5db",
-    cardShadow:"0 1px 2px rgba(0,0,0,0.04),0 2px 8px rgba(0,0,0,0.06)",
+    sidebar:"#ffffff",sideText:"#727a64",sideActive:"#84CC16",sideHover:"#f4f3fb",
+    topbar:"#ffffff",shadow:"rgba(26,27,33,0.04)",shadowMd:"rgba(26,27,33,0.12)",
+    card:"#ffffff",scrollThumb:"#c1cab0",
+    cardShadow:"0 1px 3px rgba(26,27,33,0.05),0 8px 24px rgba(26,27,33,0.07)",
+    cardShadowHover:"0 4px 12px rgba(26,27,33,0.08),0 16px 40px rgba(26,27,33,0.10)",
   },
   dark:{dark:true,
-    bg:"#0a0a0a",surface:"#111111",surfaceAlt:"#1a1a1a",hover:"#222222",
-    border:"rgba(255,255,255,0.08)",borderMid:"rgba(255,255,255,0.12)",
-    text:"#fafafa",textMid:"#a1a1aa",textMuted:"#52525b",
-    lime:"#84CC16",limeDeep:"#65a30d",limeBg:"#1a2200",limeMid:"#3f6212",
+    bg:"#0e0f0c",surface:"#131411",surfaceAlt:"#1b1c19",hover:"#252620",
+    border:"rgba(255,255,255,0.07)",borderMid:"rgba(255,255,255,0.12)",
+    text:"#e4e2dd",textMid:"#c6c9b0",textMuted:"#71716e",
+    lime:"#B5D334",limeDeep:"#91db2a",limeBg:"rgba(181,211,52,0.10)",limeMid:"#d1f04f",
     green:"#4ade80",greenBg:"#052e16",blue:"#60a5fa",blueBg:"#0a1628",
     amber:"#fcd34d",amberBg:"#1c1200",red:"#f87171",redBg:"#1c0808",
     purple:"#a78bfa",purpleBg:"#130e24",
-    sidebar:"#080808",sideText:"#71717a",sideActive:"#c4b5fd",sideHover:"#161616",
-    topbar:"#111111",shadow:"rgba(0,0,0,0.3)",shadowMd:"rgba(0,0,0,0.6)",
-    card:"#111111",scrollThumb:"#27272a",
+    sidebar:"#0e0f0c",sideText:"#71716e",sideActive:"#B5D334",sideHover:"#1b1c19",
+    topbar:"#131411",shadow:"rgba(0,0,0,0.3)",shadowMd:"rgba(0,0,0,0.6)",
+    card:"#131411",scrollThumb:"#343531",
     cardShadow:"0 1px 2px rgba(0,0,0,0.3),0 10px 25px rgba(0,0,0,0.4)",
+    cardShadowHover:"0 4px 12px rgba(0,0,0,0.4),0 20px 40px rgba(0,0,0,0.5)",
   }
 };
 
@@ -209,7 +214,7 @@ function Btn({children,onClick,v="primary",t,style={},disabled=false,size="md",i
 function Card({children,t,style={},lift=false,onClick,pad=20}){
   const cls=lift?"hover-lift":"";
   const interactive=onClick?"card-interactive":"";
-  return <div className={[cls,interactive].filter(Boolean).join(" ")} onClick={onClick} style={{background:t.card||"#ffffff",border:`1px solid ${t.border}`,borderRadius:14,padding:pad,cursor:onClick?"pointer":"default",boxShadow:t.cardShadow,transition:"box-shadow 0.2s ease",...style}}>{children}</div>;
+  return <div className={[cls,interactive].filter(Boolean).join(" ")} onClick={onClick} style={{background:t.card||"#ffffff",border:`1px solid ${t.border}`,borderRadius:16,padding:pad,cursor:onClick?"pointer":"default",boxShadow:t.cardShadow,transition:"box-shadow 0.22s ease,transform 0.22s ease",...style}} onMouseEnter={onClick?e=>{e.currentTarget.style.boxShadow=t.cardShadowHover;e.currentTarget.style.transform="translateY(-2px)";}:undefined} onMouseLeave={onClick?e=>{e.currentTarget.style.boxShadow=t.cardShadow;e.currentTarget.style.transform="translateY(0)";}:undefined}>{children}</div>;
 }
 function PBar({value,max=100,color="lime",t,h=5,delay=0,showPct=true}){
   const pct=clamp(max>0?Math.round((value/max)*100):0,0,100);
@@ -262,7 +267,7 @@ function DeptSel({value,onChange,data,setData,t,toast,placeholder="Select dept."
 function Tex({value,onChange,placeholder,t,rows=3}){return <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{...iStyle(t),resize:"vertical",lineHeight:1.6}} onFocus={e=>{e.target.style.borderColor="#84CC16";e.target.style.boxShadow="0 0 0 3px rgba(132,204,22,0.12)";}} onBlur={e=>{e.target.style.borderColor=t.dark?t.border:"rgba(0,0,0,0.1)";e.target.style.boxShadow="none";}}/>;}
 function Field({label,children,t}){return <div style={{marginBottom:14}}><label style={{display:"block",fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:t?.textMuted||"#94a3b8",marginBottom:6,fontFamily:"'Inter',sans-serif"}}>{label}</label>{children}</div>;}
 function Modal({open,onClose,title,children,t,w=560,subtitle}){
-  useEffect(()=>{if(open){document.body.style.overflow="hidden";document.body.style.position="fixed";document.body.style.width="100%";}else{document.body.style.overflow="";document.body.style.position="";document.body.style.width="";}return()=>{document.body.style.overflow="";document.body.style.position="";document.body.style.width="";};},[open]);
+  useEffect(()=>{if(open){document.body.style.overflow="hidden";}else{document.body.style.overflow="";}return()=>{document.body.style.overflow="";};},[open]);
   if(!open)return null;
   return(
     <div onClick={onClose} className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.4)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeIn .16s ease",overflow:"hidden"}} onWheel={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()}>
@@ -278,10 +283,10 @@ function Modal({open,onClose,title,children,t,w=560,subtitle}){
 }
 function SHead({title,sub,action,t}){
   return(
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:32,animation:"fadeUp .28s ease both"}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:28,animation:"fadeUp .28s ease both"}}>
       <div>
-        <h1 style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:24,letterSpacing:"-0.035em",color:t.text,margin:0,lineHeight:1.2}}>{title}</h1>
-        {sub&&<p style={{fontSize:13,color:t.textMuted,margin:"5px 0 0",fontWeight:400,lineHeight:1.5}}>{sub}</p>}
+        <h1 style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:22,letterSpacing:"-0.03em",color:t.text,margin:0,lineHeight:1.2}}>{title}</h1>
+        {sub&&<p style={{fontSize:13,color:t.textMuted,margin:"4px 0 0",fontWeight:400,lineHeight:1.5}}>{sub}</p>}
       </div>
       {action&&<div style={{flexShrink:0}}>{action}</div>}
     </div>
@@ -294,14 +299,16 @@ function StatCard({label,value,sub,color="lime",icon:Icon,t,delay=0,onClick}){
   const iconBg=bgMap[color]||t.limeBg;
   const n=useCountUp(typeof value==="number"?value:0);
   return(
-    <Card t={t} onClick={onClick} style={{animation:`fadeUp .28s ease ${delay}ms both`,cursor:onClick?"pointer":"default",borderLeft:`3px solid ${clr}`}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
-        <span style={{fontSize:12,fontWeight:500,color:t.textMuted,fontFamily:"'Inter',sans-serif",lineHeight:1.4}}>{label}</span>
-        {Icon&&<div style={{width:34,height:34,borderRadius:10,background:iconBg,display:"flex",alignItems:"center",justifyContent:"center",color:clr,flexShrink:0}}><Icon size={16} strokeWidth={1.8}/></div>}
+    <div onClick={onClick} style={{background:t.card,border:`1px solid ${t.border}`,borderRadius:16,padding:"20px 22px",cursor:onClick?"pointer":"default",boxShadow:t.cardShadow,transition:"box-shadow 0.22s ease,transform 0.22s ease",animation:`fadeUp .28s ease ${delay}ms both`}}
+      onMouseEnter={onClick?e=>{e.currentTarget.style.boxShadow=t.cardShadowHover;e.currentTarget.style.transform="translateY(-2px)";}:undefined}
+      onMouseLeave={onClick?e=>{e.currentTarget.style.boxShadow=t.cardShadow;e.currentTarget.style.transform="translateY(0)";}:undefined}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+        <span style={{fontSize:11,fontWeight:600,color:t.textMuted,fontFamily:"'Inter',sans-serif",textTransform:"uppercase",letterSpacing:"0.06em"}}>{label}</span>
+        {Icon&&<div style={{width:38,height:38,borderRadius:12,background:iconBg,display:"flex",alignItems:"center",justifyContent:"center",color:clr,flexShrink:0}}><Icon size={17} strokeWidth={1.6}/></div>}
       </div>
-      <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:30,color:t.text,lineHeight:1,letterSpacing:"-0.03em",animation:`countUp .4s ease ${delay+80}ms both`}}>{typeof value==="number"?n:value}</div>
-      {sub&&<div style={{fontSize:12,color:t.textMuted,marginTop:5,fontWeight:400,lineHeight:1.4}}>{sub}</div>}
-    </Card>
+      <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:34,color:t.text,lineHeight:1,letterSpacing:"-0.04em",animation:`countUp .4s ease ${delay+80}ms both`}}>{typeof value==="number"?n:value}</div>
+      {sub&&<div style={{fontSize:12,color:t.textMuted,marginTop:6,fontWeight:400,lineHeight:1.4}}>{sub}</div>}
+    </div>
   );
 }
 function Toasts({list}){
@@ -429,138 +436,155 @@ function Tutorial({t,onClose}){
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({t,data,go}){
+const DCardSec=({label,onClick,t,children})=>(
+  <div style={{background:t.card,border:`1px solid ${t.border}`,borderRadius:16,padding:"20px 22px",boxShadow:t.cardShadow}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:t.textMuted}}>{label}</span>
+      {onClick&&<button onClick={onClick} style={{fontSize:12,color:t.lime,background:"none",border:"none",cursor:"pointer",fontWeight:600,display:"flex",alignItems:"center",gap:3,fontFamily:"'Inter',sans-serif",letterSpacing:"-0.01em"}}>View all <ArrowRight size={11}/></button>}
+    </div>
+    {children}
+  </div>
+);
+
+function Dashboard({t,data,go,currentUser}){
   const tasks=data.tasks;
   const total=tasks.length,comp=tasks.filter(x=>x.status==="Completed").length;
-  const delayed=tasks.filter(x=>x.status==="Delayed").length;
   const inProg=tasks.filter(x=>x.status==="In Progress").length;
+  const review=tasks.filter(x=>x.status==="Review").length;
   const pendLeaves=data.leaves.filter(x=>x.status==="Pending").length;
   const today=new Date();
   const upcoming=[...data.meetings].filter(m=>new Date(m.date)>=today).sort((a,b)=>new Date(a.date)-new Date(b.date));
   const cName=id=>data.clients.find(c=>c.id===id)?.name||"—";
-  const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
-  const uAv=id=>data.users.find(u=>u.id===id)?.av||"??";
-
-  // Birthday check
+  const hour=today.getHours();
+  const greeting=hour<12?"Good morning":"hour"<17?"Good afternoon":"Good evening";
   const todayStr=`${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
   const bdays=data.users.filter(u=>u.dob&&u.dob.slice(5)===todayStr);
 
   return(
     <div>
-      <SHead t={t} title="Studio Dashboard" sub={today.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}/>
+      {/* Welcome banner */}
+      <div style={{background:t.dark?"linear-gradient(135deg,#1a2200 0%,#111111 100%)":"linear-gradient(135deg,rgba(132,204,22,0.12) 0%,rgba(132,204,22,0.02) 100%)",border:`1px solid ${t.dark?"rgba(132,204,22,0.15)":t.border}`,borderRadius:20,padding:"24px 28px",marginBottom:24,animation:"fadeUp .28s ease both",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",right:0,top:0,width:200,height:"100%",background:t.dark?"radial-gradient(ellipse at right,rgba(181,211,52,0.07),transparent)":"radial-gradient(ellipse at right,rgba(132,204,22,0.08),transparent)",pointerEvents:"none"}}/>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
+          <div>
+            <p style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:t.lime,margin:"0 0 6px"}}>{today.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
+            <h1 style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:26,letterSpacing:"-0.04em",color:t.text,margin:0,lineHeight:1.15}}>{greeting}, {currentUser?.name?.split(" ")[0]||"there"} 👋</h1>
+            <p style={{fontSize:13,color:t.textMuted,margin:"6px 0 0",fontWeight:400}}>Here's what's happening at the studio today.</p>
+          </div>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+            {[{label:"Tasks",value:total,color:t.blue,bg:t.blueBg},{label:"In Progress",value:inProg,color:t.lime,bg:t.limeBg},{label:"For Review",value:review,color:t.amber,bg:t.amberBg}].map(s=>(
+              <div key={s.label} onClick={()=>go("projects")} style={{background:t.dark?`${s.bg}`:s.bg,borderRadius:12,padding:"10px 16px",cursor:"pointer",border:`1px solid ${s.color}20`,transition:"transform .18s",textAlign:"center"}} onMouseEnter={e=>e.currentTarget.style.transform="scale(1.03)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
+                <div style={{fontSize:20,fontWeight:800,color:s.color,letterSpacing:"-0.04em",lineHeight:1}}>{s.value}</div>
+                <div style={{fontSize:10,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginTop:3}}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Birthday banner */}
       {bdays.length>0&&(
-        <div style={{marginBottom:20,padding:"11px 16px",background:t.surface,border:`1px solid ${t.border}`,borderLeft:`3px solid ${t.amber}`,borderRadius:10,display:"flex",alignItems:"center",gap:10,animation:"fadeUp .3s both"}}>
-          <Cake size={20} color={t.amber}/>
-          <span style={{fontSize:13,fontWeight:500,color:t.textMid}}>🎂 <strong style={{color:t.text}}>{bdays.map(u=>u.name).join(", ")}</strong> has a birthday today</span>
+        <div style={{marginBottom:20,padding:"11px 16px",background:t.amberBg,border:`1px solid ${t.amber}30`,borderRadius:14,display:"flex",alignItems:"center",gap:10,animation:"fadeUp .3s both"}}>
+          <Cake size={18} color={t.amber}/>
+          <span style={{fontSize:13,fontWeight:500,color:t.textMid}}>🎂 <strong style={{color:t.text}}>{bdays.map(u=>u.name).join(", ")}</strong> {bdays.length===1?"has":"have"} a birthday today!</span>
         </div>
       )}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(148px,1fr))",gap:14,marginBottom:28}}>
-        <StatCard label="Total Tasks"   value={total}      icon={FolderKanban} color="text"  t={t} delay={0}   onClick={()=>go("projects")}/>
-        <StatCard label="Completed"     value={comp}       icon={CheckCircle2} color="green" t={t} delay={50}  onClick={()=>go("projects")}/>
-        <StatCard label="In Progress"   value={inProg}     icon={Activity}     color="blue"  t={t} delay={100} onClick={()=>go("projects")}/>
-        <StatCard label="Delayed"       value={delayed}    icon={AlertTriangle}color="red"   t={t} delay={150} onClick={()=>go("projects")}/>
-        <StatCard label="Pending Leaves"value={pendLeaves} icon={Umbrella}     color="amber" t={t} delay={200} onClick={()=>go("leaves")}/>
+
+      {/* Stat cards */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14,marginBottom:24}}>
+        <StatCard label="Total Tasks"   value={total}       icon={FolderKanban} color="text"  t={t} delay={0}   onClick={()=>go("projects")}/>
+        <StatCard label="Completed"     value={comp}        icon={CheckCircle2} color="green" t={t} delay={50}  onClick={()=>go("projects")}/>
+        <StatCard label="In Progress"   value={inProg}      icon={Activity}     color="blue"  t={t} delay={100} onClick={()=>go("board")}/>
+        <StatCard label="For Review"    value={review}      icon={Eye}          color="amber" t={t} delay={150} onClick={()=>go("board")}/>
+        <StatCard label="Pending Leaves"value={pendLeaves}  icon={Umbrella}     color="amber" t={t} delay={200} onClick={()=>go("leaves")}/>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1.4fr 1fr",gap:20,marginBottom:20}}>
-        <Card t={t} style={{animation:"fadeUp .4s .1s both"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <h3 style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,letterSpacing:"0",color:t.text,margin:0}}>Active Tasks</h3>
-            <button onClick={()=>go("projects")} style={{fontSize:12,color:"#84CC16",background:"none",border:"none",cursor:"pointer",fontWeight:500,display:"flex",alignItems:"center",gap:3,fontFamily:"'Inter',sans-serif"}}>View all <ArrowRight size={12}/></button>
-          </div>
-          {tasks.filter(x=>x.status!=="Completed").slice(0,5).map((task,i)=>(
-            <div key={task.id} className="row-interactive" onClick={()=>go("projects")} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid rgba(0,0,0,0.05)",cursor:"pointer",animation:`fadeUp .28s ease ${i*30}ms both`}}>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:600,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.title}</div>
-                <div style={{fontSize:11,color:t.textMuted,marginTop:2}}>{cName(task.cId)} · Due {fd(task.due)}</div>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:10}}>
-                {task.status==="In Progress"&&task.startedAt&&<LiveTimer startedAt={task.startedAt} t={t} active/>}
-                <Badge label={task.status} color={SC(task.status)} t={t}/>
-              </div>
-            </div>
-          ))}
-        </Card>
-        <Card t={t} style={{animation:"fadeUp .4s .18s both"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <h3 style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,color:t.text,margin:0}}>Client Happiness</h3>
-            <button onClick={()=>go("clients")} style={{fontSize:12,color:"#84CC16",background:"none",border:"none",cursor:"pointer",fontWeight:500,display:"flex",alignItems:"center",gap:3,fontFamily:"'Inter',sans-serif"}}>View all <ArrowRight size={12}/></button>
-          </div>
-          {data.clients.map((c,i)=>(
-            <div key={c.id} onClick={()=>go("clients")} style={{marginBottom:14,cursor:"pointer",animation:`fadeUp .3s ${i*55}ms both`}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                <span style={{fontSize:13,fontWeight:500,color:t.text}}>{c.name.split(" ").slice(0,2).join(" ")}</span>
-                <span style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:16,color:c.score>=80?t.green:c.score>=65?t.amber:t.red}}>{c.score}%</span>
-              </div>
-              <PBar value={c.score} max={100} color={c.score>=80?"green":c.score>=65?"amber":"red"} t={t} delay={i*70}/>
-            </div>
-          ))}
-        </Card>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
-        <Card t={t} style={{animation:"fadeUp .4s .24s both"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <h3 style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,color:t.text,margin:0}}>Upcoming Meetings</h3>
-            <button onClick={()=>go("meetings")} style={{fontSize:12,color:"#84CC16",background:"none",border:"none",cursor:"pointer",fontWeight:500,display:"flex",alignItems:"center",gap:3,fontFamily:"'Inter',sans-serif"}}>View all <ArrowRight size={12}/></button>
-          </div>
-          {upcoming.length===0?<p style={{color:t.textMuted,fontSize:13}}>No upcoming meetings.</p>
-            :upcoming.slice(0,3).map((m,i)=>(
-              <div key={m.id} onClick={()=>go("meetings")} style={{display:"flex",gap:12,alignItems:"flex-start",padding:"9px 0",borderBottom:i<upcoming.length-1?`1px solid ${t.border}`:"none",cursor:"pointer",animation:`fadeUp .3s ${i*45}ms both`}}>
-                <div style={{flexShrink:0,textAlign:"center",width:40}}>
-                  <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:22,color:t.lime,lineHeight:1}}>{new Date(m.date).getDate()}</div>
-                  <div style={{fontSize:10,fontWeight:600,color:t.textMuted,textTransform:"uppercase"}}>{new Date(m.date).toLocaleDateString("en-IN",{month:"short"})}</div>
+
+      {/* Main two-column */}
+      <div style={{display:"grid",gridTemplateColumns:"1.5fr 1fr",gap:18,marginBottom:18}}>
+        {/* Active tasks */}
+        <DCardSec label="Active Tasks" onClick={()=>go("projects")} t={t}>
+          {tasks.filter(x=>x.status!=="Completed").length===0
+            ?<p style={{color:t.textMuted,fontSize:13,textAlign:"center",padding:"20px 0"}}>No active tasks.</p>
+            :tasks.filter(x=>x.status!=="Completed").slice(0,5).map((task,i)=>(
+              <div key={task.id} onClick={()=>go("projects")} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",marginBottom:4,borderRadius:10,cursor:"pointer",transition:"background .12s",animation:`fadeUp .28s ease ${i*28}ms both`}}
+                onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted,flexShrink:0}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:600,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.title}</div>
+                  <div style={{fontSize:11,color:t.textMuted,marginTop:1}}>{cName(task.cId)} · Due {fd(task.due)}</div>
                 </div>
-                <div>
-                  <div style={{fontSize:13,fontWeight:600,color:t.text}}>{cName(m.cId)}</div>
-                  <div style={{fontSize:11,color:t.textMuted}}>{m.time} · {m.loc}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                  {task.status==="In Progress"&&task.startedAt&&<LiveTimer startedAt={task.startedAt} t={t} active/>}
+                  <Badge label={task.status} color={SC(task.status)} t={t}/>
                 </div>
               </div>
           ))}
-        </Card>
-        <Card t={t} style={{animation:"fadeUp .4s .3s both"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <h3 style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,color:t.text,margin:0}}>Needs Approval</h3>
-            <button onClick={()=>go("projects")} style={{fontSize:12,color:"#84CC16",background:"none",border:"none",cursor:"pointer",fontWeight:500,display:"flex",alignItems:"center",gap:3,fontFamily:"'Inter',sans-serif"}}>Review <ArrowRight size={12}/></button>
-          </div>
-          {(() => {
-            const pendingLeaves = data.leaves.filter(l=>l.status==="Pending");
-            const reviewTasks = data.tasks.filter(tk=>tk.status==="Review");
-            const extRequests = data.tasks.filter(tk=>tk.extRequest?.status==="Pending");
-            const allItems = [...pendingLeaves, ...reviewTasks, ...extRequests].slice(0,5);
-            return allItems.length===0
-              ?<p style={{color:t.textMuted,fontSize:13}}>All clear — nothing pending.</p>
-              :allItems.map((item,i)=>{
-                if(item.type) { // It's a leave
-                  const u=data.users.find(u=>u.id===item.uId);
+        </DCardSec>
+
+        {/* Right column: meetings + approvals */}
+        <div style={{display:"flex",flexDirection:"column",gap:18}}>
+          <DCardSec label="Upcoming Meetings" onClick={()=>go("meetings")} t={t}>
+            {upcoming.length===0
+              ?<p style={{color:t.textMuted,fontSize:13}}>No upcoming meetings.</p>
+              :upcoming.slice(0,3).map((m,i)=>(
+                <div key={m.id} onClick={()=>go("meetings")} style={{display:"flex",gap:12,alignItems:"center",padding:"8px 10px",borderRadius:10,cursor:"pointer",transition:"background .12s",animation:`fadeUp .3s ${i*40}ms both`}}
+                  onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <div style={{flexShrink:0,width:38,height:38,borderRadius:10,background:t.limeBg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+                    <span style={{fontWeight:800,fontSize:15,color:t.lime,lineHeight:1}}>{new Date(m.date).getDate()}</span>
+                    <span style={{fontSize:9,fontWeight:700,color:t.limeDeep,textTransform:"uppercase"}}>{new Date(m.date).toLocaleDateString("en-IN",{month:"short"})}</span>
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontWeight:600,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cName(m.cId)}</div>
+                    <div style={{fontSize:11,color:t.textMuted}}>{m.time}{m.loc?` · ${m.loc}`:""}</div>
+                  </div>
+                </div>
+              ))}
+          </DCardSec>
+
+          <DCardSec label="Needs Approval" onClick={()=>go("leaves")} t={t}>
+            {(()=>{
+              const items=[...data.leaves.filter(l=>l.status==="Pending"),...data.tasks.filter(tk=>tk.status==="Review"),...data.tasks.filter(tk=>tk.extRequest?.status==="Pending")].slice(0,4);
+              return items.length===0
+                ?<p style={{color:t.textMuted,fontSize:13}}>All clear — nothing pending.</p>
+                :items.map((item,i)=>{
+                  const u=data.users.find(u=>u.id===(item.uId||item.aId));
+                  const label=item.type?"Leave":item.status==="Review"?"Review":"Ext. Req";
+                  const col=item.type?"amber":"amber";
                   return(
-                    <div key={item.id} onClick={()=>go("leaves")} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:`1px solid ${t.border}`,cursor:"pointer"}}>
-                      <Av init={u?.av||"?"} size={30} t={t}/>
-                      <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:t.text}}>{u?.name}</div><div style={{fontSize:11,color:t.textMuted}}>{item.type} · {fd(item.from)}–{fd(item.to)}</div></div>
-                      <Badge label="Leave" color="amber" t={t} small/>
+                    <div key={item.id} onClick={()=>go(item.type?"leaves":"projects")} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,cursor:"pointer",transition:"background .12s",animation:`fadeUp .3s ${i*35}ms both`}}
+                      onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <Av init={u?.av||"?"} size={28} t={t}/>
+                      <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:600,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u?.name||item.title}</div></div>
+                      <Badge label={label} color={col} t={t}/>
                     </div>
                   );
-                } else if(item.status==="Review") { // It's a review task
-                  const u=data.users.find(u=>u.id===item.aId);
-                  return(
-                    <div key={item.id} onClick={()=>go("projects")} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:`1px solid ${t.border}`,cursor:"pointer"}}>
-                      <Av init={u?.av||"?"} size={30} t={t}/>
-                      <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:t.text}}>{item.title}</div><div style={{fontSize:11,color:t.textMuted}}>Task · {fd(item.due)}</div></div>
-                      <Badge label="Review" color="amber" t={t} small/>
-                    </div>
-                  );
-                } else { // It's an extension request
-                  const u=data.users.find(u=>u.id===item.aId);
-                  return(
-                    <div key={item.id} onClick={()=>go("projects")} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:`1px solid ${t.border}`,cursor:"pointer"}}>
-                      <Av init={u?.av||"?"} size={30} t={t}/>
-                      <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:t.text}}>{item.title}</div><div style={{fontSize:11,color:t.textMuted}}>Ext. Request · {fd(item.extRequest?.newDue)}</div></div>
-                      <Badge label="Pending" color="amber" t={t} small/>
-                    </div>
-                  );
-                }
-              });
-          })()}
-        </Card>
+                });
+            })()}
+          </DCardSec>
+        </div>
       </div>
+
+      {/* Client happiness */}
+      {data.clients.length>0&&(
+        <DCardSec label="Client Happiness" onClick={()=>go("clients")} t={t}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
+            {data.clients.map((c,i)=>(
+              <div key={c.id} onClick={()=>go("clients")} style={{padding:"14px 16px",background:t.surfaceAlt,borderRadius:12,cursor:"pointer",transition:"background .12s, transform .18s",animation:`fadeUp .3s ${i*40}ms both`}}
+                onMouseEnter={e=>{e.currentTarget.style.background=t.hover;e.currentTarget.style.transform="translateY(-2px)";}}
+                onMouseLeave={e=>{e.currentTarget.style.background=t.surfaceAlt;e.currentTarget.style.transform="translateY(0)";}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <span style={{fontSize:12,fontWeight:600,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{c.name.split(" ").slice(0,2).join(" ")}</span>
+                  <span style={{fontWeight:800,fontSize:15,color:c.score>=80?t.green:c.score>=65?t.amber:t.red,letterSpacing:"-0.03em",marginLeft:8}}>{c.score}%</span>
+                </div>
+                <PBar value={c.score} max={100} color={c.score>=80?"green":c.score>=65?"amber":"red"} t={t} delay={i*60}/>
+              </div>
+            ))}
+          </div>
+        </DCardSec>
+      )}
     </div>
   );
 }
@@ -909,6 +933,16 @@ Please open the app to accept or reject.
           <SHead t={t} title="Projects" sub="Organize and manage projects"
             action={canManage?<Btn t={t} v="lime" onClick={()=>setShowAddProj(true)} icon={<Plus size={14}/>}>New Project</Btn>:null}/>
 
+          {/* Quick stat chips */}
+          {(data.projects||[]).length>0&&<div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",animation:"fadeUp .25s ease both"}}>
+            {[["All Projects",(data.projects||[]).length,t.textMid,t.surfaceAlt],["In Progress",(data.projects||[]).filter(p=>p.status==="In Progress").length,t.blue,t.blueBg],["Review",(data.projects||[]).filter(p=>p.status==="Review").length,t.amber,t.amberBg],["Completed",(data.projects||[]).filter(p=>p.status==="Completed").length,t.green,t.greenBg],["Overdue",(data.projects||[]).filter(p=>p.deadline&&new Date(p.deadline)<new Date()&&p.status!=="Completed").length,t.red,t.redBg]].map(([l,v,c,bg])=>(
+              <div key={l} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 14px",borderRadius:99,background:bg,border:`1px solid ${c}22`}}>
+                <span style={{fontWeight:800,fontSize:14,color:c,letterSpacing:"-0.03em"}}>{v}</span>
+                <span style={{fontSize:12,fontWeight:500,color:c}}>{l}</span>
+              </div>
+            ))}
+          </div>}
+
           {/* Project search and filter */}
           <div style={{display:"flex",gap:10,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
             <div style={{position:"relative",flex:1,minWidth:200,maxWidth:300}}>
@@ -947,39 +981,61 @@ Please open the app to accept or reject.
                 const projTasks=data.tasks.filter(tk=>tk.projectId===proj.id);
                 const lead=data.users.find(u=>u.id===proj.projectLead);
                 const doneTasks=projTasks.filter(tk=>tk.status==="Completed").length;
-                return(
-                  <Card t={t} key={proj.id} onClick={()=>{setCurrentProject(proj);setView("tasks");}} style={{cursor:"pointer",animation:`fadeUp .3s ease ${i*40}ms both`,borderLeft:`4px solid ${PC(proj.priority)===true?"#84CC16":proj.priority==="High"?t.red:proj.priority==="Low"?t.green:t.amber}`}}>
-                    <div className="card-actions" style={{position:"absolute",top:10,right:10,display:"flex",gap:4,zIndex:10}}>
+                return (()=>{
+                  const pct=projTasks.length>0?Math.round((doneTasks/projTasks.length)*100):0;
+                  const pColor=proj.priority==="High"?t.red:proj.priority==="Low"?t.green:t.amber;
+                  const pColorBg=proj.priority==="High"?t.redBg:proj.priority==="Low"?t.greenBg:t.amberBg;
+                  const members=(proj.members||[]).map(id=>data.users.find(u=>u.id===id)).filter(Boolean).slice(0,4);
+                  return(
+                  <Card t={t} key={proj.id} onClick={()=>{setCurrentProject(proj);setView("tasks");}} style={{cursor:"pointer",animation:`fadeUp .3s ease ${i*40}ms both`,position:"relative",overflow:"hidden"}}>
+                    {/* Priority accent line */}
+                    <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,${pColor},${pColor}88)`,borderRadius:"16px 16px 0 0"}}/>
+                    <div className="card-actions" style={{position:"absolute",top:12,right:12,display:"flex",gap:4,zIndex:10}}>
                       {canManage&&(
                         <button onClick={e=>{e.stopPropagation();deleteProject(proj.id);}} style={{width:26,height:26,borderRadius:6,background:t.redBg,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.red}}><Trash2 size={11}/></button>
                       )}
                     </div>
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                      <div style={{width:40,height:40,borderRadius:10,background:t.limeBg,display:"flex",alignItems:"center",justifyContent:"center",color:t.lime,flexShrink:0}}><FolderKanban size={18}/></div>
+                    <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:14,paddingTop:4}}>
+                      <div style={{width:42,height:42,borderRadius:12,background:t.dark?"rgba(132,204,22,0.12)":t.limeBg,border:`1px solid ${t.lime}30`,display:"flex",alignItems:"center",justifyContent:"center",color:t.lime,flexShrink:0}}><FolderKanban size={19}/></div>
                       <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:15,color:t.text}}>{proj.name}</div>
-                        <div style={{fontSize:11,color:t.textMuted,marginTop:1}}>{proj.clientId?cName(proj.clientId):"No client"}</div>
+                        <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:15,color:t.text,lineHeight:1.3,paddingRight:30}}>{proj.name}</div>
+                        <div style={{fontSize:11,color:t.textMuted,marginTop:2,display:"flex",alignItems:"center",gap:8}}>
+                          <span>{proj.clientId?cName(proj.clientId):"No client"}</span>
+                          {proj.deadline&&<span style={{display:"flex",alignItems:"center",gap:3,color:isOverdue(proj.deadline)&&proj.status!=="Completed"?t.red:t.textMuted}}><Calendar size={9}/>{fd(proj.deadline)}</span>}
+                        </div>
                       </div>
                     </div>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,fontSize:11,color:t.textMuted,marginBottom:12,paddingBottom:12,borderBottom:`1px solid ${t.border}`}}>
-                      <div><span style={{fontWeight:600,color:t.textMid}}>Tasks</span><br/>{doneTasks}/{projTasks.length} done</div>
-                      <div><span style={{fontWeight:600,color:t.textMid}}>Deadline</span><br/>{fd(proj.deadline)||"—"}</div>
-                      {lead&&<div style={{gridColumn:"1/-1"}}><span style={{fontWeight:600,color:t.textMid}}>Lead</span><br/><div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}><Av init={lead.av} size={18} t={t}/>{lead.name}</div></div>}
+                    {/* Progress section */}
+                    <div style={{marginBottom:14}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                        <span style={{fontSize:11,fontWeight:600,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.05em"}}>Progress</span>
+                        <span style={{fontSize:12,fontWeight:700,color:pct===100?t.green:t.textMid}}>{doneTasks}/{projTasks.length} tasks · {pct}%</span>
+                      </div>
+                      <div style={{height:5,borderRadius:99,background:t.dark?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.06)",overflow:"hidden"}}>
+                        <div style={{height:"100%",width:`${pct}%`,background:pct===100?t.green:t.lime,borderRadius:99,transition:"width .6s cubic-bezier(.25,.46,.45,.94)"}}/>
+                      </div>
                     </div>
-                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                      {proj.status&&<Badge label={proj.status} color={SC(proj.status)} t={t} small/>}
-                      {proj.priority&&<Badge label={proj.priority} color={PC(proj.priority)} t={t} small/>}
+                    {/* Bottom row: badges + member avatars */}
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+                      <div style={{display:"flex",gap:5,flexWrap:"wrap",flex:1}}>
+                        {proj.status&&<Badge label={proj.status} color={SC(proj.status)} t={t} small/>}
+                        <span style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:99,fontSize:11,fontWeight:700,background:pColorBg,color:pColor}}>{proj.priority}</span>
+                      </div>
+                      {members.length>0&&<div style={{display:"flex",flexShrink:0}}>
+                        {members.map((u,mi)=><div key={u.id} title={u.name} style={{marginLeft:mi===0?0:-8,width:24,height:24,borderRadius:"50%",background:"rgba(132,204,22,0.15)",border:`2px solid ${t.card}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:t.lime,zIndex:members.length-mi}}>{u.av}</div>)}
+                        {lead&&!proj.members?.includes(lead.id)&&<div title={lead.name} style={{marginLeft:-8,width:24,height:24,borderRadius:"50%",background:"rgba(132,204,22,0.15)",border:`2px solid ${t.card}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:t.lime}}>{lead.av}</div>}
+                      </div>}
                     </div>
                     {/* Links row */}
-                    {(proj.briefAttachment||proj.outputLink||(proj.references||[]).filter(r=>r).length>0)&&(
-                      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8,paddingTop:8,borderTop:`1px solid ${t.border}`}} onClick={e=>e.stopPropagation()}>
+                    {(proj.briefAttachment||proj.outputLink)&&(
+                      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10,paddingTop:10,borderTop:`1px solid ${t.border}`}} onClick={e=>e.stopPropagation()}>
                         {proj.briefAttachment&&<a href={proj.briefAttachment} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 9px",background:t.blueBg,color:t.blue,borderRadius:7,fontSize:11,fontWeight:600,textDecoration:"none"}}><Link2 size={10}/>Brief Doc</a>}
                         {proj.outputLink&&<a href={proj.outputLink} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 9px",background:t.limeBg,color:t.limeDeep,borderRadius:7,fontSize:11,fontWeight:600,textDecoration:"none"}}><ExternalLink size={10}/>Output</a>}
-                        {(proj.references||[]).filter(r=>r).map((ref,ri)=><a key={ri} href={ref} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 9px",background:t.surfaceAlt,color:t.textMid,borderRadius:7,fontSize:11,fontWeight:600,textDecoration:"none"}}><Link2 size={10}/>Ref {ri+1}</a>)}
                       </div>
                     )}
                   </Card>
-                );
+                  );
+                })();
               })}
             </div>
           )}
@@ -1161,7 +1217,11 @@ Please open the app to accept or reject.
           const overdue=isOverdue(task.due)&&task.status!=="Completed"&&task.due;
           return(
             <div key={task.id} className="row-interactive" onClick={()=>setSel(task)}
-              style={{background:t.card,border:`1.5px solid ${overdue?t.red+"40":task.extRequest?.status==="Pending"?t.purple+"60":t.border}`,borderRadius:12,padding:"12px 14px",cursor:"pointer",animation:`fadeUp .3s ${i*28}ms both`,boxShadow:`0 1px 3px ${t.shadow}`,transition:"border-color .15s"}}>
+              style={{background:t.card,border:`1px solid ${overdue?t.red+"40":task.extRequest?.status==="Pending"?t.purple+"60":t.border}`,borderRadius:12,padding:"12px 14px 12px 18px",cursor:"pointer",animation:`fadeUp .3s ${i*28}ms both`,boxShadow:t.cardShadow,transition:"all .15s",position:"relative",overflow:"hidden"}}
+              onMouseEnter={e=>{e.currentTarget.style.boxShadow=t.cardShadowHover;e.currentTarget.style.transform="translateY(-1px)";}}
+              onMouseLeave={e=>{e.currentTarget.style.boxShadow=t.cardShadow;e.currentTarget.style.transform="translateY(0)";}}
+            >
+              <div style={{position:"absolute",left:0,top:0,bottom:0,width:4,borderRadius:"12px 0 0 12px",background:task.priority==="Urgent"?t.red:task.priority==="High"?t.amber:task.priority==="Medium"?t.blue:t.textMuted}}/>
               <div style={{display:"grid",gridTemplateColumns:"2.4fr 1.3fr 1fr .9fr .9fr 1fr",gap:10,alignItems:"center"}}>
                 <div>
                   <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
@@ -1466,7 +1526,7 @@ function TimeLogs({t,data,setData,toast,currentUser}){
 
                 return(
                   <div key={proj.id} style={{animation:`fadeUp .3s ease ${i*40}ms both`}}>
-                    <Card t={t} onClick={()=>setExpandedProj(isExpanded?null:proj.id)} style={{cursor:"pointer",borderLeft:`4px solid ${PC(proj.priority)===true?"#84CC16":proj.priority==="High"?t.red:proj.priority==="Low"?t.green:t.amber}`}}>
+                    <Card t={t} onClick={()=>setExpandedProj(isExpanded?null:proj.id)} style={{cursor:"pointer",borderLeft:`4px solid ${proj.priority==="High"?t.red:proj.priority==="Low"?t.green:t.amber}`}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
                         <div>
                           <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:14,color:t.text}}>{proj.name}</div>
@@ -2511,57 +2571,73 @@ function Team({t,data,setData,toast}){
         </div>
       </div>
 
-      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:16}} className="grid-1-mobile">
         {data.users.filter(u=>u.role!=="Admin"&&(searchQ===""||u.name.toLowerCase().includes(searchQ.toLowerCase()))&&(filterDept==="all"||u.dept===filterDept)).map((m,i)=>{
           const tasks=data.tasks.filter(tk=>tk.aId===m.id);
-          const dept=data.departments.find(d=>d.id===m.dept);
+          const done=tasks.filter(tk=>tk.status==="Completed").length;
+          const inProg=tasks.filter(tk=>tk.status==="In Progress").length;
+          const delayed=tasks.filter(tk=>tk.status==="Delayed").length;
           const today=new Date();
           const todayMD=`${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
           const isBday=m.dob&&m.dob.slice(5)===todayMD;
+          const dc=deptColor(m.dept);
           return(
-            <Card t={t} key={m.id} style={{animation:`fadeUp .36s ${i*45}ms both`,border:`1px solid ${isBday?t.amber+"60":t.border}`}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-                <div style={{display:"flex",alignItems:"center",gap:14}}>
-                  <div style={{position:"relative"}}><Av init={m.av} size={46} t={t} online={m.active}/>{isBday&&<div style={{position:"absolute",top:-4,right:-4,fontSize:14}}>🎂</div>}</div>
-                  <div>
-                    <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:15,color:t.text,display:"flex",alignItems:"center",gap:8}}>{m.name}{isBday&&<Badge label="Birthday Today!" color="amber" t={t} small/>}</div>
-                    <div style={{fontSize:12,color:t.textMuted,marginTop:3,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-                      <span style={{color:deptColor(m.dept),fontWeight:600}}>{deptName(m.dept)}</span>
-                      <span>{m.role}</span>
-                      {m.email&&<a href={`mailto:${m.email}`} style={{display:"flex",alignItems:"center",gap:4,color:t.blue,textDecoration:"none"}}><Mail size={11}/>{m.email}</a>}
-                      {m.phone&&<a href={`tel:${m.phone}`} style={{display:"flex",alignItems:"center",gap:4,color:t.blue,textDecoration:"none"}}><Phone size={11}/>{m.phone}</a>}
-                      {m.dob&&<span style={{display:"flex",alignItems:"center",gap:4}}><Cake size={11} color={t.textMuted}/>{new Date(m.dob).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</span>}
+            <div key={m.id} style={{background:t.card,border:`1px solid ${isBday?t.amber+"60":t.border}`,borderRadius:16,overflow:"hidden",boxShadow:t.cardShadow,animation:`fadeUp .36s ${i*40}ms both`,transition:"box-shadow .22s,transform .22s"}}
+              onMouseEnter={e=>{e.currentTarget.style.boxShadow=t.cardShadowHover;e.currentTarget.style.transform="translateY(-2px)";}}
+              onMouseLeave={e=>{e.currentTarget.style.boxShadow=t.cardShadow;e.currentTarget.style.transform="translateY(0)";}}>
+              {/* Color accent top bar */}
+              <div style={{height:3,background:`linear-gradient(90deg,${dc},${dc}55)`}}/>
+              <div style={{padding:"18px 18px 14px"}}>
+                {/* Header row */}
+                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:14}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{position:"relative"}}>
+                      <div style={{width:50,height:50,borderRadius:14,background:`${dc}18`,border:`2px solid ${dc}40`,color:dc,fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",letterSpacing:"-0.02em"}}>{m.av}</div>
+                      {m.active&&<div style={{position:"absolute",bottom:1,right:1,width:10,height:10,borderRadius:"50%",background:t.green,border:`2px solid ${t.card}`}}/>}
+                      {isBday&&<div style={{position:"absolute",top:-4,right:-4,fontSize:14}}>🎂</div>}
+                    </div>
+                    <div>
+                      <div style={{fontWeight:700,fontSize:14,color:t.text,lineHeight:1.3}}>{m.name}{isBday&&<span style={{marginLeft:6,fontSize:10,padding:"2px 7px",background:t.amberBg,color:t.amber,borderRadius:99,fontWeight:700}}>Birthday!</span>}</div>
+                      <div style={{fontSize:12,color:t.textMuted,marginTop:2}}>{m.role||"—"}</div>
+                      <div style={{fontSize:11,fontWeight:600,color:dc,marginTop:2}}>{deptName(m.dept)}</div>
                     </div>
                   </div>
+                  <div style={{display:"flex",gap:4}}>
+                    <button onClick={()=>setEditMember({...m})} style={{width:28,height:28,borderRadius:8,background:t.surfaceAlt,border:`1px solid ${t.border}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted,transition:"all .15s"}} onMouseEnter={e=>{e.currentTarget.style.color=t.blue;e.currentTarget.style.background=t.blueBg;}} onMouseLeave={e=>{e.currentTarget.style.color=t.textMuted;e.currentTarget.style.background=t.surfaceAlt;}}><Edit2 size={12}/></button>
+                    <button onClick={()=>del(m.id)} style={{width:28,height:28,borderRadius:8,background:t.surfaceAlt,border:`1px solid ${t.border}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:t.textMuted,transition:"all .15s"}} onMouseEnter={e=>{e.currentTarget.style.color=t.red;e.currentTarget.style.background=t.redBg;}} onMouseLeave={e=>{e.currentTarget.style.color=t.textMuted;e.currentTarget.style.background=t.surfaceAlt;}}><Trash2 size={12}/></button>
+                  </div>
                 </div>
-                <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                  {[["Tasks",tasks.length,"text"],["Done",tasks.filter(tk=>tk.status==="Completed").length,"lime"],["Delayed",tasks.filter(tk=>tk.status==="Delayed").length,"red"]].map(([l,v,c])=>(
-                    <div key={l} style={{textAlign:"center",padding:"7px 12px",background:t.surfaceAlt,borderRadius:10}}>
-                      <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:18,color:t[c]}}>{v}</div>
-                      <div style={{fontSize:9,textTransform:"uppercase",color:t.textMuted,fontWeight:600}}>{l}</div>
+                {/* Stats row */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:14}}>
+                  {[["Total",tasks.length,t.textMid],["Done",done,t.green],["Delayed",delayed,delayed>0?t.red:t.textMuted]].map(([l,v,c])=>(
+                    <div key={l} style={{textAlign:"center",padding:"8px 6px",background:t.surfaceAlt,borderRadius:10}}>
+                      <div style={{fontWeight:800,fontSize:20,color:c,lineHeight:1,letterSpacing:"-0.03em"}}>{v}</div>
+                      <div style={{fontSize:9,textTransform:"uppercase",color:t.textMuted,fontWeight:600,marginTop:2}}>{l}</div>
                     </div>
                   ))}
-                  <button onClick={()=>setEditMember({...m})} title="Edit" style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:6,borderRadius:8,display:"flex",transition:"color .15s"}} onMouseEnter={e=>e.currentTarget.style.color=t.text} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Edit2 size={14}/></button>
-                  <button onClick={()=>del(m.id)} title="Remove" style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,padding:6,borderRadius:8,display:"flex",transition:"color .15s"}} onMouseEnter={e=>e.currentTarget.style.color=t.red} onMouseLeave={e=>e.currentTarget.style.color=t.textMuted}><Trash2 size={14}/></button>
                 </div>
+                {/* Task progress bar */}
+                {tasks.length>0&&<div style={{marginBottom:12}}>
+                  <PBar value={done} max={tasks.length} color="lime" t={t} h={4} delay={i*40}/>
+                </div>}
+                {/* Contact info */}
+                <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                  {m.email&&<a href={`mailto:${m.email}`} style={{display:"flex",alignItems:"center",gap:4,color:t.blue,textDecoration:"none",fontSize:11,background:t.blueBg,padding:"3px 8px",borderRadius:6,fontWeight:500}}><Mail size={10}/>{m.email.split("@")[0]}</a>}
+                  {m.phone&&<a href={`tel:${m.phone}`} style={{display:"flex",alignItems:"center",gap:4,color:t.textMid,textDecoration:"none",fontSize:11,background:t.surfaceAlt,padding:"3px 8px",borderRadius:6,fontWeight:500}}><Phone size={10}/>{m.phone}</a>}
+                  {m.dob&&<span style={{display:"flex",alignItems:"center",gap:4,color:t.textMuted,fontSize:11,padding:"3px 8px",borderRadius:6,background:t.surfaceAlt}}><Cake size={10}/>{new Date(m.dob).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</span>}
+                </div>
+                {/* Active task preview */}
+                {inProg>0&&<div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${t.border}`}}>
+                  {tasks.filter(tk=>tk.status==="In Progress").slice(0,2).map(task=>(
+                    <div key={task.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0"}}>
+                      <div style={{width:6,height:6,borderRadius:"50%",background:t.blue,flexShrink:0}}/>
+                      <span style={{fontSize:11,color:t.textMid,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.title}</span>
+                      {task.startedAt&&<LiveTimer startedAt={task.startedAt} t={t} active/>}
+                    </div>
+                  ))}
+                </div>}
               </div>
-              {tasks.length>0&&(
-                <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:5}}>
-                  {tasks.map((task,j)=>(
-                    <div key={task.id} className="row-interactive" style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 12px",background:t.surfaceAlt,borderRadius:9}}>
-                      <div style={{display:"flex",alignItems:"center",gap:10}}>
-                        {task.status==="In Progress"&&task.startedAt&&<LiveTimer startedAt={task.startedAt} t={t} active/>}
-                        <span style={{fontSize:12,fontWeight:600,color:t.text}}>{task.title}</span>
-                      </div>
-                      <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                        <span style={{fontSize:11,color:isOverdue(task.due)&&task.status!=="Completed"?t.red:t.textMuted}}>Due {fd(task.due)}</span>
-                        <Badge label={task.status} color={SC(task.status)} t={t} small/>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
+            </div>
           );
         })}
       </div>
@@ -5063,7 +5139,7 @@ function App({firebaseUid}){
               </button>
             </div>
           </header>
-          <main key={pageKey} className="main-pad" style={{flex:1,overflow:"auto",padding:"32px",paddingBottom:"calc(32px + env(safe-area-inset-bottom))",animation:"fadeUp .25s ease both"}}>
+          <main key={pageKey} className="main-pad" style={{flex:1,overflow:"auto",padding:"32px",paddingBottom:"calc(32px + env(safe-area-inset-bottom))",animation:"pageFade .22s ease both"}}>
             <PageTip nav={nav} t={t}/>
             {pages[nav]}
           </main>
