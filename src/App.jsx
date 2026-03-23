@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { add as dfAdd, eachDayOfInterval as dfInterval, endOfMonth as dfEndOfMonth, endOfWeek as dfEndOfWeek, format as dfFmt, getDay as dfGetDay, isEqual as dfIsEqual, isSameDay as dfSameDay, isSameMonth as dfSameMonth, isToday as dfIsToday, parse as dfParse, startOfToday as dfToday, startOfWeek as dfStartOfWeek } from "date-fns";
 import { listDocs, createDoc, updateDoc_, deleteDoc_, COLS, loginUser, logoutUser, onAuth, getCurrentUser, inviteUser } from "./firebase";
 import {
   LayoutDashboard, FolderKanban, Clock3, TrendingUp, Briefcase, CalendarDays,
@@ -3452,147 +3453,169 @@ function AllotedBoard({t,data,setData,toast,currentUser}){
 
 // ── CALENDAR VIEW ─────────────────────────────────────────────────────────────
 function CalendarView({t,data,go}){
-  const [month,setMonth]=useState(()=>new Date());
+  const today=dfToday();
+  const [selectedDay,setSelectedDay]=useState(today);
+  const [currentMonth,setCurrentMonth]=useState(dfFmt(today,"MMM-yyyy"));
   const [filters,setFilters]=useState({tasks:true,leaves:true,meetings:true,holidays:true});
-  const [selDay,setSelDay]=useState(null); // date string for day detail popover
 
-  // Official Gazetted National Holidays of India 2026
-  // Source: Ministry of Personnel, Public Grievances & Pensions Circular
+  const firstDay=dfParse(currentMonth,"MMM-yyyy",new Date());
+  const days=dfInterval({start:dfStartOfWeek(firstDay),end:dfEndOfWeek(dfEndOfMonth(firstDay))});
+
   const HOLIDAYS=[
-    {name:"Makar Sankranti",       date:"2026-01-14"},
-    {name:"Republic Day",          date:"2026-01-26"},
-    {name:"Maha Shivaratri",       date:"2026-02-26"},
-    {name:"Holi",                  date:"2026-03-20"},
-    {name:"Id-ul-Fitr (Eid)",      date:"2026-03-31"},
-    {name:"Ram Navami",            date:"2026-04-02"},
-    {name:"Good Friday",           date:"2026-04-03"},
-    {name:"Dr. Ambedkar Jayanti",  date:"2026-04-14"},
-    {name:"Bakrid (Id-ul-Zuha)",   date:"2026-06-07"},
-    {name:"Muharram",              date:"2026-07-06"},
-    {name:"Independence Day",      date:"2026-08-15"},
-    {name:"Janmashtami",           date:"2026-08-24"},
-    {name:"Milad-un-Nabi",         date:"2026-09-05"},
-    {name:"Gandhi Jayanti",        date:"2026-10-02"},
-    {name:"Dussehra",              date:"2026-10-22"},
-    {name:"Diwali",                date:"2026-11-11"},
-    {name:"Guru Nanak Jayanti",    date:"2026-11-13"},
-    {name:"Christmas Day",         date:"2026-12-25"},
+    {name:"Makar Sankranti",date:"2026-01-14"},{name:"Republic Day",date:"2026-01-26"},
+    {name:"Maha Shivaratri",date:"2026-02-26"},{name:"Holi",date:"2026-03-20"},
+    {name:"Id-ul-Fitr (Eid)",date:"2026-03-31"},{name:"Ram Navami",date:"2026-04-02"},
+    {name:"Good Friday",date:"2026-04-03"},{name:"Dr. Ambedkar Jayanti",date:"2026-04-14"},
+    {name:"Bakrid (Id-ul-Zuha)",date:"2026-06-07"},{name:"Muharram",date:"2026-07-06"},
+    {name:"Independence Day",date:"2026-08-15"},{name:"Janmashtami",date:"2026-08-24"},
+    {name:"Milad-un-Nabi",date:"2026-09-05"},{name:"Gandhi Jayanti",date:"2026-10-02"},
+    {name:"Dussehra",date:"2026-10-22"},{name:"Diwali",date:"2026-11-11"},
+    {name:"Guru Nanak Jayanti",date:"2026-11-13"},{name:"Christmas Day",date:"2026-12-25"},
   ];
 
-  const y=month.getFullYear(), m=month.getMonth();
-  const first=new Date(y,m,1).getDay();
-  const days=new Date(y,m+1,0).getDate();
-  const cells=[];
-  for(let i=0;i<first;i++) cells.push(null);
-  for(let d=1;d<=days;d++) cells.push(new Date(y,m,d));
-
-  const ds=d=>d?`${y}-${String(m+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`:"";
-
   const eventsOn=d=>{
-    if(!d)return[];
-    const s=ds(d);
+    const s=dfFmt(d,"yyyy-MM-dd");
     const evs=[];
     if(filters.tasks){
-      // Task deadlines
-      data.tasks.filter(tk=>tk.due===s).forEach(tk=>evs.push({label:tk.title,color:t.red,type:"deadline",dot:"deadline"}));
-      // Task in-progress (shows on start date)
-      data.tasks.filter(tk=>tk.status==="In Progress"&&tk.startedAt&&tk.startedAt.startsWith(s)).forEach(tk=>evs.push({label:tk.title+" ⚡",color:t.amber,type:"in-progress",dot:"in-progress"}));
-      // Task started
-      data.tasks.filter(tk=>tk.startedAt&&tk.startedAt.startsWith(s)).forEach(tk=>evs.push({label:tk.title+" (started)",color:t.lime,type:"started",dot:"started"}));
-      // Task completed
-      data.tasks.filter(tk=>tk.status==="Completed"&&tk.completedAt===s).forEach(tk=>evs.push({label:tk.title+" ✓",color:t.green,type:"completed",dot:"completed"}));
+      data.tasks.filter(tk=>tk.due===s).forEach(tk=>evs.push({label:tk.title,color:t.red,type:"Deadline"}));
+      data.tasks.filter(tk=>tk.status==="In Progress"&&tk.startedAt&&tk.startedAt.startsWith(s)).forEach(tk=>evs.push({label:tk.title,color:t.amber,type:"Active"}));
+      data.tasks.filter(tk=>tk.status==="Completed"&&tk.completedAt===s).forEach(tk=>evs.push({label:tk.title,color:t.green,type:"Done"}));
     }
-    if(filters.leaves) data.leaves.filter(l=>l.status==="Approved"&&s>=l.from&&s<=l.to).forEach(l=>evs.push({label:(data.users.find(u=>u.id===l.uId)?.name||"?")+": Leave",color:t.blue,type:"leave",dot:"leave"}));
-    if(filters.meetings) data.meetings.filter(mt=>mt.date===s).forEach(mt=>evs.push({label:data.clients.find(c=>c.id===mt.cId)?.name||"Meeting",color:t.purple,type:"meeting",dot:"meeting"}));
-    if(filters.holidays) HOLIDAYS.filter(h=>h.date===s).forEach(h=>evs.push({label:h.name,color:t.amber,type:"holiday",dot:"holiday"}));
+    if(filters.leaves) data.leaves.filter(l=>l.status==="Approved"&&s>=l.from&&s<=l.to).forEach(l=>evs.push({label:(data.users.find(u=>u.id===l.uId)?.name||"?")+": Leave",color:t.blue,type:"Leave"}));
+    if(filters.meetings) data.meetings.filter(mt=>mt.date===s).forEach(mt=>evs.push({label:data.clients.find(c=>c.id===mt.cId)?.name||"Meeting",color:t.purple,type:"Meeting"}));
+    if(filters.holidays) HOLIDAYS.filter(h=>h.date===s).forEach(h=>evs.push({label:h.name,color:t.amber,type:"Holiday"}));
     return evs;
   };
 
-  const todayStr=new Date().toISOString().split("T")[0];
+  const prevMonth=()=>setCurrentMonth(dfFmt(dfAdd(firstDay,{months:-1}),"MMM-yyyy"));
+  const nextMonth=()=>setCurrentMonth(dfFmt(dfAdd(firstDay,{months:1}),"MMM-yyyy"));
+  const goToToday=()=>{setCurrentMonth(dfFmt(today,"MMM-yyyy"));setSelectedDay(today);};
   const toggleFilter=k=>setFilters(p=>({...p,[k]:!p[k]}));
 
   const FILTER_LABELS=[
-    {key:"tasks",   label:"Tasks",    color:t.lime},
-    {key:"leaves",  label:"Leaves",   color:t.blue},
-    {key:"meetings",label:"Meetings", color:t.purple},
-    {key:"holidays",label:"Holidays", color:t.amber},
+    {key:"tasks",label:"Tasks",color:t.lime},
+    {key:"leaves",label:"Leaves",color:t.blue},
+    {key:"meetings",label:"Meetings",color:t.purple},
+    {key:"holidays",label:"Holidays",color:t.amber},
   ];
 
+  const selectedEvs=eventsOn(selectedDay);
+
+  const btnBase={background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:9,padding:"6px 12px",cursor:"pointer",color:t.text,fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:5,transition:"background .12s",fontFamily:"'Inter',sans-serif"};
+
   return(
-    <div>
-      <SHead t={t} title="Calendar" sub="Tasks, leaves, meetings, and national holidays"/>
-      {/* Filter row */}
-      <div style={{display:"flex",gap:7,marginBottom:16,flexWrap:"wrap"}}>
-        {FILTER_LABELS.map(({key,label,color})=>(
-          <button key={key} onClick={()=>toggleFilter(key)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 13px",borderRadius:99,border:`1.5px solid ${filters[key]?color:t.border}`,background:filters[key]?color+"22":"transparent",color:filters[key]?color:t.textMuted,fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .15s"}}>
-            <div style={{width:8,height:8,borderRadius:"50%",background:filters[key]?color:t.border,transition:"background .15s"}}/>
-            {label}
-          </button>
-        ))}
+    <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 120px)",animation:"pageEnter .28s ease both"}}>
+
+      {/* ── Header ── */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:12,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          {/* Today widget */}
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",borderRadius:12,border:`1px solid ${t.border}`,background:t.surfaceAlt,padding:"4px 10px",minWidth:54,flexShrink:0}}>
+            <span style={{fontSize:9,fontWeight:700,textTransform:"uppercase",color:t.textMuted,letterSpacing:"0.1em"}}>{dfFmt(today,"MMM")}</span>
+            <span style={{fontSize:22,fontWeight:800,color:t.text,lineHeight:1.1}}>{dfFmt(today,"d")}</span>
+          </div>
+          <div>
+            <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:17,color:t.text,letterSpacing:"-0.02em"}}>{dfFmt(firstDay,"MMMM yyyy")}</div>
+            <div style={{fontSize:12,color:t.textMuted,marginTop:2}}>{dfFmt(firstDay,"MMM d")} — {dfFmt(dfEndOfMonth(firstDay),"MMM d, yyyy")}</div>
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+          {/* Filter chips */}
+          {FILTER_LABELS.map(({key,label,color})=>(
+            <button key={key} onClick={()=>toggleFilter(key)} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 11px",borderRadius:99,border:`1.5px solid ${filters[key]?color:t.border}`,background:filters[key]?color+"18":"transparent",color:filters[key]?color:t.textMuted,fontSize:11,fontWeight:600,cursor:"pointer",transition:"all .14s",fontFamily:"'Inter',sans-serif"}}>
+              <div style={{width:7,height:7,borderRadius:"50%",background:filters[key]?color:t.border,flexShrink:0}}/>
+              {label}
+            </button>
+          ))}
+          <div style={{width:1,height:22,background:t.border,margin:"0 2px"}}/>
+          {/* Month nav */}
+          <div style={{display:"flex"}}>
+            <button onClick={prevMonth} style={{...btnBase,borderRadius:"9px 0 0 9px",borderRight:"none",padding:"6px 10px"}}><ChevronLeft size={14}/></button>
+            <button onClick={goToToday} style={{...btnBase,borderRadius:0,borderRight:"none",padding:"6px 14px"}}>Today</button>
+            <button onClick={nextMonth} style={{...btnBase,borderRadius:"0 9px 9px 0",padding:"6px 10px"}}><ChevronRight size={14}/></button>
+          </div>
+        </div>
       </div>
-      {/* Month nav */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <button onClick={()=>setMonth(d=>{const n=new Date(d);n.setMonth(n.getMonth()-1);return n;})} style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:9,padding:"7px 13px",cursor:"pointer",color:t.text,fontSize:13,fontWeight:600,display:"flex",alignItems:"center"}}><ChevronLeft size={14}/></button>
-        <div style={{fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:17,color:t.text}}>{month.toLocaleString("en-IN",{month:"long",year:"numeric"})}</div>
-        <button onClick={()=>setMonth(d=>{const n=new Date(d);n.setMonth(n.getMonth()+1);return n;})} style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:9,padding:"7px 13px",cursor:"pointer",color:t.text,fontSize:13,fontWeight:600,display:"flex",alignItems:"center"}}><ChevronRight size={14}/></button>
-      </div>
-      {/* Day headers */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:6}}>
-        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=>(
-          <div key={d} style={{textAlign:"center",fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em",padding:"5px 0"}}>{d}</div>
-        ))}
-      </div>
-      {/* Grid */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
-        {cells.map((d,i)=>{
-          const s=ds(d);
-          const isToday=s===todayStr;
-          const isSun=d&&d.getDay()===0;
-          const evs=eventsOn(d);
-          const shown=evs.slice(0,3);
-          const more=evs.length-3;
-          return(
-            <div key={i} onClick={()=>d&&setSelDay(selDay===s?null:s)}
-              style={{minHeight:70,background:isToday?t.limeBg:isSun?t.redBg:t.card,border:`1px solid ${isToday?t.lime:selDay===s?t.blue:t.border}`,borderRadius:10,padding:"5px 6px",opacity:d?1:0,cursor:d?"pointer":"default",transition:"border-color .12s"}}>
-              {d&&<div style={{fontSize:11,fontWeight:700,color:isToday?t.limeDeep:isSun?t.red:t.textMuted,marginBottom:3}}>{d.getDate()}</div>}
-              {shown.map((ev,j)=>(
-                <div key={j} style={{fontSize:9,padding:"1px 4px",borderRadius:3,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",background:ev.color+"22",color:ev.color,fontWeight:700}}>{ev.label}</div>
-              ))}
-              {more>0&&<div style={{fontSize:9,color:t.textMuted,fontWeight:700}}>+{more} more</div>}
-            </div>
-          );
-        })}
-      </div>
-      {/* Day detail panel */}
-      {selDay&&(()=>{
-        const dayEvs=eventsOn(new Date(selDay));
-        const dObj=new Date(selDay+"T12:00:00");
-        return(
-          <div style={{marginTop:16,padding:"16px 18px",background:t.surfaceAlt,borderRadius:14,border:`1px solid ${t.border}`,animation:"fadeUp .25s both"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:14,color:t.text}}>{dObj.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div>
-              <button onClick={()=>setSelDay(null)} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted}}><X size={14}/></button>
-            </div>
-            {dayEvs.length===0&&<div style={{fontSize:13,color:t.textMuted}}>Nothing scheduled.</div>}
-            <div style={{display:"flex",flexDirection:"column",gap:7}}>
-              {dayEvs.map((ev,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",background:t.card,borderRadius:9,border:`1px solid ${ev.color}30`}}>
-                  <div style={{width:8,height:8,borderRadius:"50%",background:ev.color,flexShrink:0}}/>
-                  <span style={{fontSize:13,color:t.text,fontWeight:500}}>{ev.label}</span>
-                  <span style={{marginLeft:"auto",fontSize:10,color:ev.color,fontWeight:700,textTransform:"uppercase"}}>{ev.type}</span>
+
+      {/* ── Calendar grid ── */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden",minHeight:0}}>
+        {/* Weekday headers */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",background:t.surfaceAlt,flexShrink:0}}>
+          {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d,i)=>(
+            <div key={d} style={{textAlign:"center",fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em",padding:"9px 0",borderRight:i<6?`1px solid ${t.border}`:"none"}}>{d}</div>
+          ))}
+        </div>
+        {/* Days grid */}
+        <div style={{flex:1,display:"grid",gridTemplateColumns:"repeat(7,1fr)",gridAutoRows:"minmax(0,1fr)",overflowY:"auto"}}>
+          {days.map((day,idx)=>{
+            const evs=eventsOn(day);
+            const inMonth=dfSameMonth(day,firstDay);
+            const isTod=dfIsToday(day);
+            const isSel=dfIsEqual(day,selectedDay);
+            const isSun=dfGetDay(day)===0;
+            const shown=evs.slice(0,2);
+            const more=evs.length-2;
+            const bg=!inMonth?(t.dark?"rgba(255,255,255,0.015)":t.surfaceAlt):isTod?t.limeBg:t.card;
+            return(
+              <div key={idx} onClick={()=>setSelectedDay(day)}
+                style={{borderRight:(idx+1)%7===0?"none":`1px solid ${t.border}`,borderBottom:idx<days.length-7?`1px solid ${t.border}`:"none",padding:"7px 8px",background:isSel&&!isTod?t.hover:bg,cursor:"pointer",transition:"background .1s",minHeight:80,display:"flex",flexDirection:"column"}}
+                onMouseEnter={e=>{if(!isSel&&!isTod)e.currentTarget.style.background=t.hover;}}
+                onMouseLeave={e=>{e.currentTarget.style.background=isSel&&!isTod?t.hover:bg;}}>
+                {/* Day number */}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:5}}>
+                  <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:26,height:26,borderRadius:"50%",fontSize:12,fontWeight:isTod||isSel?700:500,background:isTod?(isSel?"#000":t.lime):isSel?t.text:"transparent",color:isTod?(isSel?"#fff":t.dark?"#000":"#0a0a0a"):isSel?(t.dark?t.bg:"#fff"):!inMonth?t.textMuted:isSun?t.red:t.text,transition:"all .12s",flexShrink:0}}>
+                    {dfFmt(day,"d")}
+                  </span>
+                  {isTod&&!isSel&&<span style={{fontSize:9,fontWeight:700,color:t.limeDeep,background:t.limeBg,padding:"1px 5px",borderRadius:99,letterSpacing:"0.04em"}}>TODAY</span>}
                 </div>
-              ))}
+                {/* Events */}
+                <div style={{display:"flex",flexDirection:"column",gap:2,flex:1}}>
+                  {shown.map((ev,j)=>(
+                    <div key={j} style={{fontSize:10,fontWeight:600,padding:"2px 6px",borderRadius:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",background:ev.color+"20",color:ev.color,borderLeft:`2px solid ${ev.color}`}}>
+                      {ev.label}
+                    </div>
+                  ))}
+                  {more>0&&<div style={{fontSize:9,color:t.textMuted,fontWeight:600,paddingLeft:4}}>+{more} more</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Selected day panel ── */}
+      <div style={{flexShrink:0,marginTop:12,padding:"14px 18px",background:t.surfaceAlt,borderRadius:14,border:`1px solid ${t.border}`,animation:"fadeUp .22s both"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:32,height:32,borderRadius:8,background:dfIsToday(selectedDay)?t.lime:t.hover,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <span style={{fontSize:13,fontWeight:800,color:dfIsToday(selectedDay)?(t.dark?"#000":"#0a0a0a"):t.text}}>{dfFmt(selectedDay,"d")}</span>
+            </div>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:t.text}}>{dfFmt(selectedDay,"EEEE, MMMM d, yyyy")}</div>
+              <div style={{fontSize:11,color:t.textMuted}}>{selectedEvs.length===0?"Nothing scheduled":`${selectedEvs.length} event${selectedEvs.length!==1?"s":""}`}</div>
             </div>
           </div>
-        );
-      })()}
-      {/* Legend */}
-      <div style={{display:"flex",gap:14,marginTop:14,flexWrap:"wrap"}}>
-        {[["Deadline",t.red],["Started",t.lime],["Completed",t.green],["Leave",t.blue],["Meeting",t.purple],["Holiday",t.amber]].map(([l,c])=>(
-          <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:t.textMuted}}>
-            <div style={{width:9,height:9,borderRadius:2,background:c}}/>{l}
+          {/* Legend */}
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",justifyContent:"flex-end"}}>
+            {[["Deadline",t.red],["Active",t.amber],["Done",t.green],["Leave",t.blue],["Meeting",t.purple],["Holiday",t.amber]].map(([l,c])=>(
+              <div key={l} style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:t.textMuted}}>
+                <div style={{width:8,height:8,borderRadius:2,background:c,flexShrink:0}}/>{l}
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+        {selectedEvs.length===0?(
+          <div style={{fontSize:13,color:t.textMuted,fontStyle:"italic",paddingLeft:42}}>Free day — nothing on the calendar.</div>
+        ):(
+          <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:180,overflowY:"auto"}}>
+            {selectedEvs.map((ev,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:t.card,borderRadius:9,border:`1px solid ${ev.color}30`,borderLeft:`3px solid ${ev.color}`}}>
+                <span style={{fontSize:13,color:t.text,fontWeight:500,flex:1}}>{ev.label}</span>
+                <span style={{fontSize:10,color:ev.color,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",background:ev.color+"18",padding:"2px 8px",borderRadius:99}}>{ev.type}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
