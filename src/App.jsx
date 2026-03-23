@@ -286,6 +286,191 @@ function Modal({open,onClose,title,children,t,w=560,subtitle}){
     </div>
   );
 }
+// ── DATE PICKER (date only) ────────────────────────────────────────────────
+function DatePicker({value,onChange,t,placeholder="Pick a date",disabled=false}){
+  const [open,setOpen]=useState(false);
+  const [viewMonth,setViewMonth]=useState(()=>value?new Date(value):new Date());
+  const ref=useRef(null);
+  useEffect(()=>{
+    if(!open)return;
+    const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    document.addEventListener("mousedown",h);
+    return()=>document.removeEventListener("mousedown",h);
+  },[open]);
+  const firstDay=dfParse(dfFmt(viewMonth,"MMM-yyyy"),"MMM-yyyy",new Date());
+  const days=dfInterval({start:dfStartOfWeek(firstDay),end:dfEndOfWeek(dfEndOfMonth(firstDay))});
+  const selDate=value?new Date(value):null;
+  const displayVal=value?dfFmt(new Date(value),"MMM d, yyyy"):null;
+  const pick=day=>{onChange(dfFmt(day,"yyyy-MM-dd"));setOpen(false);};
+  const btnS={background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"4px 8px",cursor:"pointer",color:t.text,display:"flex",alignItems:"center",transition:"background .1s"};
+  return(
+    <div ref={ref} style={{position:"relative",display:"block",width:"100%"}}>
+      <button type="button" disabled={disabled} onClick={()=>!disabled&&setOpen(p=>!p)}
+        style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:10,border:`1px solid ${open?t.lime:t.border}`,background:t.dark?t.surface:"#ffffff",color:displayVal?t.text:t.textMuted,fontSize:13,fontWeight:displayVal?500:400,cursor:disabled?"default":"pointer",width:"100%",textAlign:"left",transition:"border-color .14s",fontFamily:"'Inter',sans-serif",opacity:disabled?0.5:1}}>
+        <CalendarDays size={14} color={t.textMuted} style={{flexShrink:0}}/>
+        <span style={{flex:1}}>{displayVal||placeholder}</span>
+        <ChevronDown size={12} color={t.textMuted} style={{transform:open?"rotate(180deg)":"none",transition:"transform .14s",flexShrink:0}}/>
+      </button>
+      {open&&(
+        <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,zIndex:10001,background:t.dark?t.surface:"#ffffff",border:`1px solid ${t.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.18),0 2px 8px rgba(0,0,0,0.08)",padding:14,minWidth:268,animation:"scaleIn .16s ease both",transformOrigin:"top left"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:-1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronLeft size={13}/></button>
+            <span style={{fontWeight:700,fontSize:12,color:t.text}}>{dfFmt(viewMonth,"MMMM yyyy")}</span>
+            <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronRight size={13}/></button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
+            {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:9,fontWeight:700,color:t.textMuted,padding:"2px 0"}}>{d}</div>)}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
+            {days.map((day,i)=>{
+              const inM=dfSameMonth(day,firstDay),isTod=dfIsToday(day);
+              const isSel=selDate&&dfFmt(day,"yyyy-MM-dd")===dfFmt(selDate,"yyyy-MM-dd");
+              return(
+                <button key={i} type="button" onClick={()=>pick(day)}
+                  style={{width:"100%",aspectRatio:"1",borderRadius:8,background:isSel?(isTod?t.lime:t.text):isTod?t.limeBg:"transparent",color:isSel?(isTod?t.dark?"#000":"#000":t.dark?t.bg:"#fff"):isTod?t.limeDeep:!inM?t.textMuted:t.text,fontSize:11,fontWeight:isTod||isSel?700:400,border:"none",cursor:"pointer",transition:"background .1s",opacity:!inM&&!isSel?0.38:1}}
+                  onMouseEnter={e=>{if(!isSel)e.currentTarget.style.background=t.hover;}}
+                  onMouseLeave={e=>{e.currentTarget.style.background=isSel?(isTod?t.lime:t.text):isTod?t.limeBg:"transparent";}}>
+                  {dfFmt(day,"d")}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",marginTop:10,paddingTop:10,borderTop:`1px solid ${t.border}`}}>
+            <button type="button" onClick={()=>{onChange("");setOpen(false);}} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,fontSize:11,padding:0,fontFamily:"'Inter',sans-serif"}}>Clear</button>
+            <button type="button" onClick={()=>{pick(dfToday());}} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:7,padding:"4px 12px",cursor:"pointer",color:t.text,fontSize:11,fontWeight:600,fontFamily:"'Inter',sans-serif"}}>Today</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── DATE+TIME PICKER ──────────────────────────────────────────────────────
+function DateTimePicker({value,onChange,t,placeholder="Pick date & time",disabled=false}){
+  const [open,setOpen]=useState(false);
+  const parsed=value?new Date(value.length===10?value+"T12:00":value):null;
+  const [viewMonth,setViewMonth]=useState(()=>parsed||new Date());
+  const [selDate,setSelDate]=useState(()=>parsed);
+  const [hour,setHour]=useState(()=>parsed?(parsed.getHours()%12||12).toString().padStart(2,"0"):"09");
+  const [minute,setMinute]=useState(()=>parsed?parsed.getMinutes().toString().padStart(2,"0"):"00");
+  const [ampm,setAmpm]=useState(()=>parsed?parsed.getHours()>=12?"PM":"AM":"AM");
+  const ref=useRef(null);
+  useEffect(()=>{
+    if(!open)return;
+    const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    document.addEventListener("mousedown",h);
+    return()=>document.removeEventListener("mousedown",h);
+  },[open]);
+  const firstDay=dfParse(dfFmt(viewMonth,"MMM-yyyy"),"MMM-yyyy",new Date());
+  const days=dfInterval({start:dfStartOfWeek(firstDay),end:dfEndOfWeek(dfEndOfMonth(firstDay))});
+  const displayVal=value?(()=>{try{const d=new Date(value.length===10?value+"T12:00":value);return dfFmt(d,"MMM d, yyyy")+" · "+dfFmt(d,"h:mm aa");}catch{return value;}})():null;
+  const confirm=()=>{
+    if(!selDate)return;
+    const d=new Date(selDate);
+    let h=parseInt(hour);
+    if(ampm==="PM"&&h<12)h+=12;
+    if(ampm==="AM"&&h===12)h=0;
+    d.setHours(h,parseInt(minute),0,0);
+    onChange(dfFmt(d,"yyyy-MM-dd'T'HH:mm"));
+    setOpen(false);
+  };
+  const btnS={background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"4px 8px",cursor:"pointer",color:t.text,display:"flex",alignItems:"center",transition:"background .1s"};
+  const selS={...{padding:"5px 6px",borderRadius:8,border:`1px solid ${t.border}`,background:t.dark?t.surface:"#ffffff",color:t.text,fontSize:12,fontFamily:"'Inter',sans-serif",cursor:"pointer",outline:"none"}};
+  return(
+    <div ref={ref} style={{position:"relative",display:"block",width:"100%"}}>
+      <button type="button" disabled={disabled} onClick={()=>!disabled&&setOpen(p=>!p)}
+        style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:10,border:`1px solid ${open?t.lime:t.border}`,background:t.dark?t.surface:"#ffffff",color:displayVal?t.text:t.textMuted,fontSize:13,fontWeight:displayVal?500:400,cursor:disabled?"default":"pointer",width:"100%",textAlign:"left",transition:"border-color .14s",fontFamily:"'Inter',sans-serif",opacity:disabled?0.5:1}}>
+        <CalendarDays size={14} color={t.textMuted} style={{flexShrink:0}}/>
+        <span style={{flex:1}}>{displayVal||placeholder}</span>
+        <ChevronDown size={12} color={t.textMuted} style={{transform:open?"rotate(180deg)":"none",transition:"transform .14s",flexShrink:0}}/>
+      </button>
+      {open&&(
+        <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,zIndex:10001,background:t.dark?t.surface:"#ffffff",border:`1px solid ${t.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.18),0 2px 8px rgba(0,0,0,0.08)",padding:14,minWidth:280,animation:"scaleIn .16s ease both",transformOrigin:"top left"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:-1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronLeft size={13}/></button>
+            <span style={{fontWeight:700,fontSize:12,color:t.text}}>{dfFmt(viewMonth,"MMMM yyyy")}</span>
+            <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronRight size={13}/></button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
+            {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:9,fontWeight:700,color:t.textMuted,padding:"2px 0"}}>{d}</div>)}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:12}}>
+            {days.map((day,i)=>{
+              const inM=dfSameMonth(day,firstDay),isTod=dfIsToday(day);
+              const isSel=selDate&&dfFmt(day,"yyyy-MM-dd")===dfFmt(selDate,"yyyy-MM-dd");
+              return(
+                <button key={i} type="button" onClick={()=>{setSelDate(day);setViewMonth(day);}}
+                  style={{width:"100%",aspectRatio:"1",borderRadius:8,background:isSel?(isTod?t.lime:t.text):isTod?t.limeBg:"transparent",color:isSel?(isTod?"#000":t.dark?t.bg:"#fff"):isTod?t.limeDeep:!inM?t.textMuted:t.text,fontSize:11,fontWeight:isTod||isSel?700:400,border:"none",cursor:"pointer",transition:"background .1s",opacity:!inM&&!isSel?0.38:1}}
+                  onMouseEnter={e=>{if(!isSel)e.currentTarget.style.background=t.hover;}}
+                  onMouseLeave={e=>{e.currentTarget.style.background=isSel?(isTod?t.lime:t.text):isTod?t.limeBg:"transparent";}}>
+                  {dfFmt(day,"d")}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{paddingTop:10,borderTop:`1px solid ${t.border}`,marginBottom:12}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <Timer size={13} color={t.textMuted} style={{flexShrink:0}}/>
+              <select value={hour} onChange={e=>setHour(e.target.value)} style={{...selS,width:58}}>
+                {Array.from({length:12},(_,i)=>(i+1).toString().padStart(2,"0")).map(h=><option key={h} value={h}>{h}</option>)}
+              </select>
+              <span style={{color:t.textMuted,fontWeight:700,fontSize:14}}>:</span>
+              <select value={minute} onChange={e=>setMinute(e.target.value)} style={{...selS,width:58}}>
+                {["00","15","30","45"].map(m=><option key={m} value={m}>{m}</option>)}
+              </select>
+              <select value={ampm} onChange={e=>setAmpm(e.target.value)} style={{...selS,width:60}}>
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+              </select>
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <button type="button" onClick={()=>{onChange("");setSelDate(null);setOpen(false);}} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,fontSize:11,padding:0,fontFamily:"'Inter',sans-serif"}}>Clear</button>
+            <div style={{display:"flex",gap:7}}>
+              <button type="button" onClick={()=>setOpen(false)} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${t.border}`,background:"transparent",color:t.text,fontSize:12,fontWeight:500,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>Cancel</button>
+              <button type="button" onClick={confirm} disabled={!selDate} style={{padding:"6px 14px",borderRadius:8,border:"none",background:selDate?t.lime:"rgba(0,0,0,0.08)",color:selDate?"#000":t.textMuted,fontSize:12,fontWeight:700,cursor:selDate?"pointer":"default",fontFamily:"'Inter',sans-serif",transition:"all .14s"}}>Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── DROP MENU ─────────────────────────────────────────────────────────────
+function DropMenu({trigger,items,t,align="left"}){
+  const [open,setOpen]=useState(false);
+  const ref=useRef(null);
+  useEffect(()=>{
+    if(!open)return;
+    const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    document.addEventListener("mousedown",h);
+    return()=>document.removeEventListener("mousedown",h);
+  },[open]);
+  return(
+    <div ref={ref} style={{position:"relative",display:"inline-block"}}>
+      <div onClick={()=>setOpen(p=>!p)}>{trigger}</div>
+      {open&&(
+        <div style={{position:"absolute",top:"calc(100% + 4px)",[align==="right"?"right":"left"]:0,zIndex:10001,background:t.dark?t.surface:"#ffffff",border:`1px solid ${t.border}`,borderRadius:12,boxShadow:"0 8px 24px rgba(0,0,0,0.16),0 2px 6px rgba(0,0,0,0.06)",minWidth:160,padding:"4px",animation:"scaleIn .14s ease both",transformOrigin:align==="right"?"top right":"top left"}}>
+          {items.map((item,i)=>
+            item===null?(
+              <div key={i} style={{height:1,background:t.border,margin:"3px 0"}}/>
+            ):(
+              <button key={i} onClick={()=>{item.onClick?.();setOpen(false);}}
+                style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"8px 10px",background:"none",border:"none",borderRadius:8,cursor:item.danger?"pointer":"pointer",color:item.danger?t.red:t.text,fontSize:13,fontWeight:500,textAlign:"left",transition:"background .1s",fontFamily:"'Inter',sans-serif"}}
+                onMouseEnter={e=>e.currentTarget.style.background=item.danger?t.redBg:t.hover}
+                onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                {item.icon&&<span style={{color:item.danger?t.red:t.textMuted,display:"flex",alignItems:"center"}}>{item.icon}</span>}
+                {item.label}
+              </button>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SHead({title,sub,action,t}){
   return(
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:28,animation:"fadeUp .28s ease both"}}>
@@ -1077,7 +1262,7 @@ Please open the app to accept or reject.
             </Field>
             {/* Deadline with time & weekend warning */}
             <Field label="Deadline (Date + Time)" t={t}>
-              <Inp type="datetime-local" value={projForm.deadline} onChange={e=>{setProjForm(p=>({...p,deadline:e.target.value}));checkProjDue(e.target.value);}} t={t}/>
+              <DateTimePicker value={projForm.deadline} onChange={v=>{setProjForm(p=>({...p,deadline:v}));checkProjDue(v);}} t={t} placeholder="Pick date & time"/>
               {projDueWarn&&<div style={{fontSize:11,color:t.amber,marginTop:4,display:"flex",alignItems:"center",gap:4}}><AlertTriangle size={11}/>{projDueWarn}</div>}
             </Field>
             {/* Brief + attachment */}
@@ -1410,7 +1595,7 @@ Please open the app to accept or reject.
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,margin:"8px 0"}}>
                 <Field label="Allocated To" t={t}><Sel value={newSubtask.aId} onChange={e=>setNewSubtask(p=>({...p,aId:e.target.value}))} t={t}><option value="">Select member</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
                 <Field label="Department" t={t}><Sel value={newSubtask.deptId} onChange={e=>setNewSubtask(p=>({...p,deptId:e.target.value}))} t={t}><option value="">Select dept</option>{data.departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</Sel></Field>
-                <Field label="Deadline" t={t}><div style={{display:"flex",gap:5}}><Inp type="date" value={newSubtask.due} onChange={e=>setNewSubtask(p=>({...p,due:e.target.value}))} t={t}/><Inp type="time" value={newSubtask.dueTime} onChange={e=>setNewSubtask(p=>({...p,dueTime:e.target.value}))} t={t} style={{width:95}}/></div></Field>
+                <Field label="Deadline" t={t}><DatePicker value={newSubtask.due} onChange={v=>setNewSubtask(p=>({...p,due:v}))} t={t} placeholder="Pick date"/></Field>
                 <Field label="Est. Hours" t={t}><Inp type="number" value={newSubtask.est} onChange={e=>setNewSubtask(p=>({...p,est:e.target.value}))} placeholder="e.g. 3" t={t}/></Field>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
@@ -1436,14 +1621,18 @@ Please open the app to accept or reject.
           <Field label="Department" t={t}><DeptSel value={form.deptId} onChange={v=>setForm(p=>({...p,deptId:v}))} data={data} setData={setData} t={t} toast={toast}/></Field>
           <Field label="Priority" t={t}><Sel value={form.priority} onChange={e=>setForm(p=>({...p,priority:e.target.value}))} t={t}>{["High","Medium","Low"].map(x=><option key={x}>{x}</option>)}</Sel></Field>
           <Field label={`Deadline ${form.noDeadline?"(HoD will propose)":""}`} t={t}>
-            <Inp type="date" value={form.noDeadline?"":form.due} disabled={form.noDeadline} onChange={e=>{setForm(p=>({...p,due:e.target.value}));checkDue(e.target.value);}} t={t}/>
+            <DatePicker value={form.noDeadline?"":form.due} disabled={form.noDeadline} onChange={v=>{setForm(p=>({...p,due:v}));checkDue(v);}} t={t} placeholder="Pick deadline date"/>
             {dueWarn&&<div style={{fontSize:11,color:t.amber,marginTop:4,display:"flex",alignItems:"center",gap:4}}><AlertTriangle size={11}/>{dueWarn}</div>}
             <label style={{display:"flex",alignItems:"center",gap:6,marginTop:6,fontSize:12,color:t.textMuted,cursor:"pointer"}}>
               <input type="checkbox" checked={form.noDeadline} onChange={e=>setForm(p=>({...p,noDeadline:e.target.checked,due:e.target.checked?"":p.due}))}/>
               Let HoD propose deadline
             </label>
           </Field>
-          <Field label="Time" t={t}><Inp type="time" value={form.dueTime} onChange={e=>setForm(p=>({...p,dueTime:e.target.value}))} t={t}/></Field>
+          <Field label="Time" t={t}>
+            <select value={form.dueTime} onChange={e=>setForm(p=>({...p,dueTime:e.target.value}))} style={{padding:"8px 10px",borderRadius:10,border:`1px solid ${t.border}`,background:t.dark?t.surface:"#ffffff",color:t.text,fontSize:13,fontFamily:"'Inter',sans-serif",width:"100%",cursor:"pointer",outline:"none"}}>
+              {Array.from({length:24},(_,h)=>["00","15","30","45"].map(m=>`${String(h).padStart(2,"0")}:${m}`)).flat().map(v=><option key={v} value={v}>{(()=>{const [hh,mm]=v.split(":");const h=parseInt(hh);return `${h===0?12:h>12?h-12:h}:${mm} ${h<12?"AM":"PM"}`})()}</option>)}
+            </select>
+          </Field>
           <Field label="Est. Hours" t={t}><Inp type="number" value={form.est} onChange={e=>setForm(p=>({...p,est:e.target.value}))} placeholder="e.g. 10" t={t}/></Field>
         </div>
         <Field label="Brief" t={t}><Tex value={form.brief} onChange={e=>setForm(p=>({...p,brief:e.target.value}))} placeholder="Scope of work, deliverables..." t={t}/></Field>
@@ -2111,8 +2300,13 @@ function Meetings({t,data,setData,toast,currentUser}){
         <Field label="Client *" t={t}><Sel value={form.cId} onChange={e=>setForm(p=>({...p,cId:e.target.value,projectId:""}))} t={t}><option value="">Select client</option>{data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel></Field>
         {form.cId&&<Field label="Related Project (optional)" t={t}><Sel value={form.projectId} onChange={e=>setForm(p=>({...p,projectId:e.target.value}))} t={t}><option value="">No specific project</option>{data.tasks.filter(tk=>tk.cId===form.cId).map(tk=><option key={tk.id} value={tk.id}>{tk.title}</option>)}</Sel></Field>}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Field label="Date *" t={t}><Inp type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} t={t}/></Field>
-          <Field label="Time" t={t}><Inp type="time" value={form.time} onChange={e=>setForm(p=>({...p,time:e.target.value}))} t={t}/></Field>
+          <Field label="Date *" t={t}><DatePicker value={form.date} onChange={v=>setForm(p=>({...p,date:v}))} t={t} placeholder="Pick meeting date"/></Field>
+          <Field label="Time" t={t}>
+            <select value={form.time} onChange={e=>setForm(p=>({...p,time:e.target.value}))} style={{padding:"8px 10px",borderRadius:10,border:`1px solid ${t.border}`,background:t.dark?t.surface:"#ffffff",color:t.text,fontSize:13,fontFamily:"'Inter',sans-serif",width:"100%",cursor:"pointer",outline:"none"}}>
+              <option value="">Select time</option>
+              {Array.from({length:24},(_,h)=>["00","30"].map(m=>`${String(h).padStart(2,"0")}:${m}`)).flat().map(v=><option key={v} value={v}>{(()=>{const [hh,mm]=v.split(":");const h=parseInt(hh);return `${h===0?12:h>12?h-12:h}:${mm} ${h<12?"AM":"PM"}`})()}</option>)}
+            </select>
+          </Field>
         </div>
         <Field label="Location / Platform" t={t}><Inp value={form.loc} onChange={e=>setForm(p=>({...p,loc:e.target.value}))} placeholder="Google Meet / Mumbai Office" t={t}/></Field>
         <Field label="Agenda" t={t}><Tex value={form.agenda} onChange={e=>setForm(p=>({...p,agenda:e.target.value}))} t={t} rows={2}/></Field>
@@ -2376,8 +2570,8 @@ function Leaves({t,data,setData,toast,currentUser}){
         <Field label="Team Member *" t={t}><Sel value={form.uId} onChange={e=>setForm(p=>({...p,uId:e.target.value}))} t={t}><option value="">Select</option>{data.users.filter(u=>u.role!=="Admin").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</Sel></Field>
         <Field label="Leave Type" t={t}><Sel value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value}))} t={t}>{["Casual","Sick","Earned"].map(l=><option key={l}>{l}</option>)}</Sel></Field>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Field label="From *" t={t}><Inp type="date" value={form.from} onChange={e=>setForm(p=>({...p,from:e.target.value}))} t={t}/></Field>
-          <Field label="To *"   t={t}><Inp type="date" value={form.to}   onChange={e=>setForm(p=>({...p,to:e.target.value}))} t={t}/></Field>
+          <Field label="From *" t={t}><DatePicker value={form.from} onChange={v=>setForm(p=>({...p,from:v}))} t={t} placeholder="Start date"/></Field>
+          <Field label="To *"   t={t}><DatePicker value={form.to}   onChange={v=>setForm(p=>({...p,to:v}))}   t={t} placeholder="End date"/></Field>
         </div>
         {(()=>{
           const selBal=form.uId?(data.leaveBalances[form.uId]||{total:12,taken:0}):{total:12,taken:0};
@@ -3055,7 +3249,7 @@ function MyTasks({t,currentUser,toast}){
               {["Urgent","High","Medium","Low"].map(p=><option key={p} value={p}>{p}</option>)}
             </Sel>
           </Field>
-          <Field label="Due Date" t={t}><Inp type="date" value={form.due} onChange={e=>setForm(p=>({...p,due:e.target.value}))} t={t}/></Field>
+          <Field label="Due Date" t={t}><DatePicker value={form.due} onChange={v=>setForm(p=>({...p,due:v}))} t={t} placeholder="Pick due date"/></Field>
         </div>
         <Field label="Notes" t={t}><Tex value={form.note} onChange={e=>setForm(p=>({...p,note:e.target.value}))} placeholder="Optional context…" t={t} rows={3}/></Field>
         <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:16}}>
@@ -3076,7 +3270,7 @@ function MyTasks({t,currentUser,toast}){
                     {["Urgent","High","Medium","Low"].map(p=><option key={p} value={p}>{p}</option>)}
                   </Sel>
                 </Field>
-                <Field label="Due Date" t={t}><Inp type="date" value={sel.due||""} onChange={e=>setSel(p=>({...p,due:e.target.value}))} t={t}/></Field>
+                <Field label="Due Date" t={t}><DatePicker value={sel.due||""} onChange={v=>setSel(p=>({...p,due:v}))} t={t} placeholder="Pick due date"/></Field>
               </div>
               <Field label="Notes" t={t}><Tex value={sel.note||""} onChange={e=>setSel(p=>({...p,note:e.target.value}))} t={t} rows={3}/></Field>
               <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:16}}>
@@ -4267,7 +4461,7 @@ function AdProjects({t,data,setData,toast,currentUser}){
           <Field label="POC (Point of Contact)" t={t}><Inp value={projForm.poc} onChange={e=>setProjForm(p=>({...p,poc:e.target.value}))} placeholder="Name or contact" t={t}/></Field>
           <Field label="Cost / Commercials (₹)" t={t}><Inp value={projForm.cost} onChange={e=>setProjForm(p=>({...p,cost:e.target.value}))} placeholder="0" t={t}/></Field>
         </div>
-        <Field label="Deadline (Date + Time)" t={t}><Inp type="datetime-local" value={projForm.deadline} onChange={e=>setProjForm(p=>({...p,deadline:e.target.value}))} t={t}/></Field>
+        <Field label="Deadline (Date + Time)" t={t}><DateTimePicker value={projForm.deadline} onChange={v=>setProjForm(p=>({...p,deadline:v}))} t={t} placeholder="Pick date & time"/></Field>
         <Field label="Final Files Link" t={t}><Inp value={projForm.filesLink} onChange={e=>setProjForm(p=>({...p,filesLink:e.target.value}))} placeholder="https://drive.google.com/…" t={t}/></Field>
         <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
           <Btn v="secondary" t={t} onClick={()=>setShowAddProj(false)}>Cancel</Btn>
@@ -4284,7 +4478,7 @@ function AdProjects({t,data,setData,toast,currentUser}){
           <Field label="POC" t={t}><Inp value={editProjForm.poc||""} onChange={e=>setEditProjForm(p=>({...p,poc:e.target.value}))} t={t}/></Field>
           <Field label="Cost / Commercials (₹)" t={t}><Inp value={editProjForm.cost||""} onChange={e=>setEditProjForm(p=>({...p,cost:e.target.value}))} t={t}/></Field>
         </div>
-        <Field label="Deadline (Date + Time)" t={t}><Inp type="datetime-local" value={editProjForm.deadline||""} onChange={e=>setEditProjForm(p=>({...p,deadline:e.target.value}))} t={t}/></Field>
+        <Field label="Deadline (Date + Time)" t={t}><DateTimePicker value={editProjForm.deadline||""} onChange={v=>setEditProjForm(p=>({...p,deadline:v}))} t={t} placeholder="Pick date & time"/></Field>
         <Field label="Final Files Link" t={t}><Inp value={editProjForm.filesLink||""} onChange={e=>setEditProjForm(p=>({...p,filesLink:e.target.value}))} t={t}/></Field>
         <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
           <Btn v="secondary" t={t} onClick={()=>setShowEditProj(false)}>Cancel</Btn>
