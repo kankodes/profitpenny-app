@@ -270,7 +270,26 @@ function DeptSel({value,onChange,data,setData,t,toast,placeholder="Select dept."
     </select>
   );
 }
-function Tex({value,onChange,placeholder,t,rows=3}){return <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{...iStyle(t),resize:"vertical",lineHeight:1.6}} onFocus={e=>{e.target.style.borderColor="#84CC16";e.target.style.boxShadow="0 0 0 3px rgba(132,204,22,0.12)";}} onBlur={e=>{e.target.style.borderColor=t.dark?t.border:"rgba(0,0,0,0.1)";e.target.style.boxShadow="none";}}/>;}
+function Tex({value,onChange,placeholder,t,rows=3,maxLength,showCount=false}){
+  const ta=(
+    <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} maxLength={maxLength}
+      style={{...iStyle(t),resize:"vertical",lineHeight:1.6,width:"100%",boxSizing:"border-box"}}
+      onFocus={e=>{e.target.style.borderColor="#84CC16";e.target.style.boxShadow="0 0 0 3px rgba(132,204,22,0.12)";}}
+      onBlur={e=>{e.target.style.borderColor=t.dark?t.border:"rgba(0,0,0,0.1)";e.target.style.boxShadow="none";}}
+    />
+  );
+  if(showCount&&maxLength){
+    return(
+      <div style={{position:"relative"}}>
+        {ta}
+        <div style={{textAlign:"right",fontSize:11,color:t.textMuted,marginTop:3,fontFamily:"'Inter',sans-serif"}}>
+          {(value||"").length}/{maxLength}
+        </div>
+      </div>
+    );
+  }
+  return ta;
+}
 function Field({label,children,t}){return <div style={{marginBottom:14}}><label style={{display:"block",fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:t?.textMuted||"#94a3b8",marginBottom:6,fontFamily:"'Inter',sans-serif"}}>{label}</label>{children}</div>;}
 function Modal({open,onClose,title,children,t,w=560,subtitle}){
   if(!open)return null;
@@ -467,6 +486,148 @@ function DropMenu({trigger,items,t,align="left"}){
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── EMPTY STATE ──────────────────────────────────────────────────────────────
+function EmptyState({icon:PrimaryIcon,icons,title,description,action,t}){
+  const defaults=[FileText,FolderOpen,CheckSquare];
+  const iconSet=icons&&icons.length?icons:defaults;
+  const CenterIcon=PrimaryIcon||(iconSet[1]||FolderOpen);
+  const LeftIcon=iconSet[0]||FileText;
+  const RightIcon=iconSet[2]||CheckSquare;
+  const showFan=!PrimaryIcon||icons;
+  return(
+    <div style={{border:`2px dashed ${t.border}`,borderRadius:20,padding:"48px 24px",textAlign:"center",background:t.surface,animation:"fadeUp .3s ease both"}}>
+      <div style={{position:"relative",height:80,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20}}>
+        {showFan&&(
+          <div style={{position:"absolute",transform:"rotate(-15deg) translateX(-28px)",background:t.surfaceAlt,borderRadius:14,padding:12,color:t.textMuted,opacity:0.6,zIndex:1,display:"flex"}}>
+            <LeftIcon size={22}/>
+          </div>
+        )}
+        {showFan&&(
+          <div style={{position:"absolute",transform:"rotate(15deg) translateX(28px)",background:t.surfaceAlt,borderRadius:14,padding:12,color:t.textMuted,opacity:0.6,zIndex:1,display:"flex"}}>
+            <RightIcon size={22}/>
+          </div>
+        )}
+        <div style={{position:"relative",background:`rgba(132,204,22,0.15)`,borderRadius:16,padding:14,color:t.lime,zIndex:2,boxShadow:"0 4px 14px rgba(0,0,0,0.10)",display:"flex"}}>
+          <CenterIcon size={26}/>
+        </div>
+      </div>
+      <p style={{fontSize:16,fontWeight:700,color:t.text,margin:"0 0 8px",fontFamily:"'Inter',sans-serif"}}>{title}</p>
+      {description&&<p style={{fontSize:13,color:t.textMuted,lineHeight:1.6,margin:"0 0 20px",maxWidth:320,marginLeft:"auto",marginRight:"auto",fontFamily:"'Inter',sans-serif"}}>{description}</p>}
+      {action&&<Btn v="primary" t={t} onClick={action.onClick}>{action.label}</Btn>}
+    </div>
+  );
+}
+
+// ── SKELETON ─────────────────────────────────────────────────────────────────
+function Skeleton({t,rows=4,card=false,height=16,gap=10}){
+  const widths=["100%","65%","85%","50%","75%","55%","90%"];
+  const rowStyle=(w,i)=>({
+    background:t.dark
+      ?"linear-gradient(90deg,rgba(255,255,255,0.06) 25%,rgba(255,255,255,0.12) 50%,rgba(255,255,255,0.06) 75%)"
+      :"linear-gradient(90deg,rgba(0,0,0,0.06) 25%,rgba(0,0,0,0.10) 50%,rgba(0,0,0,0.06) 75%)",
+    backgroundSize:"400% 100%",
+    animation:"shimmer 1.4s ease infinite",
+    borderRadius:8,
+    height:height,
+    width:w,
+    marginBottom:i<(card?2:rows-1)?gap:0,
+  });
+  if(card){
+    return(
+      <div style={{background:t.card,borderRadius:20,padding:22,boxShadow:t.cardShadow}}>
+        <div style={rowStyle("100%",0)}/>
+        <div style={rowStyle("70%",1)}/>
+        <div style={rowStyle("40%",2)}/>
+      </div>
+    );
+  }
+  return(
+    <div>
+      {Array.from({length:rows},(_,i)=>(
+        <div key={i} style={rowStyle(widths[i%widths.length],i)}/>
+      ))}
+    </div>
+  );
+}
+
+// ── DATA TABLE ───────────────────────────────────────────────────────────────
+function DataTable({columns,rows,t,onRowClick,emptyIcon,emptyTitle="No data",emptyDesc=""}){
+  const [hovRow,setHovRow]=useState(null);
+  if(!rows||rows.length===0){
+    return(
+      <div style={{padding:"32px 24px",background:t.card,borderRadius:16,border:`1px solid ${t.border}`}}>
+        <EmptyState icon={emptyIcon} title={emptyTitle} description={emptyDesc} t={t}/>
+      </div>
+    );
+  }
+  return(
+    <div style={{overflowX:"auto",borderRadius:16,border:`1px solid ${t.border}`,background:t.card}}>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead>
+          <tr style={{background:t.dark?t.surfaceAlt:t.surface}}>
+            {columns.map((col,i)=>(
+              <th key={col.key||i} style={{padding:"11px 16px",textAlign:"left",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:t.textMuted,borderBottom:`1px solid ${t.border}`,whiteSpace:"nowrap",width:col.width||undefined}}>
+                {col.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row,ri)=>(
+            <tr key={row.id||ri}
+              onClick={onRowClick?()=>onRowClick(row):undefined}
+              onMouseEnter={()=>setHovRow(ri)}
+              onMouseLeave={()=>setHovRow(null)}
+              style={{background:hovRow===ri?t.hover:"transparent",cursor:onRowClick?"pointer":"default",transition:"background .1s"}}>
+              {columns.map((col,ci)=>(
+                <td key={col.key||ci} style={{padding:"12px 16px",fontSize:13,color:t.text,borderBottom:ri<rows.length-1?`1px solid ${t.border}`:"none",verticalAlign:"middle"}}>
+                  {col.render?col.render(row[col.key],row):row[col.key]}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+function Tabs({tabs,active,onChange,t,variant="underline"}){
+  if(variant==="pill"){
+    return(
+      <div style={{display:"flex",gap:6,background:t.surfaceAlt,borderRadius:99,padding:4}}>
+        {tabs.map(tab=>{
+          const isActive=tab.id===active;
+          return(
+            <button key={tab.id} onClick={()=>onChange(tab.id)}
+              style={{display:"flex",alignItems:"center",gap:6,padding:"6px 14px",borderRadius:99,fontSize:13,fontWeight:600,cursor:"pointer",border:"none",transition:"all .15s",fontFamily:"'Inter',sans-serif",background:isActive?(t.dark?t.surface:"#ffffff"):"transparent",color:isActive?t.text:t.textMuted,boxShadow:isActive?"0 1px 4px rgba(0,0,0,0.10)":"none"}}>
+              {tab.icon&&<tab.icon size={14}/>}
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+  // underline variant
+  return(
+    <div style={{display:"flex",gap:0,borderBottom:`2px solid ${t.border}`}}>
+      {tabs.map(tab=>{
+        const isActive=tab.id===active;
+        return(
+          <button key={tab.id} onClick={()=>onChange(tab.id)}
+            style={{display:"flex",alignItems:"center",gap:6,padding:"9px 16px",background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:600,color:isActive?t.text:t.textMuted,position:"relative",transition:"color .14s",fontFamily:"'Inter',sans-serif",marginBottom:-2}}>
+            {tab.icon&&<tab.icon size={14}/>}
+            {tab.label}
+            {isActive&&<div style={{position:"absolute",bottom:0,left:0,right:0,height:2,background:t.lime,borderRadius:"2px 2px 0 0"}}/>}
+          </button>
+        );
+      })}
     </div>
   );
 }
