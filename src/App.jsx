@@ -3514,12 +3514,47 @@ function MyTasks({t,currentUser,toast}){
   const PRIO_COLORS={"Urgent":t.red,"High":t.amber,"Medium":t.blue,"Low":t.textMuted};
   const userId=currentUser?.id;
 
+  // ── date bucket helpers ──────────────────────────────────────────────────
+  const MT_BUCKET_ORDER=["Overdue","Due Today","This Week","Upcoming","Later","No Deadline"];
+  const mtGetBucket=dueStr=>{
+    if(!dueStr)return"No Deadline";
+    const due=new Date(dueStr),now=new Date();
+    const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    const dueDay=new Date(due.getFullYear(),due.getMonth(),due.getDate());
+    const diff=(dueDay-today)/(1000*60*60*24);
+    if(diff<0)return"Overdue";
+    if(diff===0)return"Due Today";
+    if(diff<=7)return"This Week";
+    if(diff<=30)return"Upcoming";
+    return"Later";
+  };
+  const mtPrioRank=p=>({Urgent:0,High:1,Medium:2,Low:3}[p]??4);
+
+  // builds a grouped flat list for a column: [{type:"bucketSep",bucket},{type:"task",task}]
+  const mtBuildGrouped=(colTasks,colOrder)=>{
+    const ordered=colOrder?.length
+      ?[...colTasks].sort((a,b)=>{const ai=colOrder.indexOf(a.id),bi=colOrder.indexOf(b.id);return(ai===-1?999:ai)-(bi===-1?999:bi)})
+      :[...colTasks];
+    const buckets={};
+    ordered.forEach(tk=>{const b=mtGetBucket(tk.due);(buckets[b]=buckets[b]||[]).push(tk);});
+    Object.keys(buckets).forEach(b=>buckets[b].sort((a,z)=>mtPrioRank(a.priority)-mtPrioRank(z.priority)));
+    const out=[];
+    MT_BUCKET_ORDER.forEach(b=>{
+      if(!buckets[b]?.length)return;
+      out.push({type:"bucketSep",bucket:b});
+      buckets[b].forEach(tk=>out.push({type:"task",task:tk}));
+    });
+    return out;
+  };
+
   const [tasks,setTasks]=useState([]);
   const [loading,setLoading]=useState(true);
   const [showAdd,setShowAdd]=useState(false);
   const [form,setForm]=useState({title:"",priority:"Medium",due:"",note:"",links:[""]});
   const [dragId,setDragId]=useState(null);
   const [dragOver,setDragOver]=useState(null);
+  const [dragTarget,setDragTarget]=useState(null);
+  const [colOrder,setColOrder]=useState({});
   const [sel,setSel]=useState(null);
   const [editMode,setEditMode]=useState(false);
   const [saving,setSaving]=useState(false);
@@ -3598,12 +3633,25 @@ function MyTasks({t,currentUser,toast}){
             const colTasks=tasks.filter(tk=>tk.status===col);
             const isOver=dragOver===col;
             const colAccent=MT_COL_BORDER[col];
+            const grouped=mtBuildGrouped(colTasks,colOrder[col]);
+            const bucketAccent={Overdue:t.red,"Due Today":t.amber,"This Week":t.blue,Upcoming:t.textMid,Later:t.textMuted,"No Deadline":t.textMuted};
             return(
               <div key={col}
-                style={{width:272,flexShrink:0,display:"flex",flexDirection:"column",borderRadius:14,background:isOver?(t.dark?`${colAccent}14`:`${colAccent}0c`):t.dark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.025)",border:`1.5px solid ${isOver?colAccent+"55":t.border}`,transition:"background .18s,border-color .18s",animation:`fadeUp .32s ease ${ci*55}ms both`,minHeight:120}}
+                style={{width:280,flexShrink:0,display:"flex",flexDirection:"column",borderRadius:14,background:isOver?(t.dark?`${colAccent}14`:`${colAccent}0c`):t.dark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.025)",border:`1.5px solid ${isOver?colAccent+"55":t.border}`,transition:"background .18s,border-color .18s",animation:`fadeUp .32s ease ${ci*55}ms both`,minHeight:120}}
                 onDragOver={e=>{e.preventDefault();setDragOver(col);}}
-                onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget))setDragOver(null);}}
-                onDrop={e=>{e.preventDefault();if(dragId)moveTask(dragId,col);setDragId(null);setDragOver(null);}}>
+                onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget)){setDragOver(null);setDragTarget(null);}}}
+                onDrop={e=>{
+                  e.preventDefault();
+                  const srcStatus=tasks.find(tk=>tk.id===dragId)?.status;
+                  if(dragId&&srcStatus===col){
+                    // within-column reorder
+                    const ids=colTasks.map(tk=>tk.id);
+                    const cur=colOrder[col]||ids;
+                    const fi=cur.indexOf(dragId),ti2=dragTarget?cur.indexOf(dragTarget.taskId):cur.length;
+                    if(fi!==-1&&fi!==ti2){const o=[...cur];o.splice(fi,1);o.splice(ti2<fi?ti2:ti2,0,dragId);setColOrder(p=>({...p,[col]:o}));}
+                  }else if(dragId){moveTask(dragId,col);}
+                  setDragId(null);setDragOver(null);setDragTarget(null);
+                }}>
                 {/* Column header */}
                 <div style={{padding:"13px 14px 10px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -3613,24 +3661,43 @@ function MyTasks({t,currentUser,toast}){
                   <span style={{fontSize:11,fontWeight:700,background:`${colAccent}20`,color:colAccent,minWidth:22,height:22,borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 7px"}}>{colTasks.length}</span>
                 </div>
                 {/* Cards */}
-                <div style={{padding:"0 10px 10px",display:"flex",flexDirection:"column",gap:7}}>
+                <div style={{padding:"0 10px 10px",display:"flex",flexDirection:"column",gap:4,flex:1,overflowY:"auto"}}>
                   <button onClick={()=>{setShowAdd(true);setForm({title:"",priority:"Medium",due:"",note:"",links:[""]});}} style={{display:"flex",alignItems:"center",gap:6,width:"100%",padding:"6px 8px",background:"transparent",border:"none",color:t.textMuted,fontSize:12,fontWeight:500,cursor:"pointer",borderRadius:8,transition:"background .12s,color .12s",textAlign:"left",marginBottom:2}} onMouseEnter={e=>{e.currentTarget.style.background=t.hover;e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.textMuted;}}><Plus size={13} strokeWidth={2}/> Add task</button>
-                  {colTasks.map((task,ti)=>(
-                    <div key={task.id} draggable
-                      onDragStart={()=>setDragId(task.id)}
-                      onDragEnd={()=>{setDragId(null);setDragOver(null);}}
-                      onClick={()=>{setSel(task);setEditMode(false);}}
-                      style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:10,padding:"11px 13px",cursor:"grab",userSelect:"none",boxShadow:dragId===task.id?"0 10px 28px rgba(0,0,0,0.22)":t.cardShadow,border:`1px solid ${t.dark?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.06)"}`,opacity:dragId===task.id?0.4:1,transition:"box-shadow .15s,transform .15s,opacity .15s"}}
-                      onMouseEnter={e=>{e.currentTarget.style.boxShadow=t.cardShadowHover;e.currentTarget.style.transform="translateY(-2px)";}}
-                      onMouseLeave={e=>{e.currentTarget.style.boxShadow=t.cardShadow;e.currentTarget.style.transform="none";}}>
-                      <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:6,lineHeight:1.4,letterSpacing:"-0.01em"}}>{task.title}</div>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <span style={{fontSize:10,fontWeight:700,color:PRIO_COLORS[task.priority]||t.textMuted,background:`${PRIO_COLORS[task.priority]||t.textMuted}18`,padding:"2px 8px",borderRadius:99}}>{task.priority||"—"}</span>
-                        <span style={{fontSize:10,fontWeight:600,color:isOverdue(task.due)&&col!=="Done"?t.red:t.textMuted,display:"flex",alignItems:"center",gap:3}}>{task.due?<><CalendarDays size={9}/>{fd(task.due)}</>:"—"}</span>
-                      </div>
-                      {task.note&&<div style={{marginTop:6,fontSize:11,color:t.textMuted,lineHeight:1.5,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{task.note}</div>}
-                    </div>
-                  ))}
+
+                  {grouped.map((item,gi)=>{
+                    if(item.type==="bucketSep"){
+                      const bc=bucketAccent[item.bucket]||t.textMuted;
+                      return(
+                        <div key={"sep"+gi} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 2px 2px",marginTop:gi>0?4:0}}>
+                          <span style={{fontSize:9,fontWeight:700,color:bc,letterSpacing:"0.06em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{item.bucket}</span>
+                          <div style={{flex:1,height:1,background:bc,opacity:0.25,borderRadius:99}}/>
+                        </div>
+                      );
+                    }
+                    const task=item.task;
+                    const isDragTarget=dragTarget?.col===col&&dragTarget?.taskId===task.id;
+                    return(
+                      <React.Fragment key={task.id}>
+                        {isDragTarget&&<div style={{height:2,background:t.lime,borderRadius:99,margin:"0 2px",animation:"fadeIn .1s ease both"}}/>}
+                        <div draggable
+                          onDragStart={e=>{e.stopPropagation();setDragId(task.id);}}
+                          onDragEnd={()=>{setDragId(null);setDragOver(null);setDragTarget(null);}}
+                          onDragOver={e=>{e.preventDefault();e.stopPropagation();if(dragId&&dragId!==task.id)setDragTarget({col,taskId:task.id});}}
+                          onClick={()=>{setSel(task);setEditMode(false);}}
+                          style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:10,padding:"11px 13px",cursor:"grab",userSelect:"none",boxShadow:dragId===task.id?"0 10px 28px rgba(0,0,0,0.22)":t.cardShadow,border:`1px solid ${t.dark?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.06)"}`,opacity:dragId===task.id?0.4:1,transition:"box-shadow .15s,transform .15s,opacity .15s",marginBottom:3}}
+                          onMouseEnter={e=>{e.currentTarget.style.boxShadow=t.cardShadowHover;e.currentTarget.style.transform="translateY(-2px)";}}
+                          onMouseLeave={e=>{e.currentTarget.style.boxShadow=t.cardShadow;e.currentTarget.style.transform="none";}}>
+                          <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:6,lineHeight:1.4,letterSpacing:"-0.01em"}}>{task.title}</div>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <span style={{fontSize:10,fontWeight:700,color:PRIO_COLORS[task.priority]||t.textMuted,background:`${PRIO_COLORS[task.priority]||t.textMuted}18`,padding:"2px 8px",borderRadius:99}}>{task.priority||"—"}</span>
+                            <span style={{fontSize:10,fontWeight:600,color:isOverdue(task.due)&&col!=="Done"?t.red:t.textMuted,display:"flex",alignItems:"center",gap:3}}>{task.due?<><CalendarDays size={9}/>{fd(task.due)}</>:"—"}</span>
+                          </div>
+                          {task.note&&<div style={{marginTop:6,fontSize:11,color:t.textMuted,lineHeight:1.5,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{task.note}</div>}
+                          {(task.links||[]).filter(l=>l).length>0&&<div style={{marginTop:6,display:"flex",gap:4,flexWrap:"wrap"}}>{(task.links||[]).filter(l=>l).map((l,li)=><a key={li} href={l} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:10,color:t.blue,textDecoration:"none"}}><Link2 size={9}/>Link {li+1}</a>)}</div>}
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
                   {colTasks.length===0&&<div style={{padding:"28px 12px",textAlign:"center",color:isOver?colAccent:t.textMuted,fontSize:12,fontWeight:500,opacity:isOver?1:0.45,transition:"all .15s"}}>{isOver?"Drop here ↓":"Empty"}</div>}
                 </div>
               </div>
