@@ -239,6 +239,43 @@ function PBar({value,max=100,color="lime",t,h=5,delay=0,showPct=true}){
 }
 function Inp({value,onChange,placeholder,type="text",t,style={}}){return <input type={type} value={value} onChange={onChange} placeholder={placeholder} style={{...iStyle(t),...style}} onFocus={e=>{e.target.style.borderColor="#84CC16";e.target.style.boxShadow="0 0 0 3px rgba(132,204,22,0.12)";}} onBlur={e=>{e.target.style.borderColor=t.dark?t.border:"rgba(0,0,0,0.1)";e.target.style.boxShadow="none";}}/>;}
 function Sel({value,onChange,children,t}){return <select value={value} onChange={onChange} style={{...iStyle(t),cursor:"pointer"}}>{children}</select>;}
+function CustomSel({value,onChange,children,t,placeholder="Select..."}){
+  const [open,setOpen]=useState(false);
+  const ref=useRef(null);
+  useEffect(()=>{
+    const handler=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    document.addEventListener("mousedown",handler);
+    return()=>document.removeEventListener("mousedown",handler);
+  },[]);
+  const opts=React.Children.toArray(children).filter(c=>c&&c.type==="option").map(c=>({value:c.props.value,label:c.props.children}));
+  const selected=opts.find(o=>o.value===value);
+  return(
+    <div ref={ref} style={{position:"relative",display:"inline-block",width:"100%"}}>
+      <button type="button" onClick={()=>setOpen(o=>!o)}
+        style={{...iStyle(t),cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,width:"100%",textAlign:"left",background:t.dark?t.surfaceAlt:t.surface}}>
+        <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:selected?t.text:t.textMuted}}>{selected?selected.label:placeholder}</span>
+        <ChevronDown size={14} color={t.textMuted} style={{flexShrink:0,transition:"transform .15s",transform:open?"rotate(180deg)":"rotate(0deg)"}}/>
+      </button>
+      {open&&(
+        <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,background:t.dark?t.surface:"#ffffff",border:`1px solid ${t.border}`,borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,0.14)",zIndex:9990,overflow:"hidden",animation:"fadeIn .12s ease"}}>
+          {opts.map(opt=>{
+            const isSelected=opt.value===value;
+            return(
+              <button key={opt.value} type="button"
+                onClick={()=>{onChange({target:{value:opt.value}});setOpen(false);}}
+                style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"9px 12px",background:"transparent",border:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontSize:13,color:isSelected?t.lime:t.text,fontWeight:isSelected?600:400,textAlign:"left",transition:"background .1s"}}
+                onMouseEnter={e=>e.currentTarget.style.background=t.hover||t.surfaceAlt}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <span>{opt.label}</span>
+                {isSelected&&<Check size={13} color={t.lime}/>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 // Smart department selector with inline "+Add New Department" option
 function DeptSel({value,onChange,data,setData,t,toast,placeholder="Select dept."}){
   const [adding,setAdding]=useState(false);
@@ -1634,7 +1671,7 @@ Please open the app to accept or reject.
             </div>
           );
         })}
-        {filtered.length===0&&<Card t={t}><p style={{color:t.textMuted,textAlign:"center",padding:"20px 0",fontSize:14}}>No tasks match your filters.</p></Card>}
+        {filtered.length===0&&<EmptyState title="No tasks found" description="Try adjusting your filters." t={t}/>}
       </div>
 
       {/* Task Detail Modal */}
@@ -2385,7 +2422,7 @@ function Meetings({t,data,setData,toast,currentUser}){
             </div>
           );
         })}
-        {sorted.length===0&&<Card t={t}><p style={{color:t.textMuted,textAlign:"center",padding:"20px 0",fontSize:14}}>No meetings yet.</p></Card>}
+        {sorted.length===0&&<EmptyState title="No meetings yet" description="Schedule your first meeting to get started." action={{label:"New Meeting",onClick:()=>setShowAdd(true)}} t={t}/>}
       </div>
 
       {/* Meeting Detail Modal */}
@@ -4310,11 +4347,6 @@ function AdProjects({t,data,setData,toast,currentUser}){
   const isFounderAdmin = currentUser?.role==="Founder"||currentUser?.role==="Admin";
   const canManageProj = isFounderAdmin||currentUser?.role==="Manager";
   const canViewCommercials = isFounderAdmin||currentUser?.role==="Manager"; // Founder, Admin, Office Manager
-  const TabBtn=({id,label,Icon,count})=>(
-    <button onClick={()=>setTab(id)} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 16px",borderRadius:8,border:"none",background:tab===id?t.text:"transparent",color:tab===id?"#fff":t.textMuted,fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,cursor:"pointer",transition:"all .15s"}}>
-      <Icon size={14}/>{label}{count>0&&<span style={{background:tab===id?t.lime:t.surfaceAlt,color:tab===id?"#000":t.textMid,borderRadius:99,fontSize:10,fontWeight:700,padding:"1px 6px",marginLeft:2}}>{count}</span>}
-    </button>
-  );
 
   // Commercials data
   const allCommRows=(data.adProjects||[]).map(p=>{
@@ -4353,10 +4385,18 @@ function AdProjects({t,data,setData,toast,currentUser}){
       }/>
 
       {/* Tabs */}
-      <div style={{display:"flex",gap:4,marginBottom:24,background:t.surfaceAlt,borderRadius:10,padding:4,width:"fit-content",border:`1px solid ${t.border}`}}>
-        <TabBtn id="projects" label="Projects" Icon={FolderOpen} count={projects.length}/>
-        <TabBtn id="tasks" label="Tasks" Icon={ClipboardList} count={allTasks.length}/>
-        {canViewCommercials&&<TabBtn id="commercials" label="Commercials" Icon={DollarSign} count={0}/>}
+      <div style={{marginBottom:24}}>
+        <Tabs
+          tabs={[
+            {id:"projects",label:"Projects",icon:FolderOpen},
+            {id:"tasks",label:"Tasks",icon:ClipboardList},
+            ...(canViewCommercials?[{id:"commercials",label:"Commercials",icon:DollarSign}]:[])
+          ]}
+          active={tab}
+          onChange={setTab}
+          t={t}
+          variant="pill"
+        />
       </div>
 
       {/* ── PROJECTS TAB ── */}
@@ -4369,10 +4409,7 @@ function AdProjects({t,data,setData,toast,currentUser}){
             </div>
           </div>
           {projects.length===0?(
-            <div style={{textAlign:"center",padding:"60px 20px",color:t.textMuted}}>
-              <FolderOpen size={40} style={{margin:"0 auto 12px",opacity:.4}}/>
-              <p style={{fontSize:14,fontWeight:500}}>No projects yet. Click "New Project" to create one.</p>
-            </div>
+            <EmptyState title="No projects yet" description='Click "New Project" to create one.' icon={FolderOpen} t={t}/>
           ):(
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}} className="grid-1-mobile">
               {projects.map((p,i)=>{
@@ -4423,10 +4460,7 @@ function AdProjects({t,data,setData,toast,currentUser}){
             </select>
           </div>
           {allTasks.length===0?(
-            <div style={{textAlign:"center",padding:"60px 20px",color:t.textMuted}}>
-              <ClipboardList size={40} style={{margin:"0 auto 12px",opacity:.4}}/>
-              <p style={{fontSize:14,fontWeight:500}}>No tasks yet. Click "New Task" to add one.</p>
-            </div>
+            <EmptyState title="No tasks yet" description='Click "New Task" to add one.' icon={ClipboardList} t={t}/>
           ):(
             <Card t={t}>
               <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'Inter',sans-serif"}}>
@@ -4899,12 +4933,6 @@ function Credentials({t,data,setData,toast,currentUser}){
   const filteredApp=appCreds.filter(c=>!search||c.appName?.toLowerCase().includes(search.toLowerCase())||c.loginId?.toLowerCase().includes(search.toLowerCase()));
   const filteredClient=clientCreds.filter(c=>!clientSearch||c.clientName?.toLowerCase().includes(clientSearch.toLowerCase())||c.platform?.toLowerCase().includes(clientSearch.toLowerCase()));
 
-  const TabBtn=({id,label,Icon})=>(
-    <button onClick={()=>setTab(id)} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 16px",borderRadius:8,border:"none",background:tab===id?t.text:"transparent",color:tab===id?"#fff":t.textMuted,fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,cursor:"pointer",transition:"all .15s"}}>
-      <Icon size={14}/>{label}
-    </button>
-  );
-
   return(
     <div>
       <SHead t={t} title="Credentials" sub="App logins and client portals"
@@ -4917,9 +4945,17 @@ function Credentials({t,data,setData,toast,currentUser}){
         }/>
 
       {/* Tabs */}
-      <div style={{display:"flex",gap:4,marginBottom:24,background:t.surfaceAlt,borderRadius:10,padding:4,width:"fit-content",border:`1px solid ${t.border}`}}>
-        <TabBtn id="app" label="App Credentials" Icon={KeyRound}/>
-        {isManager&&<TabBtn id="client" label="Client Credentials" Icon={Lock}/>}
+      <div style={{marginBottom:24}}>
+        <Tabs
+          tabs={[
+            {id:"app",label:"App Credentials",icon:KeyRound},
+            ...(isManager?[{id:"client",label:"Client Credentials",icon:Lock}]:[])
+          ]}
+          active={tab}
+          onChange={setTab}
+          t={t}
+          variant="pill"
+        />
       </div>
 
       {/* ── APP CREDENTIALS TAB ── */}
@@ -5385,13 +5421,54 @@ function App({firebaseUid}){
   if (loading) return (
     <>
       <style>{CSS}</style>
-      <div style={{height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#0C0D0A",gap:20,position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 60% 40% at 50% 30%,rgba(181,211,52,0.1),transparent)",pointerEvents:"none"}}/>
-        <PPLogo collapsed={false}/>
-        <div style={{width:48,height:48,border:`4px solid ${D.light.lime}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-        <p style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:14,color:"rgba(255,255,255,0.4)"}}>Loading your workspace…</p>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+      <div style={{height:"100vh",display:"flex",background:"#0C0D0A",overflow:"hidden"}}>
+        {/* Sidebar skeleton */}
+        <div style={{width:220,flexShrink:0,background:"rgba(255,255,255,0.03)",borderRight:"1px solid rgba(255,255,255,0.07)",padding:"24px 16px",display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{marginBottom:24,paddingBottom:16,borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
+            <PPLogo collapsed={false}/>
+          </div>
+          {Array.from({length:8},(_,i)=>(
+            <div key={i} style={{height:36,borderRadius:8,background:"linear-gradient(90deg,rgba(255,255,255,0.05) 25%,rgba(255,255,255,0.09) 50%,rgba(255,255,255,0.05) 75%)",backgroundSize:"400% 100%",animation:`shimmer 1.6s ease ${i*80}ms infinite`}}/>
+          ))}
+        </div>
+        {/* Main content skeleton */}
+        <div style={{flex:1,padding:"32px 36px",display:"flex",flexDirection:"column",gap:24,overflow:"hidden"}}>
+          {/* Header skeleton */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <div style={{width:200,height:28,borderRadius:8,background:"linear-gradient(90deg,rgba(255,255,255,0.07) 25%,rgba(255,255,255,0.13) 50%,rgba(255,255,255,0.07) 75%)",backgroundSize:"400% 100%",animation:"shimmer 1.4s ease infinite"}}/>
+              <div style={{width:140,height:14,borderRadius:6,background:"linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.08) 50%,rgba(255,255,255,0.04) 75%)",backgroundSize:"400% 100%",animation:"shimmer 1.4s ease 120ms infinite"}}/>
+            </div>
+            <div style={{width:120,height:36,borderRadius:99,background:"linear-gradient(90deg,rgba(132,204,22,0.15) 25%,rgba(132,204,22,0.25) 50%,rgba(132,204,22,0.15) 75%)",backgroundSize:"400% 100%",animation:"shimmer 1.4s ease 200ms infinite"}}/>
+          </div>
+          {/* Cards skeleton */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
+            {Array.from({length:3},(_,i)=>(
+              <div key={i} style={{background:"rgba(255,255,255,0.04)",borderRadius:20,padding:22,display:"flex",flexDirection:"column",gap:12,animation:`shimmer 1.5s ease ${i*100}ms infinite`}}>
+                <div style={{height:16,width:"80%",borderRadius:6,background:"rgba(255,255,255,0.08)"}}/>
+                <div style={{height:12,width:"55%",borderRadius:6,background:"rgba(255,255,255,0.05)"}}/>
+                <div style={{height:40,borderRadius:10,background:"rgba(255,255,255,0.05)"}}/>
+                <div style={{height:12,width:"65%",borderRadius:6,background:"rgba(255,255,255,0.05)"}}/>
+              </div>
+            ))}
+          </div>
+          {/* List skeleton */}
+          <div style={{background:"rgba(255,255,255,0.04)",borderRadius:20,padding:22,display:"flex",flexDirection:"column",gap:14}}>
+            {Array.from({length:4},(_,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:14}}>
+                <div style={{width:36,height:36,borderRadius:10,flexShrink:0,background:"linear-gradient(90deg,rgba(255,255,255,0.07) 25%,rgba(255,255,255,0.12) 50%,rgba(255,255,255,0.07) 75%)",backgroundSize:"400% 100%",animation:`shimmer 1.4s ease ${i*80}ms infinite`}}/>
+                <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
+                  <div style={{height:13,width:`${70+i*5}%`,borderRadius:6,background:"linear-gradient(90deg,rgba(255,255,255,0.07) 25%,rgba(255,255,255,0.12) 50%,rgba(255,255,255,0.07) 75%)",backgroundSize:"400% 100%",animation:`shimmer 1.4s ease ${i*80+60}ms infinite`}}/>
+                  <div style={{height:10,width:`${40+i*4}%`,borderRadius:6,background:"linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.08) 50%,rgba(255,255,255,0.04) 75%)",backgroundSize:"400% 100%",animation:`shimmer 1.4s ease ${i*80+120}ms infinite`}}/>
+                </div>
+                <div style={{width:64,height:22,borderRadius:99,background:"rgba(255,255,255,0.06)"}}/>
+              </div>
+            ))}
+          </div>
+          <p style={{fontFamily:"'Inter',sans-serif",fontWeight:600,fontSize:13,color:"rgba(255,255,255,0.3)",textAlign:"center",marginTop:"auto"}}>Loading your workspace…</p>
+        </div>
       </div>
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </>
   );
 
