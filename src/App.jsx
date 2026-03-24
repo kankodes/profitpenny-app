@@ -3091,6 +3091,70 @@ function BoardView({t,data,setData,toast,currentUser}){
   const [comment,setComment]=useState("");
   const [reviewModal,setReviewModal]=useState(null);
   const [reviewerId,setReviewerId]=useState("");
+  // Quick-add modal state
+  const [showQuickAdd,setShowQuickAdd]=useState(false);
+  const [quickAddStatus,setQuickAddStatus]=useState("Not Started");
+  const [qForm,setQForm]=useState({title:"",cId:"",aId:"",priority:"Medium",due:"",drive:"",assetLinks:[""]});
+  const [qSaving,setQSaving]=useState(false);
+  // Within-column reorder state
+  const [colOrder,setColOrder]=useState({});
+  const [dragTarget,setDragTarget]=useState(null);
+
+  // Date bucket helper
+  const getDateBucket=(dueStr)=>{
+    if(!dueStr) return "No Deadline";
+    const due=new Date(dueStr);
+    const now=new Date();
+    const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    const dueDay=new Date(due.getFullYear(),due.getMonth(),due.getDate());
+    const diff=(dueDay-today)/(1000*60*60*24);
+    if(diff<0) return "Overdue";
+    if(diff===0) return "Due Today";
+    if(diff<=7) return "This Week";
+    if(diff<=30) return "Upcoming";
+    return "Later";
+  };
+  const BUCKET_ORDER=["Overdue","Due Today","This Week","Upcoming","Later","No Deadline"];
+  const PRIO_ORDER={"Urgent":0,"High":0,"Medium":1,"Low":2};
+  const getPrioRank=p=>PRIO_ORDER[p]!==undefined?PRIO_ORDER[p]:3;
+
+  // Build hierarchically grouped+sorted flat list for a column
+  const buildGroupedList=(tasks,col)=>{
+    // Sort clients alphabetically, no-client group at end
+    const clientMap={};
+    tasks.forEach(tk=>{
+      const key=tk.cId||"__none__";
+      if(!clientMap[key])clientMap[key]=[];
+      clientMap[key].push(tk);
+    });
+    const clientIds=Object.keys(clientMap).filter(k=>k!=="__none__").sort((a,b)=>{
+      const na=data.clients.find(c=>c.id===a)?.name||"";
+      const nb=data.clients.find(c=>c.id===b)?.name||"";
+      return na.localeCompare(nb);
+    });
+    if(clientMap["__none__"])clientIds.push("__none__");
+
+    const items=[];
+    clientIds.forEach(cid=>{
+      const clientTasks=clientMap[cid];
+      const clientLabel=cid==="__none__"?"No Client":(data.clients.find(c=>c.id===cid)?.name||"Unknown");
+      items.push({type:"clientSep",label:clientLabel,key:"csep_"+cid});
+      // Group by date bucket
+      const bucketMap={};
+      clientTasks.forEach(tk=>{
+        const b=getDateBucket(tk.due);
+        if(!bucketMap[b])bucketMap[b]=[];
+        bucketMap[b].push(tk);
+      });
+      BUCKET_ORDER.forEach(bucket=>{
+        if(!bucketMap[bucket])return;
+        items.push({type:"bucketSep",label:bucket,key:"bsep_"+cid+"_"+bucket});
+        const sorted=[...bucketMap[bucket]].sort((a,b)=>getPrioRank(a.priority)-getPrioRank(b.priority));
+        sorted.forEach(tk=>items.push({type:"task",task:tk}));
+      });
+    });
+    return items;
+  };
 
   const move=(taskId,newStatus)=>{
     const task=data.tasks.find(t=>t.id===taskId);
@@ -3156,12 +3220,77 @@ function BoardView({t,data,setData,toast,currentUser}){
           const tasks=data.tasks.filter(tk=>tk.status===col);
           const isOver=dragOver===col;
           const colAccent=BOARD_COL_BORDER[col];
+          // Build hierarchical grouped list, then apply colOrder reorder
+          const groupedItems=buildGroupedList(tasks,col);
+          // Extract ordered task list respecting colOrder
+          const orderedTasks=(()=>{
+            const flatTasks=tasks;
+            const order=colOrder[col];
+            if(!order||order.length===0) return flatTasks;
+            const byId=Object.fromEntries(flatTasks.map(tk=>[tk.id,tk]));
+            const reordered=order.filter(id=>byId[id]).map(id=>byId[id]);
+            const inOrder=new Set(order);
+            flatTasks.forEach(tk=>{if(!inOrder.has(tk.id))reordered.push(tk);});
+            return reordered;
+          })();
+          // Rebuild grouped items with reordered tasks
+          const groupedItemsOrdered=(()=>{
+            if(!colOrder[col]||colOrder[col].length===0) return groupedItems;
+            // rebuild groupedList using orderedTasks
+            const clientMap={};
+            orderedTasks.forEach(tk=>{
+              const key=tk.cId||"__none__";
+              if(!clientMap[key])clientMap[key]=[];
+              clientMap[key].push(tk);
+            });
+            const clientIds=Object.keys(clientMap).filter(k=>k!=="__none__").sort((a,b)=>{
+              const na=data.clients.find(c=>c.id===a)?.name||"";
+              const nb=data.clients.find(c=>c.id===b)?.name||"";
+              return na.localeCompare(nb);
+            });
+            if(clientMap["__none__"])clientIds.push("__none__");
+            const items=[];
+            clientIds.forEach(cid=>{
+              const clientTasks=clientMap[cid];
+              const clientLabel=cid==="__none__"?"No Client":(data.clients.find(c=>c.id===cid)?.name||"Unknown");
+              items.push({type:"clientSep",label:clientLabel,key:"csep_"+cid});
+              const bucketMap={};
+              clientTasks.forEach(tk=>{
+                const b=getDateBucket(tk.due);
+                if(!bucketMap[b])bucketMap[b]=[];
+                bucketMap[b].push(tk);
+              });
+              BUCKET_ORDER.forEach(bucket=>{
+                if(!bucketMap[bucket])return;
+                items.push({type:"bucketSep",label:bucket,key:"bsep_"+cid+"_"+bucket});
+                bucketMap[bucket].forEach(tk=>items.push({type:"task",task:tk}));
+              });
+            });
+            return items;
+          })();
           return(
             <div key={col}
               style={{width:284,flexShrink:0,display:"flex",flexDirection:"column",borderRadius:14,background:isOver?(t.dark?`${colAccent}14`:`${colAccent}0c`):t.dark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.025)",border:`1.5px solid ${isOver?colAccent+"55":t.border}`,transition:"background .18s,border-color .18s",animation:`fadeUp .32s ease ${ci*55}ms both`,maxHeight:"calc(100vh - 200px)",minHeight:120}}
               onDragOver={e=>{e.preventDefault();setDragOver(col);}}
               onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget))setDragOver(null);}}
-              onDrop={e=>{e.preventDefault();if(dragId)move(dragId,col);setDragId(null);setDragOver(null);}}>
+              onDrop={e=>{
+                e.preventDefault();
+                const taskCurrentCol=data.tasks.find(tk=>tk.id===dragId)?.status;
+                if(dragId&&taskCurrentCol===col){
+                  const curOrder=colOrder[col]||tasks.map(tk=>tk.id);
+                  const from=curOrder.indexOf(dragId);
+                  const to=dragTarget?curOrder.indexOf(dragTarget.taskId):curOrder.length;
+                  if(from!==-1&&to!==-1&&from!==to){
+                    const newOrder=[...curOrder];
+                    newOrder.splice(from,1);
+                    newOrder.splice(to,0,dragId);
+                    setColOrder(p=>({...p,[col]:newOrder}));
+                  }
+                } else if(dragId){
+                  move(dragId,col);
+                }
+                setDragId(null);setDragOver(null);setDragTarget(null);
+              }}>
               {/* Column Header */}
               <div style={{padding:"13px 14px 10px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -3171,40 +3300,64 @@ function BoardView({t,data,setData,toast,currentUser}){
                 <span style={{fontSize:11,fontWeight:700,background:`${colAccent}20`,color:colAccent,minWidth:22,height:22,borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 7px"}}>{tasks.length}</span>
               </div>
               {/* Cards — scrollable */}
-              <div style={{flex:1,overflowY:"auto",padding:"0 10px 10px",display:"flex",flexDirection:"column",gap:7}}>
+              <div style={{flex:1,overflowY:"auto",padding:"0 10px 10px",display:"flex",flexDirection:"column",gap:0}}>
                 {/* Add task inline button */}
-                <button onClick={()=>{}} style={{display:"flex",alignItems:"center",gap:6,width:"100%",padding:"6px 8px",background:"transparent",border:"none",color:t.textMuted,fontSize:12,fontWeight:500,cursor:"pointer",borderRadius:8,transition:"background .12s,color .12s",textAlign:"left",marginBottom:2}} onMouseEnter={e=>{e.currentTarget.style.background=t.hover;e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.textMuted;}}><Plus size={13} strokeWidth={2}/> Add task</button>
-                {tasks.map((task,ti)=>(
-                  <div key={task.id} draggable
-                    onDragStart={()=>setDragId(task.id)}
-                    onDragEnd={()=>{setDragId(null);setDragOver(null);}}
-                    onClick={()=>setSel(task)}
-                    style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:10,padding:"11px 13px",cursor:"grab",userSelect:"none",boxShadow:dragId===task.id?"0 10px 28px rgba(0,0,0,0.22)":t.cardShadow,border:`1px solid ${t.dark?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.06)"}`,opacity:dragId===task.id?0.4:1,transition:"box-shadow .15s,transform .15s,opacity .15s"}}
-                    onMouseEnter={e=>{e.currentTarget.style.boxShadow=t.cardShadowHover;e.currentTarget.style.transform="translateY(-2px)";}}
-                    onMouseLeave={e=>{e.currentTarget.style.boxShadow=t.cardShadow;e.currentTarget.style.transform="none";}}>
-                    {/* Priority chip + due */}
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:7}}>
-                      <span style={{fontSize:10,fontWeight:700,color:BOARD_PRIO_STRIP[task.priority]||t.textMuted,background:`${BOARD_PRIO_STRIP[task.priority]||t.textMuted}18`,padding:"2px 8px",borderRadius:99,letterSpacing:"0.02em"}}>{task.priority||"Normal"}</span>
-                      {task.due&&<span style={{fontSize:10,fontWeight:600,color:isOverdue(task.due)&&col!=="Completed"?t.red:t.textMuted,display:"flex",alignItems:"center",gap:3}}><CalendarDays size={9}/>{fd(task.due)}</span>}
-                    </div>
-                    {/* Title */}
-                    <div style={{fontSize:13,fontWeight:600,color:t.text,lineHeight:1.45,marginBottom:4,letterSpacing:"-0.01em"}}>{task.title}</div>
-                    {/* Client */}
-                    {task.cId&&<div style={{fontSize:11,color:t.textMuted,marginBottom:7,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{cName(task.cId)}</div>}
-                    {/* Footer */}
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",paddingTop:8,borderTop:`1px solid ${t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.04)"}`}}>
-                      <div style={{display:"flex",alignItems:"center",gap:5}}>
-                        <Av init={data.users.find(u=>u.id===task.aId)?.av||"?"} size={20} t={t}/>
-                        <span style={{fontSize:11,color:t.textMuted,fontWeight:500}}>{uName(task.aId).split(" ")[0]}</span>
+                <button onClick={()=>{setQuickAddStatus(col);setShowQuickAdd(true);setQForm({title:"",cId:"",aId:"",priority:"Medium",due:"",drive:"",assetLinks:[""]});}} style={{display:"flex",alignItems:"center",gap:6,width:"100%",padding:"6px 8px",background:"transparent",border:"none",color:t.textMuted,fontSize:12,fontWeight:500,cursor:"pointer",borderRadius:8,transition:"background .12s,color .12s",textAlign:"left",marginBottom:4}} onMouseEnter={e=>{e.currentTarget.style.background=t.hover;e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.textMuted;}}><Plus size={13} strokeWidth={2}/> Add task</button>
+                {groupedItemsOrdered.map((item)=>{
+                  if(item.type==="clientSep"){
+                    return(
+                      <div key={item.key} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 4px 4px",opacity:0.65}}>
+                        <Briefcase size={10} color={t.textMuted}/>
+                        <span style={{fontSize:10,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em"}}>{item.label}</span>
+                        <div style={{flex:1,height:1,background:t.border}}/>
                       </div>
-                      <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        {task.status==="In Progress"&&task.startedAt&&<div style={{display:"flex",alignItems:"center",gap:3}}><div style={{width:5,height:5,borderRadius:"50%",background:"#84cc16",animation:"ping 1.5s ease-out infinite"}}/><LiveTimer startedAt={task.startedAt} t={t} active/></div>}
-                        {(task.subtasks||[]).length>0&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:2}}><CheckCircle2 size={9}/>{(task.subtasks||[]).filter(s=>s.done).length}/{task.subtasks.length}</span>}
-                        {(task.comments||[]).length>0&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:2}}><Hash size={8}/>{task.comments.length}</span>}
+                    );
+                  }
+                  if(item.type==="bucketSep"){
+                    return(
+                      <div key={item.key} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 4px 2px"}}>
+                        <span style={{fontSize:9,fontWeight:600,color:t.textMuted,letterSpacing:"0.05em"}}>{item.label}</span>
+                        <div style={{flex:1,height:1,background:t.border,opacity:0.4}}/>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  }
+                  const task=item.task;
+                  return(
+                    <React.Fragment key={task.id}>
+                      {dragTarget?.col===col&&dragTarget?.taskId===task.id&&(
+                        <div style={{height:2,background:t.lime,borderRadius:99,margin:"0 4px",animation:"fadeIn .1s ease both"}}/>
+                      )}
+                      <div draggable
+                        onDragStart={()=>setDragId(task.id)}
+                        onDragEnd={()=>{setDragId(null);setDragOver(null);setDragTarget(null);}}
+                        onDragOver={e=>{e.preventDefault();e.stopPropagation();if(dragId&&dragId!==task.id)setDragTarget({col,taskId:task.id});}}
+                        onClick={()=>setSel(task)}
+                        style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:10,padding:"11px 13px",cursor:"grab",userSelect:"none",boxShadow:dragId===task.id?"0 10px 28px rgba(0,0,0,0.22)":t.cardShadow,border:`1px solid ${t.dark?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.06)"}`,opacity:dragId===task.id?0.4:1,transition:"box-shadow .15s,transform .15s,opacity .15s",marginBottom:7}}
+                        onMouseEnter={e=>{e.currentTarget.style.boxShadow=t.cardShadowHover;e.currentTarget.style.transform="translateY(-2px)";}}
+                        onMouseLeave={e=>{e.currentTarget.style.boxShadow=t.cardShadow;e.currentTarget.style.transform="none";}}>
+                        {/* Priority chip + due */}
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:7}}>
+                          <span style={{fontSize:10,fontWeight:700,color:BOARD_PRIO_STRIP[task.priority]||t.textMuted,background:`${BOARD_PRIO_STRIP[task.priority]||t.textMuted}18`,padding:"2px 8px",borderRadius:99,letterSpacing:"0.02em"}}>{task.priority||"Normal"}</span>
+                          {task.due&&<span style={{fontSize:10,fontWeight:600,color:isOverdue(task.due)&&col!=="Completed"?t.red:t.textMuted,display:"flex",alignItems:"center",gap:3}}><CalendarDays size={9}/>{fd(task.due)}</span>}
+                        </div>
+                        {/* Title */}
+                        <div style={{fontSize:13,fontWeight:600,color:t.text,lineHeight:1.45,marginBottom:4,letterSpacing:"-0.01em"}}>{task.title}</div>
+                        {/* Footer */}
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",paddingTop:8,borderTop:`1px solid ${t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.04)"}`}}>
+                          <div style={{display:"flex",alignItems:"center",gap:5}}>
+                            <Av init={data.users.find(u=>u.id===task.aId)?.av||"?"} size={20} t={t}/>
+                            <span style={{fontSize:11,color:t.textMuted,fontWeight:500}}>{uName(task.aId).split(" ")[0]}</span>
+                          </div>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            {task.status==="In Progress"&&task.startedAt&&<div style={{display:"flex",alignItems:"center",gap:3}}><div style={{width:5,height:5,borderRadius:"50%",background:"#84cc16",animation:"ping 1.5s ease-out infinite"}}/><LiveTimer startedAt={task.startedAt} t={t} active/></div>}
+                            {(task.subtasks||[]).length>0&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:2}}><CheckCircle2 size={9}/>{(task.subtasks||[]).filter(s=>s.done).length}/{task.subtasks.length}</span>}
+                            {(task.comments||[]).length>0&&<span style={{fontSize:10,color:t.textMuted,display:"flex",alignItems:"center",gap:2}}><Hash size={8}/>{task.comments.length}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
                 {tasks.length===0&&<div style={{padding:"28px 12px",textAlign:"center",color:isOver?colAccent:t.textMuted,fontSize:12,fontWeight:500,opacity:isOver?1:0.5,transition:"all .15s"}}>{isOver?"Drop here ↓":"No tasks yet"}</div>}
               </div>
             </div>
@@ -3301,6 +3454,54 @@ function BoardView({t,data,setData,toast,currentUser}){
           <Btn v="lime" t={t} onClick={confirmReview} icon={<Send size={12}/>}>Send for Review</Btn>
         </div>
       </Modal>
+
+      {/* Quick-Add Task Modal */}
+      <Modal open={showQuickAdd} onClose={()=>setShowQuickAdd(false)} title={`Add Task to ${quickAddStatus}`} t={t} w={500}>
+        <Field label="Title *" t={t}><Inp value={qForm.title} onChange={e=>setQForm(p=>({...p,title:e.target.value}))} placeholder="Task title…" t={t}/></Field>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,margin:"12px 0"}}>
+          <Field label="Client" t={t}>
+            <Sel value={qForm.cId} onChange={e=>setQForm(p=>({...p,cId:e.target.value}))} t={t}>
+              <option value="">No client</option>
+              {data.clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+            </Sel>
+          </Field>
+          <Field label="Assignee" t={t}>
+            <Sel value={qForm.aId} onChange={e=>setQForm(p=>({...p,aId:e.target.value}))} t={t}>
+              <option value="">Unassigned</option>
+              {data.users.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}
+            </Sel>
+          </Field>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+          <Field label="Priority" t={t}>
+            <Sel value={qForm.priority} onChange={e=>setQForm(p=>({...p,priority:e.target.value}))} t={t}>
+              {["High","Medium","Low"].map(p=><option key={p} value={p}>{p}</option>)}
+            </Sel>
+          </Field>
+          <Field label="Due Date" t={t}><DatePicker value={qForm.due} onChange={v=>setQForm(p=>({...p,due:v}))} t={t} placeholder="Pick due date"/></Field>
+        </div>
+        <Field label="Drive Link" t={t}><Inp value={qForm.drive} onChange={e=>setQForm(p=>({...p,drive:e.target.value}))} placeholder="https://drive.google.com/…" t={t}/></Field>
+        <div style={{marginTop:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:8}}>Asset Links</div>
+          {qForm.assetLinks.map((lnk,li)=>(
+            <div key={li} style={{display:"flex",gap:8,marginBottom:6,alignItems:"center"}}>
+              <Inp value={lnk} onChange={e=>setQForm(p=>{const al=[...p.assetLinks];al[li]=e.target.value;return {...p,assetLinks:al};})} placeholder={`Asset link ${li+1}`} t={t} style={{flex:1}}/>
+              {qForm.assetLinks.length>1&&<button onClick={()=>setQForm(p=>({...p,assetLinks:p.assetLinks.filter((_,i)=>i!==li)}))} style={{background:"transparent",border:"none",cursor:"pointer",color:t.textMuted,display:"flex",alignItems:"center",padding:4}}><X size={13}/></button>}
+            </div>
+          ))}
+          <button onClick={()=>setQForm(p=>({...p,assetLinks:[...p.assetLinks,""]}))} style={{display:"flex",alignItems:"center",gap:5,background:"transparent",border:"none",cursor:"pointer",color:t.textMuted,fontSize:12,padding:"4px 0"}}><Plus size={12}/>Add link</button>
+        </div>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:16}}>
+          <Btn v="secondary" t={t} onClick={()=>setShowQuickAdd(false)}>Cancel</Btn>
+          <Btn v="lime" t={t} disabled={qSaving} onClick={()=>{
+            if(!qForm.title.trim()){toast("Title is required","error");return;}
+            setQSaving(true);
+            const newTask={id:"t"+Date.now(),title:qForm.title.trim(),cId:qForm.cId,aId:qForm.aId,priority:qForm.priority,due:qForm.due,drive:qForm.drive,assetLinks:qForm.assetLinks.filter(l=>l.trim()),status:quickAddStatus,logged:0,startedAt:null,created:new Date().toISOString().split("T")[0],comments:[],subtasks:[],createdBy:currentUser?.id||""};
+            setData(d=>({...d,tasks:[...d.tasks,newTask]}));
+            setQSaving(false);setShowQuickAdd(false);toast("Task created");
+          }} icon={<Plus size={13}/>}>{qSaving?"Saving…":"Add Task"}</Btn>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -3316,7 +3517,7 @@ function MyTasks({t,currentUser,toast}){
   const [tasks,setTasks]=useState([]);
   const [loading,setLoading]=useState(true);
   const [showAdd,setShowAdd]=useState(false);
-  const [form,setForm]=useState({title:"",priority:"Medium",due:"",note:""});
+  const [form,setForm]=useState({title:"",priority:"Medium",due:"",note:"",links:[""]});
   const [dragId,setDragId]=useState(null);
   const [dragOver,setDragOver]=useState(null);
   const [sel,setSel]=useState(null);
@@ -3334,10 +3535,10 @@ function MyTasks({t,currentUser,toast}){
   const addTask=async()=>{
     if(!form.title.trim()){toast("Title is required","error");return;}
     setSaving(true);
-    const task={id:"mt"+Date.now(),userId,title:form.title.trim(),priority:form.priority,due:form.due,note:form.note.trim(),status:"Todo",createdAt:new Date().toISOString()};
+    const task={id:"mt"+Date.now(),userId,title:form.title.trim(),priority:form.priority,due:form.due,note:form.note.trim(),links:form.links.filter(l=>l.trim()),status:"Todo",createdAt:new Date().toISOString()};
     await createDoc(COLS.MYTASKS,task.id,task);
     setTasks(p=>[task,...p]);
-    setShowAdd(false);setForm({title:"",priority:"Medium",due:"",note:""});
+    setShowAdd(false);setForm({title:"",priority:"Medium",due:"",note:"",links:[""]});
     setSaving(false);toast("Task added");
   };
 
@@ -3368,7 +3569,7 @@ function MyTasks({t,currentUser,toast}){
   return(
     <div style={{animation:"pageEnter .28s ease both"}}>
       <SHead t={t} title="My Tasks" sub="Your private task board — only visible to you"
-        action={<Btn v="lime" t={t} onClick={()=>{setShowAdd(true);setForm({title:"",priority:"Medium",due:"",note:""}); }} icon={<Plus size={14}/>}>New Task</Btn>}/>
+        action={<Btn v="lime" t={t} onClick={()=>{setShowAdd(true);setForm({title:"",priority:"Medium",due:"",note:"",links:[""]});}} icon={<Plus size={14}/>}>New Task</Btn>}/>
 
       {/* Progress strip */}
       {totalTasks>0&&(
@@ -3413,7 +3614,7 @@ function MyTasks({t,currentUser,toast}){
                 </div>
                 {/* Cards */}
                 <div style={{padding:"0 10px 10px",display:"flex",flexDirection:"column",gap:7}}>
-                  <button onClick={()=>{setShowAdd(true);setForm({title:"",priority:"Medium",due:"",note:""}); }} style={{display:"flex",alignItems:"center",gap:6,width:"100%",padding:"6px 8px",background:"transparent",border:"none",color:t.textMuted,fontSize:12,fontWeight:500,cursor:"pointer",borderRadius:8,transition:"background .12s,color .12s",textAlign:"left",marginBottom:2}} onMouseEnter={e=>{e.currentTarget.style.background=t.hover;e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.textMuted;}}><Plus size={13} strokeWidth={2}/> Add task</button>
+                  <button onClick={()=>{setShowAdd(true);setForm({title:"",priority:"Medium",due:"",note:"",links:[""]});}} style={{display:"flex",alignItems:"center",gap:6,width:"100%",padding:"6px 8px",background:"transparent",border:"none",color:t.textMuted,fontSize:12,fontWeight:500,cursor:"pointer",borderRadius:8,transition:"background .12s,color .12s",textAlign:"left",marginBottom:2}} onMouseEnter={e=>{e.currentTarget.style.background=t.hover;e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=t.textMuted;}}><Plus size={13} strokeWidth={2}/> Add task</button>
                   {colTasks.map((task,ti)=>(
                     <div key={task.id} draggable
                       onDragStart={()=>setDragId(task.id)}
@@ -3450,6 +3651,16 @@ function MyTasks({t,currentUser,toast}){
           <Field label="Due Date" t={t}><DatePicker value={form.due} onChange={v=>setForm(p=>({...p,due:v}))} t={t} placeholder="Pick due date"/></Field>
         </div>
         <Field label="Notes" t={t}><Tex value={form.note} onChange={e=>setForm(p=>({...p,note:e.target.value}))} placeholder="Optional context…" t={t} rows={3}/></Field>
+        <div style={{marginTop:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:8}}>Links</div>
+          {form.links.map((lnk,li)=>(
+            <div key={li} style={{display:"flex",gap:8,marginBottom:6,alignItems:"center"}}>
+              <Inp value={lnk} onChange={e=>setForm(p=>{const ls=[...p.links];ls[li]=e.target.value;return {...p,links:ls};})} placeholder={`Link ${li+1}`} t={t} style={{flex:1}}/>
+              {form.links.length>1&&<button onClick={()=>setForm(p=>({...p,links:p.links.filter((_,i)=>i!==li)}))} style={{background:"transparent",border:"none",cursor:"pointer",color:t.textMuted,display:"flex",alignItems:"center",padding:4}}><X size={13}/></button>}
+            </div>
+          ))}
+          <button onClick={()=>setForm(p=>({...p,links:[...p.links,""]}))} style={{display:"flex",alignItems:"center",gap:5,background:"transparent",border:"none",cursor:"pointer",color:t.textMuted,fontSize:12,padding:"4px 0"}}><Plus size={12}/>Add link</button>
+        </div>
         <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:16}}>
           <Btn v="secondary" t={t} onClick={()=>setShowAdd(false)}>Cancel</Btn>
           <Btn v="lime" t={t} onClick={addTask} disabled={saving} icon={<Plus size={13}/>}>{saving?"Saving…":"Add Task"}</Btn>
@@ -3486,6 +3697,9 @@ function MyTasks({t,currentUser,toast}){
               {sel.note&&<div style={{padding:"10px 14px",background:t.surfaceAlt,borderRadius:6,marginBottom:14}}>
                 <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:t.textMuted,marginBottom:5}}>Notes</div>
                 <p style={{fontSize:13,color:t.textMid,lineHeight:1.7,margin:0,whiteSpace:"pre-wrap"}}>{sel.note}</p>
+              </div>}
+              {(sel.links||[]).filter(l=>l).length>0&&<div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:14}}>
+                {(sel.links||[]).filter(l=>l).map((l,i)=><a key={i} href={l} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 12px",background:t.surfaceAlt,color:t.textMid,borderRadius:9,fontSize:12,fontWeight:600,textDecoration:"none"}}><Link2 size={11}/> Link {i+1}</a>)}
               </div>}
               {/* Move to */}
               <div style={{borderTop:`1px solid ${t.border}`,paddingTop:14,marginBottom:14}}>
