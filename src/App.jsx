@@ -3149,7 +3149,7 @@ function BoardView({t,data,setData,toast,currentUser}){
       BUCKET_ORDER.forEach(bucket=>{
         if(!bucketMap[bucket])return;
         items.push({type:"bucketSep",label:bucket,key:"bsep_"+cid+"_"+bucket});
-        const sorted=[...bucketMap[bucket]].sort((a,b)=>getPrioRank(a.priority)-getPrioRank(b.priority));
+        const sorted=[...bucketMap[bucket]].sort((a,b)=>{const da=a.due?new Date(a.due).getTime():Infinity,db=b.due?new Date(b.due).getTime():Infinity;return da!==db?da-db:getPrioRank(a.priority)-getPrioRank(b.priority);});
         sorted.forEach(tk=>items.push({type:"task",task:tk}));
       });
     });
@@ -3537,7 +3537,7 @@ function MyTasks({t,currentUser,toast}){
       :[...colTasks];
     const buckets={};
     ordered.forEach(tk=>{const b=mtGetBucket(tk.due);(buckets[b]=buckets[b]||[]).push(tk);});
-    Object.keys(buckets).forEach(b=>buckets[b].sort((a,z)=>mtPrioRank(a.priority)-mtPrioRank(z.priority)));
+    Object.keys(buckets).forEach(b=>buckets[b].sort((a,z)=>{const da=a.due?new Date(a.due).getTime():Infinity,dz=z.due?new Date(z.due).getTime():Infinity;return da!==dz?da-dz:mtPrioRank(a.priority)-mtPrioRank(z.priority);}));
     const out=[];
     MT_BUCKET_ORDER.forEach(b=>{
       if(!buckets[b]?.length)return;
