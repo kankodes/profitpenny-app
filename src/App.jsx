@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { add as dfAdd, eachDayOfInterval as dfInterval, endOfMonth as dfEndOfMonth, endOfWeek as dfEndOfWeek, format as dfFmt, getDay as dfGetDay, isEqual as dfIsEqual, isSameDay as dfSameDay, isSameMonth as dfSameMonth, isToday as dfIsToday, parse as dfParse, startOfToday as dfToday, startOfWeek as dfStartOfWeek } from "date-fns";
 import { listDocs, createDoc, updateDoc_, deleteDoc_, COLS, loginUser, logoutUser, onAuth, getCurrentUser, inviteUser } from "./firebase";
 import {
@@ -347,36 +348,37 @@ function DatePicker({value,onChange,t,placeholder="Pick a date",disabled=false})
   const [open,setOpen]=useState(false);
   const [viewMonth,setViewMonth]=useState(()=>value?new Date(value):new Date());
   const [popPos,setPopPos]=useState({top:0,left:0,width:0,openUp:false});
-  const ref=useRef(null);
+  const wrapRef=useRef(null);
   const btnRef=useRef(null);
+  const popRef=useRef(null);
+
+  const calcPos=()=>{
+    if(!btnRef.current)return;
+    const r=btnRef.current.getBoundingClientRect();
+    const spaceBelow=window.innerHeight-r.bottom;
+    const openUp=spaceBelow<320&&r.top>320;
+    setPopPos({top:openUp?r.top:r.bottom+4,left:r.left,width:r.width,openUp});
+  };
   useEffect(()=>{
     if(!open)return;
-    const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
-    document.addEventListener("mousedown",h);
-    return()=>document.removeEventListener("mousedown",h);
-  },[open]);
-  useEffect(()=>{
-    if(!open)return;
-    const update=()=>{
-      if(btnRef.current){
-        const r=btnRef.current.getBoundingClientRect();
-        const spaceBelow=window.innerHeight-r.bottom;
-        const openUp=spaceBelow<320&&r.top>320;
-        setPopPos({top:openUp?r.top-4:r.bottom+4,left:r.left,width:r.width,openUp});
-      }
+    const h=e=>{
+      if(wrapRef.current&&wrapRef.current.contains(e.target))return;
+      if(popRef.current&&popRef.current.contains(e.target))return;
+      setOpen(false);
     };
-    window.addEventListener("scroll",update,true);
-    window.addEventListener("resize",update);
-    return()=>{window.removeEventListener("scroll",update,true);window.removeEventListener("resize",update);};
+    document.addEventListener("mousedown",h);
+    window.addEventListener("scroll",calcPos,true);
+    window.addEventListener("resize",calcPos);
+    return()=>{
+      document.removeEventListener("mousedown",h);
+      window.removeEventListener("scroll",calcPos,true);
+      window.removeEventListener("resize",calcPos);
+    };
   },[open]);
+
   const handleOpen=()=>{
     if(disabled)return;
-    if(!open&&btnRef.current){
-      const r=btnRef.current.getBoundingClientRect();
-      const spaceBelow=window.innerHeight-r.bottom;
-      const openUp=spaceBelow<320&&r.top>320;
-      setPopPos({top:openUp?r.top-4:r.bottom+4,left:r.left,width:r.width,openUp});
-    }
+    calcPos();
     setOpen(p=>!p);
   };
   const firstDay=dfParse(dfFmt(viewMonth,"MMM-yyyy"),"MMM-yyyy",new Date());
@@ -385,44 +387,45 @@ function DatePicker({value,onChange,t,placeholder="Pick a date",disabled=false})
   const displayVal=value?dfFmt(new Date(value),"MMM d, yyyy"):null;
   const pick=day=>{onChange(dfFmt(day,"yyyy-MM-dd"));setOpen(false);};
   const btnS={background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"4px 8px",cursor:"pointer",color:t.text,display:"flex",alignItems:"center",transition:"background .1s"};
+  const popover=open&&(
+    <div ref={popRef} style={{position:"fixed",top:popPos.openUp?"auto":popPos.top,bottom:popPos.openUp?window.innerHeight-popPos.top+4:"auto",left:popPos.left,zIndex:99999,background:t.dark?t.surface:"#ffffff",border:`1px solid ${t.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.22),0 2px 8px rgba(0,0,0,0.10)",padding:14,minWidth:Math.max(268,popPos.width||0),animation:"scaleIn .16s ease both",transformOrigin:popPos.openUp?"bottom left":"top left"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+        <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:-1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronLeft size={13}/></button>
+        <span style={{fontWeight:700,fontSize:12,color:t.text}}>{dfFmt(viewMonth,"MMMM yyyy")}</span>
+        <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronRight size={13}/></button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
+        {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:9,fontWeight:700,color:t.textMuted,padding:"2px 0"}}>{d}</div>)}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
+        {days.map((day,i)=>{
+          const inM=dfSameMonth(day,firstDay),isTod=dfIsToday(day);
+          const isSel=selDate&&dfFmt(day,"yyyy-MM-dd")===dfFmt(selDate,"yyyy-MM-dd");
+          return(
+            <button key={i} type="button" onClick={()=>pick(day)}
+              style={{width:"100%",aspectRatio:"1",borderRadius:8,background:isSel?(isTod?t.lime:t.text):isTod?t.limeBg:"transparent",color:isSel?(isTod?"#000":t.dark?t.bg:"#fff"):isTod?t.limeDeep:!inM?t.textMuted:t.text,fontSize:11,fontWeight:isTod||isSel?700:400,border:"none",cursor:"pointer",transition:"background .1s",opacity:!inM&&!isSel?0.38:1}}
+              onMouseEnter={e=>{if(!isSel)e.currentTarget.style.background=t.hover;}}
+              onMouseLeave={e=>{e.currentTarget.style.background=isSel?(isTod?t.lime:t.text):isTod?t.limeBg:"transparent";}}>
+              {dfFmt(day,"d")}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",marginTop:10,paddingTop:10,borderTop:`1px solid ${t.border}`}}>
+        <button type="button" onClick={()=>{onChange("");setOpen(false);}} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,fontSize:11,padding:0,fontFamily:"'Inter',sans-serif"}}>Clear</button>
+        <button type="button" onClick={()=>{pick(dfToday());}} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:7,padding:"4px 12px",cursor:"pointer",color:t.text,fontSize:11,fontWeight:600,fontFamily:"'Inter',sans-serif"}}>Today</button>
+      </div>
+    </div>
+  );
   return(
-    <div ref={ref} style={{position:"relative",display:"block",width:"100%"}}>
+    <div ref={wrapRef} style={{position:"relative",display:"block",width:"100%"}}>
       <button ref={btnRef} type="button" disabled={disabled} onClick={handleOpen}
         style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:10,border:`1px solid ${open?t.lime:t.border}`,background:t.dark?t.surface:"#ffffff",color:displayVal?t.text:t.textMuted,fontSize:13,fontWeight:displayVal?500:400,cursor:disabled?"default":"pointer",width:"100%",textAlign:"left",transition:"border-color .14s",fontFamily:"'Inter',sans-serif",opacity:disabled?0.5:1}}>
         <CalendarDays size={14} color={t.textMuted} style={{flexShrink:0}}/>
         <span style={{flex:1}}>{displayVal||placeholder}</span>
         <ChevronDown size={12} color={t.textMuted} style={{transform:open?"rotate(180deg)":"none",transition:"transform .14s",flexShrink:0}}/>
       </button>
-      {open&&(
-        <div style={{position:"fixed",top:popPos.openUp?"auto":popPos.top,bottom:popPos.openUp?`${window.innerHeight-popPos.top}px`:"auto",left:popPos.left,zIndex:10002,background:t.dark?t.surface:"#ffffff",border:`1px solid ${t.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.18),0 2px 8px rgba(0,0,0,0.08)",padding:14,minWidth:Math.max(268,popPos.width||0),animation:"scaleIn .16s ease both",transformOrigin:popPos.openUp?"bottom left":"top left"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-            <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:-1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronLeft size={13}/></button>
-            <span style={{fontWeight:700,fontSize:12,color:t.text}}>{dfFmt(viewMonth,"MMMM yyyy")}</span>
-            <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronRight size={13}/></button>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
-            {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:9,fontWeight:700,color:t.textMuted,padding:"2px 0"}}>{d}</div>)}
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
-            {days.map((day,i)=>{
-              const inM=dfSameMonth(day,firstDay),isTod=dfIsToday(day);
-              const isSel=selDate&&dfFmt(day,"yyyy-MM-dd")===dfFmt(selDate,"yyyy-MM-dd");
-              return(
-                <button key={i} type="button" onClick={()=>pick(day)}
-                  style={{width:"100%",aspectRatio:"1",borderRadius:8,background:isSel?(isTod?t.lime:t.text):isTod?t.limeBg:"transparent",color:isSel?(isTod?t.dark?"#000":"#000":t.dark?t.bg:"#fff"):isTod?t.limeDeep:!inM?t.textMuted:t.text,fontSize:11,fontWeight:isTod||isSel?700:400,border:"none",cursor:"pointer",transition:"background .1s",opacity:!inM&&!isSel?0.38:1}}
-                  onMouseEnter={e=>{if(!isSel)e.currentTarget.style.background=t.hover;}}
-                  onMouseLeave={e=>{e.currentTarget.style.background=isSel?(isTod?t.lime:t.text):isTod?t.limeBg:"transparent";}}>
-                  {dfFmt(day,"d")}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",marginTop:10,paddingTop:10,borderTop:`1px solid ${t.border}`}}>
-            <button type="button" onClick={()=>{onChange("");setOpen(false);}} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,fontSize:11,padding:0,fontFamily:"'Inter',sans-serif"}}>Clear</button>
-            <button type="button" onClick={()=>{pick(dfToday());}} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:7,padding:"4px 12px",cursor:"pointer",color:t.text,fontSize:11,fontWeight:600,fontFamily:"'Inter',sans-serif"}}>Today</button>
-          </div>
-        </div>
-      )}
+      {typeof document!=="undefined"&&createPortal(popover,document.body)}
     </div>
   );
 }
@@ -437,36 +440,35 @@ function DateTimePicker({value,onChange,t,placeholder="Pick date & time",disable
   const [hour,setHour]=useState(()=>parsed?(parsed.getHours()%12||12).toString().padStart(2,"0"):"09");
   const [minute,setMinute]=useState(()=>parsed?parsed.getMinutes().toString().padStart(2,"0"):"00");
   const [ampm,setAmpm]=useState(()=>parsed?parsed.getHours()>=12?"PM":"AM":"AM");
-  const ref=useRef(null);
+  const wrapRef=useRef(null);
   const btnRef=useRef(null);
+  const popRef=useRef(null);
+  const calcPos=()=>{
+    if(!btnRef.current)return;
+    const r=btnRef.current.getBoundingClientRect();
+    const spaceBelow=window.innerHeight-r.bottom;
+    const openUp=spaceBelow<360&&r.top>360;
+    setPopPos({top:openUp?r.top:r.bottom+4,left:r.left,width:r.width,openUp});
+  };
   useEffect(()=>{
     if(!open)return;
-    const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
-    document.addEventListener("mousedown",h);
-    return()=>document.removeEventListener("mousedown",h);
-  },[open]);
-  useEffect(()=>{
-    if(!open)return;
-    const update=()=>{
-      if(btnRef.current){
-        const r=btnRef.current.getBoundingClientRect();
-        const spaceBelow=window.innerHeight-r.bottom;
-        const openUp=spaceBelow<320&&r.top>320;
-        setPopPos({top:openUp?r.top-4:r.bottom+4,left:r.left,width:r.width,openUp});
-      }
+    const h=e=>{
+      if(wrapRef.current&&wrapRef.current.contains(e.target))return;
+      if(popRef.current&&popRef.current.contains(e.target))return;
+      setOpen(false);
     };
-    window.addEventListener("scroll",update,true);
-    window.addEventListener("resize",update);
-    return()=>{window.removeEventListener("scroll",update,true);window.removeEventListener("resize",update);};
+    document.addEventListener("mousedown",h);
+    window.addEventListener("scroll",calcPos,true);
+    window.addEventListener("resize",calcPos);
+    return()=>{
+      document.removeEventListener("mousedown",h);
+      window.removeEventListener("scroll",calcPos,true);
+      window.removeEventListener("resize",calcPos);
+    };
   },[open]);
   const handleOpen=()=>{
     if(disabled)return;
-    if(!open&&btnRef.current){
-      const r=btnRef.current.getBoundingClientRect();
-      const spaceBelow=window.innerHeight-r.bottom;
-      const openUp=spaceBelow<320&&r.top>320;
-      setPopPos({top:openUp?r.top-4:r.bottom+4,left:r.left,width:r.width,openUp});
-    }
+    calcPos();
     setOpen(p=>!p);
   };
   const firstDay=dfParse(dfFmt(viewMonth,"MMM-yyyy"),"MMM-yyyy",new Date());
@@ -483,64 +485,65 @@ function DateTimePicker({value,onChange,t,placeholder="Pick date & time",disable
     setOpen(false);
   };
   const btnS={background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"4px 8px",cursor:"pointer",color:t.text,display:"flex",alignItems:"center",transition:"background .1s"};
-  const selS={...{padding:"5px 6px",borderRadius:8,border:`1px solid ${t.border}`,background:t.dark?t.surface:"#ffffff",color:t.text,fontSize:12,fontFamily:"'Inter',sans-serif",cursor:"pointer",outline:"none"}};
+  const selS={padding:"5px 6px",borderRadius:8,border:`1px solid ${t.border}`,background:t.dark?t.surface:"#ffffff",color:t.text,fontSize:12,fontFamily:"'Inter',sans-serif",cursor:"pointer",outline:"none"};
+  const popover=open&&(
+    <div ref={popRef} style={{position:"fixed",top:popPos.openUp?"auto":popPos.top,bottom:popPos.openUp?window.innerHeight-popPos.top+4:"auto",left:popPos.left,zIndex:99999,background:t.dark?t.surface:"#ffffff",border:`1px solid ${t.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.22),0 2px 8px rgba(0,0,0,0.10)",padding:14,minWidth:Math.max(280,popPos.width||0),animation:"scaleIn .16s ease both",transformOrigin:popPos.openUp?"bottom left":"top left"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+        <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:-1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronLeft size={13}/></button>
+        <span style={{fontWeight:700,fontSize:12,color:t.text}}>{dfFmt(viewMonth,"MMMM yyyy")}</span>
+        <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronRight size={13}/></button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
+        {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:9,fontWeight:700,color:t.textMuted,padding:"2px 0"}}>{d}</div>)}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:12}}>
+        {days.map((day,i)=>{
+          const inM=dfSameMonth(day,firstDay),isTod=dfIsToday(day);
+          const isSel=selDate&&dfFmt(day,"yyyy-MM-dd")===dfFmt(selDate,"yyyy-MM-dd");
+          return(
+            <button key={i} type="button" onClick={()=>{setSelDate(day);setViewMonth(day);}}
+              style={{width:"100%",aspectRatio:"1",borderRadius:8,background:isSel?(isTod?t.lime:t.text):isTod?t.limeBg:"transparent",color:isSel?(isTod?"#000":t.dark?t.bg:"#fff"):isTod?t.limeDeep:!inM?t.textMuted:t.text,fontSize:11,fontWeight:isTod||isSel?700:400,border:"none",cursor:"pointer",transition:"background .1s",opacity:!inM&&!isSel?0.38:1}}
+              onMouseEnter={e=>{if(!isSel)e.currentTarget.style.background=t.hover;}}
+              onMouseLeave={e=>{e.currentTarget.style.background=isSel?(isTod?t.lime:t.text):isTod?t.limeBg:"transparent";}}>
+              {dfFmt(day,"d")}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{paddingTop:10,borderTop:`1px solid ${t.border}`,marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <Timer size={13} color={t.textMuted} style={{flexShrink:0}}/>
+          <select value={hour} onChange={e=>setHour(e.target.value)} style={{...selS,width:58}}>
+            {Array.from({length:12},(_,i)=>(i+1).toString().padStart(2,"0")).map(h=><option key={h} value={h}>{h}</option>)}
+          </select>
+          <span style={{color:t.textMuted,fontWeight:700,fontSize:14}}>:</span>
+          <select value={minute} onChange={e=>setMinute(e.target.value)} style={{...selS,width:58}}>
+            {["00","15","30","45"].map(m=><option key={m} value={m}>{m}</option>)}
+          </select>
+          <select value={ampm} onChange={e=>setAmpm(e.target.value)} style={{...selS,width:60}}>
+            <option value="AM">AM</option>
+            <option value="PM">PM</option>
+          </select>
+        </div>
+      </div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <button type="button" onClick={()=>{onChange("");setSelDate(null);setOpen(false);}} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,fontSize:11,padding:0,fontFamily:"'Inter',sans-serif"}}>Clear</button>
+        <div style={{display:"flex",gap:7}}>
+          <button type="button" onClick={()=>setOpen(false)} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${t.border}`,background:"transparent",color:t.text,fontSize:12,fontWeight:500,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>Cancel</button>
+          <button type="button" onClick={confirm} disabled={!selDate} style={{padding:"6px 14px",borderRadius:8,border:"none",background:selDate?t.lime:"rgba(0,0,0,0.08)",color:selDate?"#000":t.textMuted,fontSize:12,fontWeight:700,cursor:selDate?"pointer":"default",fontFamily:"'Inter',sans-serif",transition:"all .14s"}}>Apply</button>
+        </div>
+      </div>
+    </div>
+  );
   return(
-    <div ref={ref} style={{position:"relative",display:"block",width:"100%"}}>
+    <div ref={wrapRef} style={{position:"relative",display:"block",width:"100%"}}>
       <button ref={btnRef} type="button" disabled={disabled} onClick={handleOpen}
         style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:10,border:`1px solid ${open?t.lime:t.border}`,background:t.dark?t.surface:"#ffffff",color:displayVal?t.text:t.textMuted,fontSize:13,fontWeight:displayVal?500:400,cursor:disabled?"default":"pointer",width:"100%",textAlign:"left",transition:"border-color .14s",fontFamily:"'Inter',sans-serif",opacity:disabled?0.5:1}}>
         <CalendarDays size={14} color={t.textMuted} style={{flexShrink:0}}/>
         <span style={{flex:1}}>{displayVal||placeholder}</span>
         <ChevronDown size={12} color={t.textMuted} style={{transform:open?"rotate(180deg)":"none",transition:"transform .14s",flexShrink:0}}/>
       </button>
-      {open&&(
-        <div style={{position:"fixed",top:popPos.openUp?"auto":popPos.top,bottom:popPos.openUp?`${window.innerHeight-popPos.top}px`:"auto",left:popPos.left,zIndex:10002,background:t.dark?t.surface:"#ffffff",border:`1px solid ${t.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.18),0 2px 8px rgba(0,0,0,0.08)",padding:14,minWidth:Math.max(280,popPos.width||0),animation:"scaleIn .16s ease both",transformOrigin:popPos.openUp?"bottom left":"top left"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-            <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:-1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronLeft size={13}/></button>
-            <span style={{fontWeight:700,fontSize:12,color:t.text}}>{dfFmt(viewMonth,"MMMM yyyy")}</span>
-            <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronRight size={13}/></button>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
-            {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:9,fontWeight:700,color:t.textMuted,padding:"2px 0"}}>{d}</div>)}
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:12}}>
-            {days.map((day,i)=>{
-              const inM=dfSameMonth(day,firstDay),isTod=dfIsToday(day);
-              const isSel=selDate&&dfFmt(day,"yyyy-MM-dd")===dfFmt(selDate,"yyyy-MM-dd");
-              return(
-                <button key={i} type="button" onClick={()=>{setSelDate(day);setViewMonth(day);}}
-                  style={{width:"100%",aspectRatio:"1",borderRadius:8,background:isSel?(isTod?t.lime:t.text):isTod?t.limeBg:"transparent",color:isSel?(isTod?"#000":t.dark?t.bg:"#fff"):isTod?t.limeDeep:!inM?t.textMuted:t.text,fontSize:11,fontWeight:isTod||isSel?700:400,border:"none",cursor:"pointer",transition:"background .1s",opacity:!inM&&!isSel?0.38:1}}
-                  onMouseEnter={e=>{if(!isSel)e.currentTarget.style.background=t.hover;}}
-                  onMouseLeave={e=>{e.currentTarget.style.background=isSel?(isTod?t.lime:t.text):isTod?t.limeBg:"transparent";}}>
-                  {dfFmt(day,"d")}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{paddingTop:10,borderTop:`1px solid ${t.border}`,marginBottom:12}}>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <Timer size={13} color={t.textMuted} style={{flexShrink:0}}/>
-              <select value={hour} onChange={e=>setHour(e.target.value)} style={{...selS,width:58}}>
-                {Array.from({length:12},(_,i)=>(i+1).toString().padStart(2,"0")).map(h=><option key={h} value={h}>{h}</option>)}
-              </select>
-              <span style={{color:t.textMuted,fontWeight:700,fontSize:14}}>:</span>
-              <select value={minute} onChange={e=>setMinute(e.target.value)} style={{...selS,width:58}}>
-                {["00","15","30","45"].map(m=><option key={m} value={m}>{m}</option>)}
-              </select>
-              <select value={ampm} onChange={e=>setAmpm(e.target.value)} style={{...selS,width:60}}>
-                <option value="AM">AM</option>
-                <option value="PM">PM</option>
-              </select>
-            </div>
-          </div>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <button type="button" onClick={()=>{onChange("");setSelDate(null);setOpen(false);}} style={{background:"none",border:"none",cursor:"pointer",color:t.textMuted,fontSize:11,padding:0,fontFamily:"'Inter',sans-serif"}}>Clear</button>
-            <div style={{display:"flex",gap:7}}>
-              <button type="button" onClick={()=>setOpen(false)} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${t.border}`,background:"transparent",color:t.text,fontSize:12,fontWeight:500,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>Cancel</button>
-              <button type="button" onClick={confirm} disabled={!selDate} style={{padding:"6px 14px",borderRadius:8,border:"none",background:selDate?t.lime:"rgba(0,0,0,0.08)",color:selDate?"#000":t.textMuted,fontSize:12,fontWeight:700,cursor:selDate?"pointer":"default",fontFamily:"'Inter',sans-serif",transition:"all .14s"}}>Apply</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {typeof document!=="undefined"&&createPortal(popover,document.body)}
     </div>
   );
 }
