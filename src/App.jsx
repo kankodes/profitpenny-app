@@ -346,13 +346,39 @@ function Modal({open,onClose,title,children,t,w=560,subtitle}){
 function DatePicker({value,onChange,t,placeholder="Pick a date",disabled=false}){
   const [open,setOpen]=useState(false);
   const [viewMonth,setViewMonth]=useState(()=>value?new Date(value):new Date());
+  const [popPos,setPopPos]=useState({top:0,left:0,width:0,openUp:false});
   const ref=useRef(null);
+  const btnRef=useRef(null);
   useEffect(()=>{
     if(!open)return;
     const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
     document.addEventListener("mousedown",h);
     return()=>document.removeEventListener("mousedown",h);
   },[open]);
+  useEffect(()=>{
+    if(!open)return;
+    const update=()=>{
+      if(btnRef.current){
+        const r=btnRef.current.getBoundingClientRect();
+        const spaceBelow=window.innerHeight-r.bottom;
+        const openUp=spaceBelow<320&&r.top>320;
+        setPopPos({top:openUp?r.top-4:r.bottom+4,left:r.left,width:r.width,openUp});
+      }
+    };
+    window.addEventListener("scroll",update,true);
+    window.addEventListener("resize",update);
+    return()=>{window.removeEventListener("scroll",update,true);window.removeEventListener("resize",update);};
+  },[open]);
+  const handleOpen=()=>{
+    if(disabled)return;
+    if(!open&&btnRef.current){
+      const r=btnRef.current.getBoundingClientRect();
+      const spaceBelow=window.innerHeight-r.bottom;
+      const openUp=spaceBelow<320&&r.top>320;
+      setPopPos({top:openUp?r.top-4:r.bottom+4,left:r.left,width:r.width,openUp});
+    }
+    setOpen(p=>!p);
+  };
   const firstDay=dfParse(dfFmt(viewMonth,"MMM-yyyy"),"MMM-yyyy",new Date());
   const days=dfInterval({start:dfStartOfWeek(firstDay),end:dfEndOfWeek(dfEndOfMonth(firstDay))});
   const selDate=value?new Date(value):null;
@@ -361,14 +387,14 @@ function DatePicker({value,onChange,t,placeholder="Pick a date",disabled=false})
   const btnS={background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"4px 8px",cursor:"pointer",color:t.text,display:"flex",alignItems:"center",transition:"background .1s"};
   return(
     <div ref={ref} style={{position:"relative",display:"block",width:"100%"}}>
-      <button type="button" disabled={disabled} onClick={()=>!disabled&&setOpen(p=>!p)}
+      <button ref={btnRef} type="button" disabled={disabled} onClick={handleOpen}
         style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:10,border:`1px solid ${open?t.lime:t.border}`,background:t.dark?t.surface:"#ffffff",color:displayVal?t.text:t.textMuted,fontSize:13,fontWeight:displayVal?500:400,cursor:disabled?"default":"pointer",width:"100%",textAlign:"left",transition:"border-color .14s",fontFamily:"'Inter',sans-serif",opacity:disabled?0.5:1}}>
         <CalendarDays size={14} color={t.textMuted} style={{flexShrink:0}}/>
         <span style={{flex:1}}>{displayVal||placeholder}</span>
         <ChevronDown size={12} color={t.textMuted} style={{transform:open?"rotate(180deg)":"none",transition:"transform .14s",flexShrink:0}}/>
       </button>
       {open&&(
-        <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,zIndex:10001,background:t.dark?t.surface:"#ffffff",border:`1px solid ${t.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.18),0 2px 8px rgba(0,0,0,0.08)",padding:14,minWidth:268,animation:"scaleIn .16s ease both",transformOrigin:"top left"}}>
+        <div style={{position:"fixed",top:popPos.openUp?"auto":popPos.top,bottom:popPos.openUp?`${window.innerHeight-popPos.top}px`:"auto",left:popPos.left,zIndex:10002,background:t.dark?t.surface:"#ffffff",border:`1px solid ${t.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.18),0 2px 8px rgba(0,0,0,0.08)",padding:14,minWidth:Math.max(268,popPos.width||0),animation:"scaleIn .16s ease both",transformOrigin:popPos.openUp?"bottom left":"top left"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
             <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:-1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronLeft size={13}/></button>
             <span style={{fontWeight:700,fontSize:12,color:t.text}}>{dfFmt(viewMonth,"MMMM yyyy")}</span>
@@ -404,6 +430,7 @@ function DatePicker({value,onChange,t,placeholder="Pick a date",disabled=false})
 // ── DATE+TIME PICKER ──────────────────────────────────────────────────────
 function DateTimePicker({value,onChange,t,placeholder="Pick date & time",disabled=false}){
   const [open,setOpen]=useState(false);
+  const [popPos,setPopPos]=useState({top:0,left:0,width:0,openUp:false});
   const parsed=value?new Date(value.length===10?value+"T12:00":value):null;
   const [viewMonth,setViewMonth]=useState(()=>parsed||new Date());
   const [selDate,setSelDate]=useState(()=>parsed);
@@ -411,12 +438,37 @@ function DateTimePicker({value,onChange,t,placeholder="Pick date & time",disable
   const [minute,setMinute]=useState(()=>parsed?parsed.getMinutes().toString().padStart(2,"0"):"00");
   const [ampm,setAmpm]=useState(()=>parsed?parsed.getHours()>=12?"PM":"AM":"AM");
   const ref=useRef(null);
+  const btnRef=useRef(null);
   useEffect(()=>{
     if(!open)return;
     const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
     document.addEventListener("mousedown",h);
     return()=>document.removeEventListener("mousedown",h);
   },[open]);
+  useEffect(()=>{
+    if(!open)return;
+    const update=()=>{
+      if(btnRef.current){
+        const r=btnRef.current.getBoundingClientRect();
+        const spaceBelow=window.innerHeight-r.bottom;
+        const openUp=spaceBelow<320&&r.top>320;
+        setPopPos({top:openUp?r.top-4:r.bottom+4,left:r.left,width:r.width,openUp});
+      }
+    };
+    window.addEventListener("scroll",update,true);
+    window.addEventListener("resize",update);
+    return()=>{window.removeEventListener("scroll",update,true);window.removeEventListener("resize",update);};
+  },[open]);
+  const handleOpen=()=>{
+    if(disabled)return;
+    if(!open&&btnRef.current){
+      const r=btnRef.current.getBoundingClientRect();
+      const spaceBelow=window.innerHeight-r.bottom;
+      const openUp=spaceBelow<320&&r.top>320;
+      setPopPos({top:openUp?r.top-4:r.bottom+4,left:r.left,width:r.width,openUp});
+    }
+    setOpen(p=>!p);
+  };
   const firstDay=dfParse(dfFmt(viewMonth,"MMM-yyyy"),"MMM-yyyy",new Date());
   const days=dfInterval({start:dfStartOfWeek(firstDay),end:dfEndOfWeek(dfEndOfMonth(firstDay))});
   const displayVal=value?(()=>{try{const d=new Date(value.length===10?value+"T12:00":value);return dfFmt(d,"MMM d, yyyy")+" · "+dfFmt(d,"h:mm aa");}catch{return value;}})():null;
@@ -434,14 +486,14 @@ function DateTimePicker({value,onChange,t,placeholder="Pick date & time",disable
   const selS={...{padding:"5px 6px",borderRadius:8,border:`1px solid ${t.border}`,background:t.dark?t.surface:"#ffffff",color:t.text,fontSize:12,fontFamily:"'Inter',sans-serif",cursor:"pointer",outline:"none"}};
   return(
     <div ref={ref} style={{position:"relative",display:"block",width:"100%"}}>
-      <button type="button" disabled={disabled} onClick={()=>!disabled&&setOpen(p=>!p)}
+      <button ref={btnRef} type="button" disabled={disabled} onClick={handleOpen}
         style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:10,border:`1px solid ${open?t.lime:t.border}`,background:t.dark?t.surface:"#ffffff",color:displayVal?t.text:t.textMuted,fontSize:13,fontWeight:displayVal?500:400,cursor:disabled?"default":"pointer",width:"100%",textAlign:"left",transition:"border-color .14s",fontFamily:"'Inter',sans-serif",opacity:disabled?0.5:1}}>
         <CalendarDays size={14} color={t.textMuted} style={{flexShrink:0}}/>
         <span style={{flex:1}}>{displayVal||placeholder}</span>
         <ChevronDown size={12} color={t.textMuted} style={{transform:open?"rotate(180deg)":"none",transition:"transform .14s",flexShrink:0}}/>
       </button>
       {open&&(
-        <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,zIndex:10001,background:t.dark?t.surface:"#ffffff",border:`1px solid ${t.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.18),0 2px 8px rgba(0,0,0,0.08)",padding:14,minWidth:280,animation:"scaleIn .16s ease both",transformOrigin:"top left"}}>
+        <div style={{position:"fixed",top:popPos.openUp?"auto":popPos.top,bottom:popPos.openUp?`${window.innerHeight-popPos.top}px`:"auto",left:popPos.left,zIndex:10002,background:t.dark?t.surface:"#ffffff",border:`1px solid ${t.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.18),0 2px 8px rgba(0,0,0,0.08)",padding:14,minWidth:Math.max(280,popPos.width||0),animation:"scaleIn .16s ease both",transformOrigin:popPos.openUp?"bottom left":"top left"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
             <button style={btnS} onClick={()=>setViewMonth(d=>dfAdd(d,{months:-1}))} onMouseEnter={e=>e.currentTarget.style.background=t.hover} onMouseLeave={e=>e.currentTarget.style.background="none"}><ChevronLeft size={13}/></button>
             <span style={{fontWeight:700,fontSize:12,color:t.text}}>{dfFmt(viewMonth,"MMMM yyyy")}</span>
@@ -523,6 +575,49 @@ function DropMenu({trigger,items,t,align="left"}){
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── CHIP SELECTOR ─────────────────────────────────────────────────────────────
+function ChipSelector({options,value,onChange,t}){
+  return(
+    <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+      {options.map(opt=>{
+        const active=value===opt.id;
+        const ac=opt.activeColor||t.lime;
+        return(
+          <button key={opt.id} onClick={()=>onChange(opt.id)}
+            style={{
+              display:"flex",alignItems:"center",gap:active?6:0,
+              padding:"7px 16px",borderRadius:99,
+              border:`1.5px solid ${active?ac:t.border}`,
+              background:active?`${ac}20`:t.surfaceAlt,
+              color:active?ac:t.textMuted,
+              fontSize:12,fontWeight:active?700:500,
+              cursor:"pointer",
+              transition:"all .18s ease",
+              fontFamily:"'Inter',sans-serif",
+              overflow:"hidden",
+              maxWidth:active?140:110,
+              minWidth:active?110:80,
+            }}>
+            <span style={{
+              display:"inline-flex",alignItems:"center",justifyContent:"center",
+              width:active?14:0,height:14,
+              opacity:active?1:0,
+              overflow:"hidden",
+              transition:"width .18s ease, opacity .18s ease",
+              flexShrink:0
+            }}>
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                <path d="M5 10.5L9 14.5L15 7.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
+            {opt.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -3115,11 +3210,24 @@ function BoardView({t,data,setData,toast,currentUser}){
     return "Later";
   };
   const BUCKET_ORDER=["Overdue","Due Today","This Week","Upcoming","Later","No Deadline"];
+  const getCompletedBucket=dStr=>{
+    if(!dStr)return"No Date";
+    const d=new Date(dStr),now=new Date();
+    const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    const dDay=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+    const diff=(today-dDay)/(1000*60*60*24);
+    if(diff===0)return"Today";
+    if(diff===1)return"Yesterday";
+    if(diff<=7)return"This Week";
+    return"Earlier";
+  };
+  const DONE_BUCKET_ORDER=["Today","Yesterday","This Week","Earlier","No Date"];
   const PRIO_ORDER={"Urgent":0,"High":0,"Medium":1,"Low":2};
   const getPrioRank=p=>PRIO_ORDER[p]!==undefined?PRIO_ORDER[p]:3;
 
   // Build hierarchically grouped+sorted flat list for a column
   const buildGroupedList=(tasks,col)=>{
+    const isDoneCol=col==="Completed";
     // Sort clients alphabetically, no-client group at end
     const clientMap={};
     tasks.forEach(tk=>{
@@ -3139,19 +3247,33 @@ function BoardView({t,data,setData,toast,currentUser}){
       const clientTasks=clientMap[cid];
       const clientLabel=cid==="__none__"?"No Client":(data.clients.find(c=>c.id===cid)?.name||"Unknown");
       items.push({type:"clientSep",label:clientLabel,key:"csep_"+cid});
-      // Group by date bucket
+      // Group by date bucket — use completedAt for Done column
       const bucketMap={};
-      clientTasks.forEach(tk=>{
-        const b=getDateBucket(tk.due);
-        if(!bucketMap[b])bucketMap[b]=[];
-        bucketMap[b].push(tk);
-      });
-      BUCKET_ORDER.forEach(bucket=>{
-        if(!bucketMap[bucket])return;
-        items.push({type:"bucketSep",label:bucket,key:"bsep_"+cid+"_"+bucket});
-        const sorted=[...bucketMap[bucket]].sort((a,b)=>{const da=a.due?new Date(a.due).getTime():Infinity,db=b.due?new Date(b.due).getTime():Infinity;return da!==db?da-db:getPrioRank(a.priority)-getPrioRank(b.priority);});
-        sorted.forEach(tk=>items.push({type:"task",task:tk}));
-      });
+      if(isDoneCol){
+        clientTasks.forEach(tk=>{
+          const b=getCompletedBucket(tk.completedAt);
+          if(!bucketMap[b])bucketMap[b]=[];
+          bucketMap[b].push(tk);
+        });
+        DONE_BUCKET_ORDER.forEach(bucket=>{
+          if(!bucketMap[bucket])return;
+          items.push({type:"bucketSep",label:bucket,key:"bsep_"+cid+"_"+bucket,isDone:true});
+          const sorted=[...bucketMap[bucket]].sort((a,b)=>{const da=a.completedAt?new Date(a.completedAt).getTime():Infinity,db=b.completedAt?new Date(b.completedAt).getTime():Infinity;return db-da;});
+          sorted.forEach(tk=>items.push({type:"task",task:tk}));
+        });
+      }else{
+        clientTasks.forEach(tk=>{
+          const b=getDateBucket(tk.due);
+          if(!bucketMap[b])bucketMap[b]=[];
+          bucketMap[b].push(tk);
+        });
+        BUCKET_ORDER.forEach(bucket=>{
+          if(!bucketMap[bucket])return;
+          items.push({type:"bucketSep",label:bucket,key:"bsep_"+cid+"_"+bucket});
+          const sorted=[...bucketMap[bucket]].sort((a,b)=>{const da=a.due?new Date(a.due).getTime():Infinity,db=b.due?new Date(b.due).getTime():Infinity;return da!==db?da-db:getPrioRank(a.priority)-getPrioRank(b.priority);});
+          sorted.forEach(tk=>items.push({type:"task",task:tk}));
+        });
+      }
     });
     return items;
   };
@@ -3167,7 +3289,7 @@ function BoardView({t,data,setData,toast,currentUser}){
     }
     const was=task.status;
     setData(d=>{
-      const tasks=d.tasks.map(tk=>tk.id===taskId?{...tk,status:newStatus,startedAt:newStatus==="In Progress"&&!tk.startedAt?new Date().toISOString():tk.startedAt}:tk);
+      const tasks=d.tasks.map(tk=>tk.id===taskId?{...tk,status:newStatus,startedAt:newStatus==="In Progress"&&!tk.startedAt?new Date().toISOString():tk.startedAt,completedAt:newStatus==="Completed"?new Date().toISOString():tk.completedAt}:tk);
       // Notify assignee if someone else changed status
       const notifs=[...d.notifications];
       if(currentUser&&currentUser.id!==task.aId){
@@ -3237,6 +3359,7 @@ function BoardView({t,data,setData,toast,currentUser}){
           const groupedItemsOrdered=(()=>{
             if(!colOrder[col]||colOrder[col].length===0) return groupedItems;
             // rebuild groupedList using orderedTasks
+            const isDoneCol=col==="Completed";
             const clientMap={};
             orderedTasks.forEach(tk=>{
               const key=tk.cId||"__none__";
@@ -3255,21 +3378,18 @@ function BoardView({t,data,setData,toast,currentUser}){
               const clientLabel=cid==="__none__"?"No Client":(data.clients.find(c=>c.id===cid)?.name||"Unknown");
               items.push({type:"clientSep",label:clientLabel,key:"csep_"+cid});
               const bucketMap={};
-              clientTasks.forEach(tk=>{
-                const b=getDateBucket(tk.due);
-                if(!bucketMap[b])bucketMap[b]=[];
-                bucketMap[b].push(tk);
-              });
-              BUCKET_ORDER.forEach(bucket=>{
-                if(!bucketMap[bucket])return;
-                items.push({type:"bucketSep",label:bucket,key:"bsep_"+cid+"_"+bucket});
-                bucketMap[bucket].forEach(tk=>items.push({type:"task",task:tk}));
-              });
+              if(isDoneCol){
+                clientTasks.forEach(tk=>{const b=getCompletedBucket(tk.completedAt);if(!bucketMap[b])bucketMap[b]=[];bucketMap[b].push(tk);});
+                DONE_BUCKET_ORDER.forEach(bucket=>{if(!bucketMap[bucket])return;items.push({type:"bucketSep",label:bucket,key:"bsep_"+cid+"_"+bucket,isDone:true});bucketMap[bucket].forEach(tk=>items.push({type:"task",task:tk}));});
+              }else{
+                clientTasks.forEach(tk=>{const b=getDateBucket(tk.due);if(!bucketMap[b])bucketMap[b]=[];bucketMap[b].push(tk);});
+                BUCKET_ORDER.forEach(bucket=>{if(!bucketMap[bucket])return;items.push({type:"bucketSep",label:bucket,key:"bsep_"+cid+"_"+bucket});bucketMap[bucket].forEach(tk=>items.push({type:"task",task:tk}));});
+              }
             });
             return items;
           })();
           return(
-            <div key={col}
+            <div key={col} data-col={col}
               style={{width:284,flexShrink:0,display:"flex",flexDirection:"column",borderRadius:14,background:isOver?(t.dark?`${colAccent}14`:`${colAccent}0c`):t.dark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.025)",border:`1.5px solid ${isOver?colAccent+"55":t.border}`,transition:"background .18s,border-color .18s",animation:`fadeUp .32s ease ${ci*55}ms both`,maxHeight:"calc(100vh - 200px)",minHeight:120}}
               onDragOver={e=>{e.preventDefault();setDragOver(col);}}
               onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget))setDragOver(null);}}
@@ -3314,10 +3434,12 @@ function BoardView({t,data,setData,toast,currentUser}){
                     );
                   }
                   if(item.type==="bucketSep"){
+                    const doneBucketColor={Today:t.lime,Yesterday:t.green,"This Week":t.textMid,Earlier:t.textMuted,"No Date":t.textMuted};
+                    const bColor=item.isDone?(doneBucketColor[item.label]||t.textMuted):t.textMuted;
                     return(
                       <div key={item.key} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 4px 2px"}}>
-                        <span style={{fontSize:9,fontWeight:600,color:t.textMuted,letterSpacing:"0.05em"}}>{item.label}</span>
-                        <div style={{flex:1,height:1,background:t.border,opacity:0.4}}/>
+                        <span style={{fontSize:9,fontWeight:600,color:bColor,letterSpacing:"0.05em"}}>{item.label}</span>
+                        <div style={{flex:1,height:1,background:bColor,opacity:0.4}}/>
                       </div>
                     );
                   }
@@ -3332,7 +3454,10 @@ function BoardView({t,data,setData,toast,currentUser}){
                         onDragEnd={()=>{setDragId(null);setDragOver(null);setDragTarget(null);}}
                         onDragOver={e=>{e.preventDefault();e.stopPropagation();if(dragId&&dragId!==task.id)setDragTarget({col,taskId:task.id});}}
                         onClick={()=>setSel(task)}
-                        style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:10,padding:"11px 13px",cursor:"grab",userSelect:"none",boxShadow:dragId===task.id?"0 10px 28px rgba(0,0,0,0.22)":t.cardShadow,border:`1px solid ${t.dark?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.06)"}`,opacity:dragId===task.id?0.4:1,transition:"box-shadow .15s,transform .15s,opacity .15s",marginBottom:7}}
+                        onTouchStart={e=>{e.stopPropagation();setDragId(task.id);e.currentTarget.style.opacity="0.5";e.currentTarget.style.transform="scale(1.02)";}}
+                        onTouchMove={e=>{e.preventDefault();const touch=e.touches[0];const el=document.elementFromPoint(touch.clientX,touch.clientY);if(el){const c=el.closest("[data-col]");if(c)setDragOver(c.getAttribute("data-col"));}}}
+                        onTouchEnd={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="none";const touch=e.changedTouches[0];const el=document.elementFromPoint(touch.clientX,touch.clientY);if(el&&dragId){const c=el.closest("[data-col]");if(c)move(dragId,c.getAttribute("data-col"));}setDragId(null);setDragOver(null);}}
+                        style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:10,padding:"11px 13px",cursor:"grab",userSelect:"none",touchAction:"none",boxShadow:dragId===task.id?"0 10px 28px rgba(0,0,0,0.22)":t.cardShadow,border:`1px solid ${t.dark?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.06)"}`,opacity:dragId===task.id?0.4:1,transition:"box-shadow .15s,transform .15s,opacity .15s",marginBottom:7}}
                         onMouseEnter={e=>{e.currentTarget.style.boxShadow=t.cardShadowHover;e.currentTarget.style.transform="translateY(-2px)";}}
                         onMouseLeave={e=>{e.currentTarget.style.boxShadow=t.cardShadow;e.currentTarget.style.transform="none";}}>
                         {/* Priority chip + due */}
@@ -3404,18 +3529,12 @@ function BoardView({t,data,setData,toast,currentUser}){
           {/* Move status */}
           <div style={{borderTop:`1px solid ${t.border}`,paddingTop:14,marginBottom:14}}>
             <div style={{fontSize:11,fontWeight:700,color:t.textMuted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:9}}>Move to</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {COLS_BOARD.map(st=>{
-                const bcfg={activeColor:"#60A5FA",activeBg:"#1D4ED825",activeBorder:"#3B82F6",inactiveColor:"#4A90D9",inactiveBorder:"#3B82F640"};
-                const activeCols={"Not Started":{activeColor:t.textMid,activeBg:t.hover,activeBorder:t.borderMid},"In Progress":{activeColor:"#60A5FA",activeBg:"#1D4ED825",activeBorder:"#3B82F6"},"Review":{activeColor:"#FBB040",activeBg:"#92400E25",activeBorder:"#F59E0B"},"Rework":{activeColor:"#A78BFA",activeBg:"#4C1D9525",activeBorder:"#A78BFA"},"Completed":{activeColor:"#4ADE80",activeBg:"#14532D25",activeBorder:"#22C55E"}};
-                const inactiveCols={"Not Started":{inactiveColor:t.textMuted,inactiveBorder:t.border},"In Progress":{inactiveColor:"#4A90D9",inactiveBorder:"#3B82F640"},"Review":{inactiveColor:"#C8913A",inactiveBorder:"#F59E0B40"},"Rework":{inactiveColor:"#8B6FD4",inactiveBorder:"#A78BFA40"},"Completed":{inactiveColor:"#3AAD60",inactiveBorder:"#22C55E40"}};
-                const ac=activeCols[st]||{activeColor:t.lime,activeBg:t.limeBg,activeBorder:t.lime};
-                const ic=inactiveCols[st]||{inactiveColor:t.textMuted,inactiveBorder:t.border};
-                const active=taskForSel.status===st;
-                return <button key={st} onClick={()=>{move(taskForSel.id,st);if(st!=="Review")setSel(p=>({...p,status:st}));}}
-                  style={{padding:"6px 13px",borderRadius:8,border:`1.5px solid ${active?ac.activeBorder:ic.inactiveBorder}`,background:active?ac.activeBg:t.surfaceAlt,color:active?ac.activeColor:ic.inactiveColor,fontSize:12,fontWeight:active?700:500,cursor:"pointer",transition:"all .15s"}}>{active&&<Check size={10}/>} {st}</button>;
-              })}
-            </div>
+            <ChipSelector
+              value={taskForSel.status}
+              onChange={st=>{move(taskForSel.id,st);if(st!=="Review")setSel(p=>({...p,status:st}));}}
+              t={t}
+              options={COLS_BOARD.map(s=>({id:s,label:s,activeColor:{"Not Started":t.textMid,"In Progress":"#60A5FA","Review":"#FBB040","Rework":"#A78BFA","Completed":"#4ADE80"}[s]||t.lime}))}
+            />
           </div>
           {/* Comments */}
           <div style={{borderTop:`1px solid ${t.border}`,paddingTop:14}}>
@@ -3528,13 +3647,37 @@ function MyTasks({t,currentUser,toast}){
     if(diff<=30)return"Upcoming";
     return"Later";
   };
+  const mtGetCompletedBucket=dStr=>{
+    if(!dStr)return"No Date";
+    const d=new Date(dStr),now=new Date();
+    const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    const dDay=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+    const diff=(today-dDay)/(1000*60*60*24);
+    if(diff===0)return"Today";
+    if(diff===1)return"Yesterday";
+    if(diff<=7)return"This Week";
+    return"Earlier";
+  };
+  const MT_DONE_BUCKET_ORDER=["Today","Yesterday","This Week","Earlier","No Date"];
   const mtPrioRank=p=>({Urgent:0,High:1,Medium:2,Low:3}[p]??4);
 
   // builds a grouped flat list for a column: [{type:"bucketSep",bucket},{type:"task",task}]
-  const mtBuildGrouped=(colTasks,colOrder)=>{
+  const mtBuildGrouped=(colTasks,colOrder,col)=>{
+    const isDone=col==="Done";
     const ordered=colOrder?.length
       ?[...colTasks].sort((a,b)=>{const ai=colOrder.indexOf(a.id),bi=colOrder.indexOf(b.id);return(ai===-1?999:ai)-(bi===-1?999:bi)})
       :[...colTasks];
+    if(isDone){
+      const buckets={};
+      ordered.forEach(tk=>{const b=mtGetCompletedBucket(tk.completedAt);(buckets[b]=buckets[b]||[]).push(tk);});
+      const out=[];
+      MT_DONE_BUCKET_ORDER.forEach(b=>{
+        if(!buckets[b]?.length)return;
+        out.push({type:"bucketSep",bucket:b,isDone:true});
+        buckets[b].forEach(tk=>out.push({type:"task",task:tk}));
+      });
+      return out;
+    }
     const buckets={};
     ordered.forEach(tk=>{const b=mtGetBucket(tk.due);(buckets[b]=buckets[b]||[]).push(tk);});
     Object.keys(buckets).forEach(b=>buckets[b].sort((a,z)=>{const da=a.due?new Date(a.due).getTime():Infinity,dz=z.due?new Date(z.due).getTime():Infinity;return da!==dz?da-dz:mtPrioRank(a.priority)-mtPrioRank(z.priority);}));
@@ -3578,9 +3721,11 @@ function MyTasks({t,currentUser,toast}){
   };
 
   const moveTask=async(taskId,newStatus)=>{
-    await updateDoc_(COLS.MYTASKS,taskId,{status:newStatus});
-    setTasks(p=>p.map(tk=>tk.id===taskId?{...tk,status:newStatus}:tk));
-    if(sel?.id===taskId)setSel(p=>({...p,status:newStatus}));
+    const updates={status:newStatus};
+    if(newStatus==="Done")updates.completedAt=new Date().toISOString();
+    await updateDoc_(COLS.MYTASKS,taskId,updates);
+    setTasks(p=>p.map(tk=>tk.id===taskId?{...tk,...updates}:tk));
+    if(sel?.id===taskId)setSel(p=>({...p,...updates}));
   };
 
   const saveEdit=async()=>{
@@ -3633,10 +3778,10 @@ function MyTasks({t,currentUser,toast}){
             const colTasks=tasks.filter(tk=>tk.status===col);
             const isOver=dragOver===col;
             const colAccent=MT_COL_BORDER[col];
-            const grouped=mtBuildGrouped(colTasks,colOrder[col]);
-            const bucketAccent={Overdue:t.red,"Due Today":t.amber,"This Week":t.blue,Upcoming:t.textMid,Later:t.textMuted,"No Deadline":t.textMuted};
+            const grouped=mtBuildGrouped(colTasks,colOrder[col],col);
+            const bucketAccent={Overdue:t.red,"Due Today":t.amber,Upcoming:t.textMid,Later:t.textMuted,"No Deadline":t.textMuted,Today:t.lime,Yesterday:t.green,"This Week":col==="Done"?t.textMid:t.blue,Earlier:t.textMuted,"No Date":t.textMuted};
             return(
-              <div key={col}
+              <div key={col} data-col={col}
                 style={{width:280,flexShrink:0,display:"flex",flexDirection:"column",borderRadius:14,background:isOver?(t.dark?`${colAccent}14`:`${colAccent}0c`):t.dark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.025)",border:`1.5px solid ${isOver?colAccent+"55":t.border}`,transition:"background .18s,border-color .18s",animation:`fadeUp .32s ease ${ci*55}ms both`,minHeight:120}}
                 onDragOver={e=>{e.preventDefault();setDragOver(col);}}
                 onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget)){setDragOver(null);setDragTarget(null);}}}
@@ -3684,7 +3829,10 @@ function MyTasks({t,currentUser,toast}){
                           onDragEnd={()=>{setDragId(null);setDragOver(null);setDragTarget(null);}}
                           onDragOver={e=>{e.preventDefault();e.stopPropagation();if(dragId&&dragId!==task.id)setDragTarget({col,taskId:task.id});}}
                           onClick={()=>{setSel(task);setEditMode(false);}}
-                          style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:10,padding:"11px 13px",cursor:"grab",userSelect:"none",boxShadow:dragId===task.id?"0 10px 28px rgba(0,0,0,0.22)":t.cardShadow,border:`1px solid ${t.dark?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.06)"}`,opacity:dragId===task.id?0.4:1,transition:"box-shadow .15s,transform .15s,opacity .15s",marginBottom:3}}
+                          onTouchStart={e=>{e.stopPropagation();setDragId(task.id);e.currentTarget.style.opacity="0.5";e.currentTarget.style.transform="scale(1.02)";}}
+                          onTouchMove={e=>{e.preventDefault();const touch=e.touches[0];const el=document.elementFromPoint(touch.clientX,touch.clientY);if(el){const c=el.closest("[data-col]");if(c)setDragOver(c.getAttribute("data-col"));}}}
+                          onTouchEnd={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="none";const touch=e.changedTouches[0];const el=document.elementFromPoint(touch.clientX,touch.clientY);if(el&&dragId){const c=el.closest("[data-col]");if(c)moveTask(dragId,c.getAttribute("data-col"));}setDragId(null);setDragOver(null);}}
+                          style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:10,padding:"11px 13px",cursor:"grab",userSelect:"none",touchAction:"none",boxShadow:dragId===task.id?"0 10px 28px rgba(0,0,0,0.22)":t.cardShadow,border:`1px solid ${t.dark?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.06)"}`,opacity:dragId===task.id?0.4:1,transition:"box-shadow .15s,transform .15s,opacity .15s",marginBottom:3}}
                           onMouseEnter={e=>{e.currentTarget.style.boxShadow=t.cardShadowHover;e.currentTarget.style.transform="translateY(-2px)";}}
                           onMouseLeave={e=>{e.currentTarget.style.boxShadow=t.cardShadow;e.currentTarget.style.transform="none";}}>
                           <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:6,lineHeight:1.4,letterSpacing:"-0.01em"}}>{task.title}</div>
@@ -3771,16 +3919,16 @@ function MyTasks({t,currentUser,toast}){
               {/* Move to */}
               <div style={{borderTop:`1px solid ${t.border}`,paddingTop:14,marginBottom:14}}>
                 <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:t.textMuted,marginBottom:9}}>Move to</div>
-                <div style={{display:"flex",gap:6}}>
-                  {MT_COLS.map(st=>{
-                    const active=sel.status===st;
-                    const clr=MT_COL_BORDER[st];
-                    return <button key={st} onClick={()=>moveTask(sel.id,st)}
-                      style={{padding:"5px 13px",borderRadius:4,border:`1.5px solid ${active?clr:t.border}`,background:active?clr+"22":t.surfaceAlt,color:active?MT_COL_LABEL[st]:t.textMuted,fontSize:11,fontWeight:active?700:500,cursor:"pointer",transition:"all .14s",display:"flex",alignItems:"center",gap:5}}>
-                      {active&&<Check size={10}/>}{st}
-                    </button>;
-                  })}
-                </div>
+                <ChipSelector
+                  value={sel.status}
+                  onChange={st=>moveTask(sel.id,st)}
+                  t={t}
+                  options={[
+                    {id:"Todo",label:"Todo",activeColor:MT_COL_BORDER["Todo"]},
+                    {id:"In Progress",label:"In Progress",activeColor:MT_COL_BORDER["In Progress"]},
+                    {id:"Done",label:"Done",activeColor:MT_COL_BORDER["Done"]},
+                  ]}
+                />
               </div>
               <div style={{display:"flex",gap:8,justifyContent:"space-between",alignItems:"center"}}>
                 <Btn v="danger" t={t} onClick={()=>deleteTask(sel.id)} icon={<Trash2 size={12}/>}>Delete</Btn>
@@ -3799,6 +3947,7 @@ function ClientBoard({t,data,setData,toast,currentUser}){
   const [sel,setSel]=useState(null);
   const [dragId,setDragId]=useState(null);
   const [dragClient,setDragClient]=useState(null);
+  const [dragOver,setDragOver]=useState(null);
   const STATUSES=["Not Started","In Progress","Review","Rework","Completed"];
   const colColor={"Not Started":t.textMuted,"In Progress":t.blue,"Review":t.amber,"Rework":t.purple,"Completed":t.green};
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
@@ -3821,7 +3970,10 @@ function ClientBoard({t,data,setData,toast,currentUser}){
     <div draggable
       onDragStart={()=>{setDragId(task.id);setDragClient(task.cId||"__none__");}}
       onClick={()=>setSel(task)}
-      style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:12,padding:"11px 13px",cursor:"grab",userSelect:"none",boxShadow:"0 1px 3px rgba(0,0,0,0.07)",border:`1px solid ${t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)"}`,transition:"box-shadow .15s,transform .15s",marginBottom:7}}
+      onTouchStart={e=>{e.stopPropagation();setDragId(task.id);setDragClient(task.cId||"__none__");e.currentTarget.style.opacity="0.5";e.currentTarget.style.transform="scale(1.02)";}}
+      onTouchMove={e=>{e.preventDefault();const touch=e.touches[0];const el=document.elementFromPoint(touch.clientX,touch.clientY);if(el){const c=el.closest("[data-col]");if(c)setDragOver(c.getAttribute("data-col"));}}}
+      onTouchEnd={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="none";const touch=e.changedTouches[0];const el=document.elementFromPoint(touch.clientX,touch.clientY);if(el&&dragId){const c=el.closest("[data-col]");if(c)moveTask(dragId,c.getAttribute("data-col"));}setDragId(null);setDragClient(null);}}
+      style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:12,padding:"11px 13px",cursor:"grab",userSelect:"none",touchAction:"none",boxShadow:"0 1px 3px rgba(0,0,0,0.07)",border:`1px solid ${t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)"}`,transition:"box-shadow .15s,transform .15s",marginBottom:7}}
       onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 4px 14px rgba(0,0,0,0.1)";e.currentTarget.style.transform="translateY(-1px)";}}
       onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.07)";e.currentTarget.style.transform="none";}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
@@ -3881,7 +4033,7 @@ function ClientBoard({t,data,setData,toast,currentUser}){
             {byStatus.map(({st,tasks:stTasks})=>{
               const stBorder={"Not Started":"#454747","In Progress":"#3b82f6","Review":"#f59e0b","Rework":"#a855f7","Completed":"#22c55e"}[st]||"#454747";
               return(
-              <div key={st}
+              <div key={st} data-col={st}
                 style={{width:236,flexShrink:0,display:"flex",flexDirection:"column",borderRadius:12,background:t.dark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.025)",border:`1.5px solid ${t.border}`,transition:"border-color .15s,background .15s"}}
                 onDragOver={e=>e.preventDefault()}
                 onDrop={e=>{e.preventDefault();if(dragId&&dragClient===(client.id||"__none__"))moveTask(dragId,st);setDragId(null);setDragClient(null);}}>
@@ -3961,6 +4113,7 @@ function AllotedBoard({t,data,setData,toast,currentUser}){
   const [sel,setSel]=useState(null);
   const [dragId,setDragId]=useState(null);
   const [dragAssignee,setDragAssignee]=useState(null);
+  const [dragOver,setDragOver]=useState(null);
   const STATUSES=["Not Started","In Progress","Review","Rework","Completed"];
   const colColor={"Not Started":t.textMuted,"In Progress":t.blue,"Review":t.amber,"Rework":t.purple,"Completed":t.green};
   const uName=id=>data.users.find(u=>u.id===id)?.name||"—";
@@ -3991,7 +4144,10 @@ function AllotedBoard({t,data,setData,toast,currentUser}){
     <div draggable
       onDragStart={()=>{setDragId(task.id);setDragAssignee(task.aId);}}
       onClick={()=>setSel(task)}
-      style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:12,padding:"11px 13px",cursor:"grab",userSelect:"none",boxShadow:"0 1px 3px rgba(0,0,0,0.07)",border:`1px solid ${t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)"}`,transition:"box-shadow .15s,transform .15s",marginBottom:7}}
+      onTouchStart={e=>{e.stopPropagation();setDragId(task.id);setDragAssignee(task.aId);e.currentTarget.style.opacity="0.5";e.currentTarget.style.transform="scale(1.02)";}}
+      onTouchMove={e=>{e.preventDefault();const touch=e.touches[0];const el=document.elementFromPoint(touch.clientX,touch.clientY);if(el){const c=el.closest("[data-col]");if(c)setDragOver(c.getAttribute("data-col"));}}}
+      onTouchEnd={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="none";const touch=e.changedTouches[0];const el=document.elementFromPoint(touch.clientX,touch.clientY);if(el&&dragId){const c=el.closest("[data-col]");if(c)moveTask(dragId,c.getAttribute("data-col"));}setDragId(null);setDragAssignee(null);}}
+      style={{background:t.dark?"#1e1f1c":"#ffffff",borderRadius:12,padding:"11px 13px",cursor:"grab",userSelect:"none",touchAction:"none",boxShadow:"0 1px 3px rgba(0,0,0,0.07)",border:`1px solid ${t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)"}`,transition:"box-shadow .15s,transform .15s",marginBottom:7}}
       onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 4px 14px rgba(0,0,0,0.1)";e.currentTarget.style.transform="translateY(-1px)";}}
       onMouseLeave={e=>{e.currentTarget.style.boxShadow="none";e.currentTarget.style.transform="none";}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
@@ -4050,7 +4206,7 @@ function AllotedBoard({t,data,setData,toast,currentUser}){
             {byStatus.map(({st,tasks:stTasks})=>{
               const stBorder={"Not Started":"#454747","In Progress":"#3b82f6","Review":"#f59e0b","Rework":"#a855f7","Completed":"#22c55e"}[st]||"#454747";
               return(
-              <div key={st}
+              <div key={st} data-col={st}
                 style={{width:236,flexShrink:0,display:"flex",flexDirection:"column",borderRadius:12,background:t.dark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.025)",border:`1.5px solid ${t.border}`,transition:"border-color .15s,background .15s"}}
                 onDragOver={e=>e.preventDefault()}
                 onDrop={e=>{e.preventDefault();if(dragId&&dragAssignee===user.id)moveTask(dragId,st);setDragId(null);setDragAssignee(null);}}>
